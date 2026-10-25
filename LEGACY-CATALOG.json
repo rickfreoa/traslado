@@ -1,0 +1,894 @@
+{
+  "5.5.0": [
+    {
+      "path": "00-INSTALAR.ps1",
+      "sha256": "2b671da81eef309c23ec1c0fb8ede60a5a8e659a43d29d328fc1cada02cc130b"
+    },
+    {
+      "path": "01-ABRIR-APP.ps1",
+      "sha256": "b97fe7a48b1f6be8e398d83fe33f969d79c81e7fbc8e9d2c289bf27ace02fce0"
+    },
+    {
+      "path": "01-CONVERTER.ps1",
+      "sha256": "2805d26f0c4ab32a068c26d8e866e8d54bfe694e66906dd21032668a7b97055c"
+    },
+    {
+      "path": "03-TESTE-RAPIDO.ps1",
+      "sha256": "59e4bc19fe3eefbb646fb6a14a80b1b0ce132a266e203d67ec3d5bc183dc37b5"
+    },
+    {
+      "path": "ABRIR_APP_WINDOWS.bat",
+      "sha256": "01aee33f626e5e65a017566d81b52c728cb863c219956001e5a5617f3240bc5f"
+    },
+    {
+      "path": "config.example.yaml",
+      "sha256": "cc4bf8134c9610280e20970ad64420ca698cf55c2d58699d4c691678310e6932"
+    },
+    {
+      "path": "COPIAR_E_COLAR_NO_POWERSHELL.txt",
+      "sha256": "cc85c945fa74a6d76a16c0864cc140fb8a1c4607216b990f6d8cc626a9406e07"
+    },
+    {
+      "path": "COPIAR_E_COLAR_NO_POWERSHELL_APP.txt",
+      "sha256": "01c3571afb22eab32f8b88a989007479d6d25e8bc0ea63cb8e783fd1fa07cb52"
+    },
+    {
+      "path": "CORRECAO_ERRO_MARKITDOWN_WINDOWS.md",
+      "sha256": "f5056f3c196d1777849418454a98b97507e8ef7a5a4f31f35734dfaf18b8bf19"
+    },
+    {
+      "path": "CORRECAO_ERRO_PYTHON_WINDOWS.md",
+      "sha256": "d79eaaf89a1df2fcd4bf89ff02138fc7cbd97e72f2750b3d2d1c4aa49e1281c4"
+    },
+    {
+      "path": "CORRECAO_ERRO_WERSHELL_WINDOWS.md",
+      "sha256": "22a56f3c923608f17e72a16ad8f8338665e4cec4ab0cec3c4649c2e2521a5caa"
+    },
+    {
+      "path": "CRIAR_ATALHO_DESKTOP.bat",
+      "sha256": "9847b28378c53207f812e60dc3e7308b1ea895a98f2fde3d36e6ffce8d4932db"
+    },
+    {
+      "path": "CRIAR_ATALHO_DESKTOP.ps1",
+      "sha256": "cb45b93c0f052f5e5f58464277f819f4bb6a2b4749562ebf8ed134a402da89f9"
+    },
+    {
+      "path": "INSTALAR_APP_WINDOWS.bat",
+      "sha256": "af14fcf46dc8fd5655ac908ffc6e73a1f765480736af6842f991b2d3dd944ef6"
+    },
+    {
+      "path": "INSTALAR_APP_WINDOWS.ps1",
+      "sha256": "5883ba3aaac28f864f4525385da3acd5b5ec9f33551cbec33c4e006e9a8f7160"
+    },
+    {
+      "path": "NOTAS-DA-VERSAO-5.5.0.md",
+      "sha256": "93973cfe0f2dc0aa024a7927461c7e214ae6e6a5a7f28c3c2547a1f0635e8911"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "b35642580d8d7549cba9aadb1afb456421e6307dd604aaa0b2963530f8973f6c"
+    },
+    {
+      "path": "README.md",
+      "sha256": "4bda066aef8d4c34e6df270cf240b4ed62da4134cfe2737f30a6931e70819157"
+    },
+    {
+      "path": "REPARAR_INSTALACAO_WINDOWS.bat",
+      "sha256": "3c5f590f361d391ba85a39353269f62a287edc9a58ded122b5d9e860ebd7ed59"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "5b1df12ac12eb396f56f39cb17124ef502331e63cf1f1df028d1d50fd376e279"
+    },
+    {
+      "path": "VALIDACAO.md",
+      "sha256": "616e428b4d98f0aa369c516f1314b66d18a432a65e5432bb8288fc8e0b40301d"
+    },
+    {
+      "path": "examples/freoa-md.yaml",
+      "sha256": "e108f21a44f3a128098459812dd4ebd402766ad0c8039b48ed031056ffaa6f3d"
+    },
+    {
+      "path": "manual/MANUAL_APP_WINDOWS.md",
+      "sha256": "ca05f99c3011986b5cb19c11b1652018c11d9e7673951aa687c52c639b118039"
+    },
+    {
+      "path": "manual/MANUAL_WINDOWS_POWERSHELL.md",
+      "sha256": "3f0e8ee28a0a47a113c4ffe603cc1a55b372863ca063ee1cc9ba5dae25e9112a"
+    },
+    {
+      "path": "scripts/convertir-pasta-exemplo.bat",
+      "sha256": "3ff08cb609390e66b4ecad325aef9efee8eb221b3cfc274cfcc2d54d4126ec39"
+    },
+    {
+      "path": "tests/test_output_paths.py",
+      "sha256": "ceb7236533278797ab7540e733e0a6d34f2f081121a8b6ee4a9e181c621785ea"
+    },
+    {
+      "path": "tests/test_v54_pdf_routing.py",
+      "sha256": "a34d54e5903f73e01ff3cab0ae9794bb16fe7d6d43ceb09ebdb10b746ac25b6f"
+    },
+    {
+      "path": "tests/test_v55_regressions.py",
+      "sha256": "325e51f70046d0539e4e84fbb6168a7b4996b98c5ece0ee93166639101aad4bb"
+    },
+    {
+      "path": "src/freoa_md/chunker.py",
+      "sha256": "ca9ffd78cdffd4f8e3e35dcf79ee86ecbc5d39c2d5516f993e2a8bea11c8e5ab"
+    },
+    {
+      "path": "src/freoa_md/cli.py",
+      "sha256": "8872c3e97e8fd261b60cababfc1da715f9204b52a0ef148f3b97834cc1e35005"
+    },
+    {
+      "path": "src/freoa_md/config.py",
+      "sha256": "34a35a47f30f250e637e025653343772bb5ae1cfa0f267532ab21142dd2ac826"
+    },
+    {
+      "path": "src/freoa_md/converter.py",
+      "sha256": "8dcb0e9cb9c5aad3a6293116f2ac61b545c75868516e0183294e11f77ab2ba4d"
+    },
+    {
+      "path": "src/freoa_md/gui.py",
+      "sha256": "7a6353d59ea741ec2a95d71030c588073910064d04094015a71c39202a507360"
+    },
+    {
+      "path": "src/freoa_md/markdown_cleaner.py",
+      "sha256": "4062dabb71ffd7d9854c51177b126a98044d49ec0b53c7db324ad058762a0e94"
+    },
+    {
+      "path": "src/freoa_md/metadata.py",
+      "sha256": "4385736a4ab37b8ea7b5623a71ba6af370178aeeb8b320e3725f6bd6fb64de7e"
+    },
+    {
+      "path": "src/freoa_md/utils.py",
+      "sha256": "88a6c1475f0073017748c71d001305e074698e8c0fc18ba9155b9aeafc3f7df5"
+    },
+    {
+      "path": "src/freoa_md/__init__.py",
+      "sha256": "cc54c795d06647945e882dee499f159193848abb6cabf97a41b509611047953b"
+    },
+    {
+      "path": "src/freoa_md/__main__.py",
+      "sha256": "3129adff95e0f38b87ab34cddfc27082c7892bcaec267ff5d40f160fdf55b44a"
+    }
+  ],
+  "6.0.0rc1": [
+    {
+      "path": "ABRIR.bat",
+      "sha256": "f71535e3ecc1a434419c071361e092fc074a553d0654016bd93f029d409ad32f"
+    },
+    {
+      "path": "INSTALAR.bat",
+      "sha256": "d233073634901fa09aecc3ec344cb3a3dc750c2319901348c3db0155dedbccf2"
+    },
+    {
+      "path": "INSTALAR.ps1",
+      "sha256": "f55cc24f9c9fbd19ed4168f77dd2c644e359826ae2fa2fcbc85cd70f88c5ddb2"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "08a613e915b6d29904384975abfd4b91666b2603f9d3d8de112f99511b4ccf9e"
+    },
+    {
+      "path": "tests/test_acceptance.py",
+      "sha256": "e77ca642acbedc7ee56d4433b31733a1cfeb15b0d24fd93e1c722428aa98de4b"
+    },
+    {
+      "path": "tests/test_boundaries.py",
+      "sha256": "7a951718ba93ddb49880bdfe88891be2e4b6ce1684429754898bc38379f3ae18"
+    },
+    {
+      "path": "src/freoa_v6/advanced.py",
+      "sha256": "5efdf19a797579339ea8dbeed7ed37e9b5ccc0161bed31629f08c293409acb3d"
+    },
+    {
+      "path": "src/freoa_v6/cli.py",
+      "sha256": "d8147ea4cf0aee3436427c5cbf6e33b0e6e48dd991dce06685d34627f1ea127e"
+    },
+    {
+      "path": "src/freoa_v6/doctor.py",
+      "sha256": "a2ed3fba10f6be6a22a48a6bffd5cb0ef986df661102657dacf6c3fa4386b83e"
+    },
+    {
+      "path": "src/freoa_v6/formats.py",
+      "sha256": "173cc3b0f0baedb7bc8d75da32ca2b6cea4863c1ffc9d87e0feb3005c073f69b"
+    },
+    {
+      "path": "src/freoa_v6/gui.py",
+      "sha256": "c31d96b908adcd7cee921a74115c3519eae2a560a8da8020b2b7b065a2f3019c"
+    },
+    {
+      "path": "src/freoa_v6/model.py",
+      "sha256": "a9dac47dc6d0b686cddf2e0165c45c8e51d46a2713a0744b4f66c23457252652"
+    },
+    {
+      "path": "src/freoa_v6/ocr.py",
+      "sha256": "e41447481cf9dbbc22159530628acaeb202ae1333b1ccc7f0daffe55c9667b87"
+    },
+    {
+      "path": "src/freoa_v6/pdf.py",
+      "sha256": "e08a647841937e55ccbf22bec944570db91fcc61e1b5a93339d7bcd456747774"
+    },
+    {
+      "path": "src/freoa_v6/render.py",
+      "sha256": "649768b17831c99dbdce2abcbf3ea9117f91baa6d47e0afd767d5e06fa420f69"
+    },
+    {
+      "path": "src/freoa_v6/runner.py",
+      "sha256": "f0609f03d30b3d0595e040358a9099760d79952ee064a138f4b508ecc49d828f"
+    },
+    {
+      "path": "src/freoa_v6/safety.py",
+      "sha256": "30649e54cde01770504f6d1becb7243d679242c7618a89db6c9c82b48bc8fe05"
+    },
+    {
+      "path": "src/freoa_v6/windows_job.py",
+      "sha256": "fffaa048dd01f8ff1b39a597c33bbc76bae10cafaff2f4a8f421d4e7337328c3"
+    },
+    {
+      "path": "src/freoa_v6/worker.py",
+      "sha256": "c930bcd49e54e23657c40a3095c9165c9881079bbed00ff8e1bcef2eadaa5e73"
+    },
+    {
+      "path": "src/freoa_v6/__init__.py",
+      "sha256": "b7bfcb4e67e03e636b5fdd032f66adf47798e279e93dca8d2ec386d32a033f3d"
+    },
+    {
+      "path": "src/freoa_v6/__main__.py",
+      "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+    }
+  ],
+  "6.0.0rc2": [
+    {
+      "path": "ABRIR.bat",
+      "sha256": "f71535e3ecc1a434419c071361e092fc074a553d0654016bd93f029d409ad32f"
+    },
+    {
+      "path": "INSTALAR.bat",
+      "sha256": "d233073634901fa09aecc3ec344cb3a3dc750c2319901348c3db0155dedbccf2"
+    },
+    {
+      "path": "INSTALAR.ps1",
+      "sha256": "8f252ef178150959cfebc61d946b2ce8285827e6c0a71f7b484dc8c453c0a91f"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "47b8968704597c7788cfc04d72d1b259e0d50c952a8aa4680f297eb3c0f9047d"
+    },
+    {
+      "path": "tests/test_acceptance.py",
+      "sha256": "e77ca642acbedc7ee56d4433b31733a1cfeb15b0d24fd93e1c722428aa98de4b"
+    },
+    {
+      "path": "tests/test_advanced_rc2.py",
+      "sha256": "62f1bd8b9f479bcca2e44f5c3a72b5b84b4e9219a1867af9e1292ace447fcd42"
+    },
+    {
+      "path": "tests/test_boundaries.py",
+      "sha256": "952ea789e99b02746c39b99d8d81cf835a09c1d060c506f363ba071a971d01bf"
+    },
+    {
+      "path": "tests/test_cli_rc2.py",
+      "sha256": "aaff4493778bcc8c90f8cde2e5ad7bf1d71d307247f3f7f0cc7aa2fd76045c21"
+    },
+    {
+      "path": "tests/test_document_warnings_rc2.py",
+      "sha256": "f4c47e47eaeedc5c80d7460ef4dcc4a0025125b0ced4a5c42657636c35ea4e9b"
+    },
+    {
+      "path": "tests/test_fidelity_rc2.py",
+      "sha256": "8fd215ec02d9a76b1f2fe17e7968a3b43cc8aea61bfe565a374d0e52e6692a9b"
+    },
+    {
+      "path": "tests/test_gui_rc2.py",
+      "sha256": "29d2ac36b6524a298a1b160eb0d17697f5a3d534437e918d2724bed5f146ede6"
+    },
+    {
+      "path": "tests/test_integrity_rc2.py",
+      "sha256": "1c2284bef4558d719c6ba96eb4c70b46315f6dd9c464a32b7d9f8cf8abfb80db"
+    },
+    {
+      "path": "src/freoa_v6/advanced.py",
+      "sha256": "9b5f0e4cb4dcb90421f5634cf2b99fed9975a8eed6845773dcdb1b9679438356"
+    },
+    {
+      "path": "src/freoa_v6/cli.py",
+      "sha256": "0d68abc5693d7920b9a72fc4f99f658c62cd6e06ffbbf1b26393118a75524ef3"
+    },
+    {
+      "path": "src/freoa_v6/doctor.py",
+      "sha256": "a2ed3fba10f6be6a22a48a6bffd5cb0ef986df661102657dacf6c3fa4386b83e"
+    },
+    {
+      "path": "src/freoa_v6/formats.py",
+      "sha256": "9e11a7f4e5180da050f44d41cd13375d8da837e3cea385bc08bdf1d66b199031"
+    },
+    {
+      "path": "src/freoa_v6/gui.py",
+      "sha256": "ce3361835a8f2d97b37c78294ce7fc3e722c736683b0837574fb2377c85f7dae"
+    },
+    {
+      "path": "src/freoa_v6/model.py",
+      "sha256": "7faf6f62b8d0b270059fff8cc7dcef6aec8e4ca17ae53aa1542747af8bd050ac"
+    },
+    {
+      "path": "src/freoa_v6/ocr.py",
+      "sha256": "e41447481cf9dbbc22159530628acaeb202ae1333b1ccc7f0daffe55c9667b87"
+    },
+    {
+      "path": "src/freoa_v6/pdf.py",
+      "sha256": "d705d0c76b9c4ff80dbaac2eb249e40677ff0d39409589040db445deb5608347"
+    },
+    {
+      "path": "src/freoa_v6/render.py",
+      "sha256": "be85d8c4e985c2a788b09b63bd4ac296a7329a5d972af90e291e140ebd64beed"
+    },
+    {
+      "path": "src/freoa_v6/runner.py",
+      "sha256": "2923e225fd41718746a4e1b7f364b0925fcb1eba11e580dbbc545c6bc75c2e59"
+    },
+    {
+      "path": "src/freoa_v6/safety.py",
+      "sha256": "fca6da63adf10699d529d0cb71d75c15d0e84730c2e78e4bbb2e5518f395cbd3"
+    },
+    {
+      "path": "src/freoa_v6/windows_job.py",
+      "sha256": "fffaa048dd01f8ff1b39a597c33bbc76bae10cafaff2f4a8f421d4e7337328c3"
+    },
+    {
+      "path": "src/freoa_v6/worker.py",
+      "sha256": "13655cb36f7f69bf6e42ba7bde0b876eb0c4c5a0a4e282350e582f8e5a4409bd"
+    },
+    {
+      "path": "src/freoa_v6/__init__.py",
+      "sha256": "6a50dca9f54a523dc8b38b546a4649bdd1dab15044fe0ef35fa4947a5f36c906"
+    },
+    {
+      "path": "src/freoa_v6/__main__.py",
+      "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+    }
+  ],
+  "6.0.0rc3": [
+    {
+      "path": "ABRIR.bat",
+      "sha256": "405f486492dcb2819d51c271155271b273f740e6638cf23dabcc408a733d75c5"
+    },
+    {
+      "path": "ABRIR.ps1",
+      "sha256": "a0b8652fb62839e66fdd2843ea969c6aabe9780eecc9d38cc7bff030d10612b5"
+    },
+    {
+      "path": "INSTALAR.bat",
+      "sha256": "cfe6e313dcba553b42f92e858094d5034c36b7ef8a59b498a069cd8fa1116c57"
+    },
+    {
+      "path": "INSTALAR.ps1",
+      "sha256": "3564261a07c8e002a07afff0d4faef7c787846ceeca505893ea47b51408109c5"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "42a798c0620f16f8dcd48210a76fe5f3876a987bbbb08731013d32d3c1641e2d"
+    },
+    {
+      "path": "scripts/bootstrap_ocr.ps1",
+      "sha256": "961acc3c8eeb7a97231296911cbed43d177d13c52d3844c9a4e6feedd2f39042"
+    },
+    {
+      "path": "scripts/install_windows.py",
+      "sha256": "f29a70719c90b04350717a8788659f3e326a043905a76202e6aaa9a1123766be"
+    },
+    {
+      "path": "scripts/installation_processes.ps1",
+      "sha256": "9328e98bd0ec4491144ce3d238e280c7a90b4e5438cb80fa0f3dd8063b41242e"
+    },
+    {
+      "path": "scripts/shortcut_windows.ps1",
+      "sha256": "2941712afc7c2464b76c361aeb57a02368ae416366bbe5a212b34130a329ca81"
+    },
+    {
+      "path": "src/freoa_v6/__init__.py",
+      "sha256": "951fe004ea800ec8df4937a5feeb6bf2b104e88fd979fdef3ba01b92027a5e79"
+    },
+    {
+      "path": "src/freoa_v6/__main__.py",
+      "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+    },
+    {
+      "path": "src/freoa_v6/advanced.py",
+      "sha256": "35ecfb46fb6ff009936c087de2dcd11930cf7cb495ead1b9879fcc4c44010291"
+    },
+    {
+      "path": "src/freoa_v6/cli.py",
+      "sha256": "e22f1386a51f703049f6e3592f90151f9ca37d4af8d00ecdda8ef0ca7b416700"
+    },
+    {
+      "path": "src/freoa_v6/doctor.py",
+      "sha256": "4e2e7a8fdc8b60370b5ea9a5bd3080dc08c975bb6ac0275d5bc5fe4a97bb4355"
+    },
+    {
+      "path": "src/freoa_v6/formats.py",
+      "sha256": "a102e427d54d9adefda8cf1decb7a758504d7d2524953d3b70e1cc479dce3e18"
+    },
+    {
+      "path": "src/freoa_v6/gui.py",
+      "sha256": "63120de1622672400f7f128ec2e64777d420813f5a9fb30616f1d77cf2f7b2fb"
+    },
+    {
+      "path": "src/freoa_v6/model.py",
+      "sha256": "df4d74bda678bb2332fb538232f285423113d78fb8f966fdef6c47fd1968db13"
+    },
+    {
+      "path": "src/freoa_v6/ocr.py",
+      "sha256": "6ce6aa5e475e8f31341f51e8e544839263dfe813ff42b5b78f90aec2699cf092"
+    },
+    {
+      "path": "src/freoa_v6/pdf.py",
+      "sha256": "d705d0c76b9c4ff80dbaac2eb249e40677ff0d39409589040db445deb5608347"
+    },
+    {
+      "path": "src/freoa_v6/render.py",
+      "sha256": "be85d8c4e985c2a788b09b63bd4ac296a7329a5d972af90e291e140ebd64beed"
+    },
+    {
+      "path": "src/freoa_v6/runner.py",
+      "sha256": "2923e225fd41718746a4e1b7f364b0925fcb1eba11e580dbbc545c6bc75c2e59"
+    },
+    {
+      "path": "src/freoa_v6/runtime.py",
+      "sha256": "b5e29da0749224e0ffab0ee35991294b8197252aa6403be51771967201f2c45f"
+    },
+    {
+      "path": "src/freoa_v6/safety.py",
+      "sha256": "550800da617e17771742488c79a097ca7d6bafd87ac9e4d8e335436c2899107e"
+    },
+    {
+      "path": "src/freoa_v6/windows_job.py",
+      "sha256": "fffaa048dd01f8ff1b39a597c33bbc76bae10cafaff2f4a8f421d4e7337328c3"
+    },
+    {
+      "path": "src/freoa_v6/worker.py",
+      "sha256": "13655cb36f7f69bf6e42ba7bde0b876eb0c4c5a0a4e282350e582f8e5a4409bd"
+    },
+    {
+      "path": "tests/test_acceptance.py",
+      "sha256": "e77ca642acbedc7ee56d4433b31733a1cfeb15b0d24fd93e1c722428aa98de4b"
+    },
+    {
+      "path": "tests/test_advanced_rc2.py",
+      "sha256": "62f1bd8b9f479bcca2e44f5c3a72b5b84b4e9219a1867af9e1292ace447fcd42"
+    },
+    {
+      "path": "tests/test_boundaries.py",
+      "sha256": "952ea789e99b02746c39b99d8d81cf835a09c1d060c506f363ba071a971d01bf"
+    },
+    {
+      "path": "tests/test_cli_rc2.py",
+      "sha256": "aaff4493778bcc8c90f8cde2e5ad7bf1d71d307247f3f7f0cc7aa2fd76045c21"
+    },
+    {
+      "path": "tests/test_document_warnings_rc2.py",
+      "sha256": "f4c47e47eaeedc5c80d7460ef4dcc4a0025125b0ced4a5c42657636c35ea4e9b"
+    },
+    {
+      "path": "tests/test_fidelity_rc2.py",
+      "sha256": "8fd215ec02d9a76b1f2fe17e7968a3b43cc8aea61bfe565a374d0e52e6692a9b"
+    },
+    {
+      "path": "tests/test_gui_rc2.py",
+      "sha256": "29d2ac36b6524a298a1b160eb0d17697f5a3d534437e918d2724bed5f146ede6"
+    },
+    {
+      "path": "tests/test_gui_rc3.py",
+      "sha256": "a210c8aa2fbefc0260234bb2c4852a12f140f2a307e4863de576641af5a84855"
+    },
+    {
+      "path": "tests/test_installer_rc3.py",
+      "sha256": "53ab310b619e2d622cbf7e76254f06433dd207a0e24d4c518f1c25d584ac2db4"
+    },
+    {
+      "path": "tests/test_integrity_rc2.py",
+      "sha256": "1c2284bef4558d719c6ba96eb4c70b46315f6dd9c464a32b7d9f8cf8abfb80db"
+    },
+    {
+      "path": "tests/test_launcher_rc3.py",
+      "sha256": "c5ddd6127d1e7aaa22dd9d73ec3992cc76b595a74ea8bba6dfdf55e732303f8b"
+    },
+    {
+      "path": "tests/test_minor_rc3.py",
+      "sha256": "b5aa36c24db8b06839a271bf3e4769c82e832c9d7d3aa4a737effe37114b1420"
+    },
+    {
+      "path": "tests/test_ocr_bootstrap_rc3.py",
+      "sha256": "d7d946f046766722e42d338b10b9ace88f53a775a0a18d1268678784423ded5e"
+    },
+    {
+      "path": "tests/test_runtime_rc3.py",
+      "sha256": "36fd41e47edb6eff919115dc1e3cc9fe36bec22126013486b20045c68abbeb56"
+    },
+    {
+      "path": "tests/test_security_review_rc3.py",
+      "sha256": "877a286f55baa455799e83881f18282aa3e782b1e9be07adb69ec07fc78b1ea2"
+    }
+  ],
+  "6.0.0rc4": [
+    {
+      "path": "ABRIR.bat",
+      "sha256": "405f486492dcb2819d51c271155271b273f740e6638cf23dabcc408a733d75c5"
+    },
+    {
+      "path": "ABRIR.ps1",
+      "sha256": "a0b8652fb62839e66fdd2843ea969c6aabe9780eecc9d38cc7bff030d10612b5"
+    },
+    {
+      "path": "INSTALAR.bat",
+      "sha256": "cfe6e313dcba553b42f92e858094d5034c36b7ef8a59b498a069cd8fa1116c57"
+    },
+    {
+      "path": "INSTALAR.ps1",
+      "sha256": "3564261a07c8e002a07afff0d4faef7c787846ceeca505893ea47b51408109c5"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "dcde6460dfd224c6b7b65719268fe28c6a416028f97905ee79b606bf662e4395"
+    },
+    {
+      "path": "scripts/bootstrap_ocr.ps1",
+      "sha256": "961acc3c8eeb7a97231296911cbed43d177d13c52d3844c9a4e6feedd2f39042"
+    },
+    {
+      "path": "scripts/install_windows.py",
+      "sha256": "6edaa63f58178e4ae40fa95ae60e594bccd3e2ad6f52d3d67ae2f772448d7158"
+    },
+    {
+      "path": "scripts/installation_processes.ps1",
+      "sha256": "9328e98bd0ec4491144ce3d238e280c7a90b4e5438cb80fa0f3dd8063b41242e"
+    },
+    {
+      "path": "scripts/shortcut_windows.ps1",
+      "sha256": "2941712afc7c2464b76c361aeb57a02368ae416366bbe5a212b34130a329ca81"
+    },
+    {
+      "path": "src/freoa_v6/__init__.py",
+      "sha256": "6b9dd2cf6da2567613bed57e21f3dd6927f8fea9541bc340ff5536ad06640d2d"
+    },
+    {
+      "path": "src/freoa_v6/__main__.py",
+      "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+    },
+    {
+      "path": "src/freoa_v6/advanced.py",
+      "sha256": "35ecfb46fb6ff009936c087de2dcd11930cf7cb495ead1b9879fcc4c44010291"
+    },
+    {
+      "path": "src/freoa_v6/chunks.py",
+      "sha256": "5f4ba8e86ea192afbe967124d7a5e70f0f8538f5bea6c4bbc4b222dc30bc71d6"
+    },
+    {
+      "path": "src/freoa_v6/cli.py",
+      "sha256": "10f58697439866b052ee0db42628a2e9f0cd15ed173981231e07c261b598816b"
+    },
+    {
+      "path": "src/freoa_v6/doctor.py",
+      "sha256": "4e2e7a8fdc8b60370b5ea9a5bd3080dc08c975bb6ac0275d5bc5fe4a97bb4355"
+    },
+    {
+      "path": "src/freoa_v6/formats.py",
+      "sha256": "a102e427d54d9adefda8cf1decb7a758504d7d2524953d3b70e1cc479dce3e18"
+    },
+    {
+      "path": "src/freoa_v6/gui.py",
+      "sha256": "601825c19c063010a626f66c6d5e2d81665f81b2a2b9f0ad8a6a191f5f9a3262"
+    },
+    {
+      "path": "src/freoa_v6/model.py",
+      "sha256": "7217bce6fa4c3d7cad5547434c7893bf9a155b19038205fe17de6fd0148c3206"
+    },
+    {
+      "path": "src/freoa_v6/ocr.py",
+      "sha256": "6ce6aa5e475e8f31341f51e8e544839263dfe813ff42b5b78f90aec2699cf092"
+    },
+    {
+      "path": "src/freoa_v6/pdf.py",
+      "sha256": "8f32c196d10d03ce2d677628615bf97df61c69f17acc3ceef16ba8af977fd732"
+    },
+    {
+      "path": "src/freoa_v6/render.py",
+      "sha256": "be85d8c4e985c2a788b09b63bd4ac296a7329a5d972af90e291e140ebd64beed"
+    },
+    {
+      "path": "src/freoa_v6/review.py",
+      "sha256": "af99093ead584d9a5cb302de6b29146505e2f1e288f2122fdca3a9b873179786"
+    },
+    {
+      "path": "src/freoa_v6/runner.py",
+      "sha256": "6a30acf557458030299c4c01668f2b03db6e07836197e01b074c53462b0cc25a"
+    },
+    {
+      "path": "src/freoa_v6/runtime.py",
+      "sha256": "b5e29da0749224e0ffab0ee35991294b8197252aa6403be51771967201f2c45f"
+    },
+    {
+      "path": "src/freoa_v6/safety.py",
+      "sha256": "071f377369b77f1a12bd1b593f3e1e0225b63c77ce723a37177608501f6a4303"
+    },
+    {
+      "path": "src/freoa_v6/windows_job.py",
+      "sha256": "fffaa048dd01f8ff1b39a597c33bbc76bae10cafaff2f4a8f421d4e7337328c3"
+    },
+    {
+      "path": "src/freoa_v6/worker.py",
+      "sha256": "0310c59b5632201983da1102f417eabbe90cf65c4bedacfd2b2b40be24f48f57"
+    },
+    {
+      "path": "tests/test_acceptance.py",
+      "sha256": "4d977683df126615dc179a50870c3a83d6172cc951b66d53a3762e6611a27f0c"
+    },
+    {
+      "path": "tests/test_advanced_rc2.py",
+      "sha256": "62f1bd8b9f479bcca2e44f5c3a72b5b84b4e9219a1867af9e1292ace447fcd42"
+    },
+    {
+      "path": "tests/test_boundaries.py",
+      "sha256": "952ea789e99b02746c39b99d8d81cf835a09c1d060c506f363ba071a971d01bf"
+    },
+    {
+      "path": "tests/test_chunk_transport_rc4.py",
+      "sha256": "36dd3291c44c7097476b1b6bbe8e37a847166ba225627c513b68306fce2be46d"
+    },
+    {
+      "path": "tests/test_chunks.py",
+      "sha256": "2dd2e207fa88c0d3ebe2f9539c85ee4d28da9f0e8629dd10bb55ac5b752acbca"
+    },
+    {
+      "path": "tests/test_cli_rc2.py",
+      "sha256": "aaff4493778bcc8c90f8cde2e5ad7bf1d71d307247f3f7f0cc7aa2fd76045c21"
+    },
+    {
+      "path": "tests/test_document_warnings_rc2.py",
+      "sha256": "f4c47e47eaeedc5c80d7460ef4dcc4a0025125b0ced4a5c42657636c35ea4e9b"
+    },
+    {
+      "path": "tests/test_fidelity_rc2.py",
+      "sha256": "8fd215ec02d9a76b1f2fe17e7968a3b43cc8aea61bfe565a374d0e52e6692a9b"
+    },
+    {
+      "path": "tests/test_gui_rc2.py",
+      "sha256": "29d2ac36b6524a298a1b160eb0d17697f5a3d534437e918d2724bed5f146ede6"
+    },
+    {
+      "path": "tests/test_gui_rc3.py",
+      "sha256": "53aabf84f5f53c6809f453c0d84ec6aff693e8d40198886cc0217ea464621d94"
+    },
+    {
+      "path": "tests/test_installer_rc3.py",
+      "sha256": "7db19b399fff8305e4f5d90eb166b7e67c2cdbf40e714a952ce58029e240d9eb"
+    },
+    {
+      "path": "tests/test_integrity_rc2.py",
+      "sha256": "1c2284bef4558d719c6ba96eb4c70b46315f6dd9c464a32b7d9f8cf8abfb80db"
+    },
+    {
+      "path": "tests/test_large_scan_rc4.py",
+      "sha256": "3e39a8ba7089c129819a3ca8028140945af9fdd8fc23dc099dd45fe84de6637d"
+    },
+    {
+      "path": "tests/test_launcher_rc3.py",
+      "sha256": "c5ddd6127d1e7aaa22dd9d73ec3992cc76b595a74ea8bba6dfdf55e732303f8b"
+    },
+    {
+      "path": "tests/test_minor_rc3.py",
+      "sha256": "b5aa36c24db8b06839a271bf3e4769c82e832c9d7d3aa4a737effe37114b1420"
+    },
+    {
+      "path": "tests/test_ocr_bootstrap_rc3.py",
+      "sha256": "d7d946f046766722e42d338b10b9ace88f53a775a0a18d1268678784423ded5e"
+    },
+    {
+      "path": "tests/test_output_layout_rc4.py",
+      "sha256": "bb3c2ffba87a3a66034b89942fbe585b0884d971eda23c05813df267ad3501f6"
+    },
+    {
+      "path": "tests/test_runtime_rc3.py",
+      "sha256": "36fd41e47edb6eff919115dc1e3cc9fe36bec22126013486b20045c68abbeb56"
+    },
+    {
+      "path": "tests/test_security_review_rc3.py",
+      "sha256": "877a286f55baa455799e83881f18282aa3e782b1e9be07adb69ec07fc78b1ea2"
+    }
+  ],
+  "6.0.0rc5": [
+    {
+      "path": "ABRIR.bat",
+      "sha256": "405f486492dcb2819d51c271155271b273f740e6638cf23dabcc408a733d75c5"
+    },
+    {
+      "path": "ABRIR.ps1",
+      "sha256": "a0b8652fb62839e66fdd2843ea969c6aabe9780eecc9d38cc7bff030d10612b5"
+    },
+    {
+      "path": "INSTALAR.bat",
+      "sha256": "cfe6e313dcba553b42f92e858094d5034c36b7ef8a59b498a069cd8fa1116c57"
+    },
+    {
+      "path": "INSTALAR.ps1",
+      "sha256": "3564261a07c8e002a07afff0d4faef7c787846ceeca505893ea47b51408109c5"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "7991ee6bfaa480fcee33ac9e456bca7ab1cda778f99ece4d5716ef2a65cab79c"
+    },
+    {
+      "path": "scripts/bootstrap_ocr.ps1",
+      "sha256": "ab4cd8c21a01f89fe80dcaa3171027489f4e69573dc2059c7bd35376b84021d9"
+    },
+    {
+      "path": "scripts/install_windows.py",
+      "sha256": "6dadb9c0a4494a888c622e83ee689a7d7c8881e1b623d8835d60cdd7697db420"
+    },
+    {
+      "path": "scripts/installation_processes.ps1",
+      "sha256": "9328e98bd0ec4491144ce3d238e280c7a90b4e5438cb80fa0f3dd8063b41242e"
+    },
+    {
+      "path": "scripts/shortcut_windows.ps1",
+      "sha256": "2941712afc7c2464b76c361aeb57a02368ae416366bbe5a212b34130a329ca81"
+    },
+    {
+      "path": "src/freoa_v6/__init__.py",
+      "sha256": "b0a4ccec82b96ebbdf79ef6dc48fbf1e7a9db7986f4ff764541aed3caa68ee67"
+    },
+    {
+      "path": "src/freoa_v6/__main__.py",
+      "sha256": "307299fda7b77d22c64cb51430ec75e5f59d78e9c948786afb3b2544fe45e4b7"
+    },
+    {
+      "path": "src/freoa_v6/advanced.py",
+      "sha256": "35ecfb46fb6ff009936c087de2dcd11930cf7cb495ead1b9879fcc4c44010291"
+    },
+    {
+      "path": "src/freoa_v6/chunks.py",
+      "sha256": "5f4ba8e86ea192afbe967124d7a5e70f0f8538f5bea6c4bbc4b222dc30bc71d6"
+    },
+    {
+      "path": "src/freoa_v6/cli.py",
+      "sha256": "10f58697439866b052ee0db42628a2e9f0cd15ed173981231e07c261b598816b"
+    },
+    {
+      "path": "src/freoa_v6/doctor.py",
+      "sha256": "4e2e7a8fdc8b60370b5ea9a5bd3080dc08c975bb6ac0275d5bc5fe4a97bb4355"
+    },
+    {
+      "path": "src/freoa_v6/formats.py",
+      "sha256": "a102e427d54d9adefda8cf1decb7a758504d7d2524953d3b70e1cc479dce3e18"
+    },
+    {
+      "path": "src/freoa_v6/gui.py",
+      "sha256": "601825c19c063010a626f66c6d5e2d81665f81b2a2b9f0ad8a6a191f5f9a3262"
+    },
+    {
+      "path": "src/freoa_v6/model.py",
+      "sha256": "39c55ff6fe6140395a1696448a8524ddb4abe792876f7b62dd34a2880e1c1bce"
+    },
+    {
+      "path": "src/freoa_v6/ocr.py",
+      "sha256": "6ce6aa5e475e8f31341f51e8e544839263dfe813ff42b5b78f90aec2699cf092"
+    },
+    {
+      "path": "src/freoa_v6/pathguard.py",
+      "sha256": "fa1de8613fb601864b0edcefd9c744537018a6c2c0d80b2f81ba7b99af9e1a16"
+    },
+    {
+      "path": "src/freoa_v6/pdf.py",
+      "sha256": "8f32c196d10d03ce2d677628615bf97df61c69f17acc3ceef16ba8af977fd732"
+    },
+    {
+      "path": "src/freoa_v6/render.py",
+      "sha256": "be85d8c4e985c2a788b09b63bd4ac296a7329a5d972af90e291e140ebd64beed"
+    },
+    {
+      "path": "src/freoa_v6/review.py",
+      "sha256": "af99093ead584d9a5cb302de6b29146505e2f1e288f2122fdca3a9b873179786"
+    },
+    {
+      "path": "src/freoa_v6/runner.py",
+      "sha256": "6a30acf557458030299c4c01668f2b03db6e07836197e01b074c53462b0cc25a"
+    },
+    {
+      "path": "src/freoa_v6/runtime.py",
+      "sha256": "ad323efa15e686f7c6b30144bfb1337baf641bf63d7a273926b7ec1c7c6ed3a8"
+    },
+    {
+      "path": "src/freoa_v6/safety.py",
+      "sha256": "b3bba5f230b2af963c312a9e1dea3ba325339995c0c888adf46a35a677b1e7e3"
+    },
+    {
+      "path": "src/freoa_v6/windows_job.py",
+      "sha256": "fffaa048dd01f8ff1b39a597c33bbc76bae10cafaff2f4a8f421d4e7337328c3"
+    },
+    {
+      "path": "src/freoa_v6/worker.py",
+      "sha256": "0310c59b5632201983da1102f417eabbe90cf65c4bedacfd2b2b40be24f48f57"
+    },
+    {
+      "path": "tests/test_acceptance.py",
+      "sha256": "4d977683df126615dc179a50870c3a83d6172cc951b66d53a3762e6611a27f0c"
+    },
+    {
+      "path": "tests/test_advanced_rc2.py",
+      "sha256": "62f1bd8b9f479bcca2e44f5c3a72b5b84b4e9219a1867af9e1292ace447fcd42"
+    },
+    {
+      "path": "tests/test_boundaries.py",
+      "sha256": "952ea789e99b02746c39b99d8d81cf835a09c1d060c506f363ba071a971d01bf"
+    },
+    {
+      "path": "tests/test_chunk_transport_rc4.py",
+      "sha256": "36dd3291c44c7097476b1b6bbe8e37a847166ba225627c513b68306fce2be46d"
+    },
+    {
+      "path": "tests/test_chunks.py",
+      "sha256": "2dd2e207fa88c0d3ebe2f9539c85ee4d28da9f0e8629dd10bb55ac5b752acbca"
+    },
+    {
+      "path": "tests/test_cli_rc2.py",
+      "sha256": "aaff4493778bcc8c90f8cde2e5ad7bf1d71d307247f3f7f0cc7aa2fd76045c21"
+    },
+    {
+      "path": "tests/test_document_warnings_rc2.py",
+      "sha256": "f4c47e47eaeedc5c80d7460ef4dcc4a0025125b0ced4a5c42657636c35ea4e9b"
+    },
+    {
+      "path": "tests/test_fidelity_rc2.py",
+      "sha256": "8fd215ec02d9a76b1f2fe17e7968a3b43cc8aea61bfe565a374d0e52e6692a9b"
+    },
+    {
+      "path": "tests/test_gui_rc2.py",
+      "sha256": "29d2ac36b6524a298a1b160eb0d17697f5a3d534437e918d2724bed5f146ede6"
+    },
+    {
+      "path": "tests/test_gui_rc3.py",
+      "sha256": "53aabf84f5f53c6809f453c0d84ec6aff693e8d40198886cc0217ea464621d94"
+    },
+    {
+      "path": "tests/test_installer_rc3.py",
+      "sha256": "5c45f8a15e426926032f6c45a23ab1e3439eca940c530de2d066e4d74d4d905d"
+    },
+    {
+      "path": "tests/test_integrity_rc2.py",
+      "sha256": "1c2284bef4558d719c6ba96eb4c70b46315f6dd9c464a32b7d9f8cf8abfb80db"
+    },
+    {
+      "path": "tests/test_large_scan_rc4.py",
+      "sha256": "3e39a8ba7089c129819a3ca8028140945af9fdd8fc23dc099dd45fe84de6637d"
+    },
+    {
+      "path": "tests/test_launcher_rc3.py",
+      "sha256": "c5ddd6127d1e7aaa22dd9d73ec3992cc76b595a74ea8bba6dfdf55e732303f8b"
+    },
+    {
+      "path": "tests/test_minor_rc3.py",
+      "sha256": "b5aa36c24db8b06839a271bf3e4769c82e832c9d7d3aa4a737effe37114b1420"
+    },
+    {
+      "path": "tests/test_ocr_bootstrap_rc3.py",
+      "sha256": "d7d946f046766722e42d338b10b9ace88f53a775a0a18d1268678784423ded5e"
+    },
+    {
+      "path": "tests/test_onedrive_rc5.py",
+      "sha256": "2dff87d6df0631a69974726221e408b130e2080c22e4c7e0bbf15b1f0219ba79"
+    },
+    {
+      "path": "tests/test_output_layout_rc4.py",
+      "sha256": "bb3c2ffba87a3a66034b89942fbe585b0884d971eda23c05813df267ad3501f6"
+    },
+    {
+      "path": "tests/test_runtime_rc3.py",
+      "sha256": "36fd41e47edb6eff919115dc1e3cc9fe36bec22126013486b20045c68abbeb56"
+    },
+    {
+      "path": "tests/test_security_review_rc3.py",
+      "sha256": "877a286f55baa455799e83881f18282aa3e782b1e9be07adb69ec07fc78b1ea2"
+    }
+  ]
+}

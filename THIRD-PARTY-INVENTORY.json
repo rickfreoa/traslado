@@ -1,0 +1,1220 @@
+{
+  "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "win32",
+  "scope": "Historical Python validation profile retained from verified rc1/rc2 environment; rc3 own package/runtime verification is separate. Adds authenticated rc3 Windows OCR download/member/model inventory, not a complete native source/license SBOM or redistribution clearance. MinerU and advanced vision weights are not bundled.",
+  "dependencies": [
+    {
+      "name": "et-xmlfile",
+      "version": "2.0.0",
+      "license_expression": null,
+      "license_metadata": "MIT",
+      "license_files": []
+    },
+    {
+      "name": "lxml",
+      "version": "6.1.3",
+      "license_expression": null,
+      "license_metadata": "BSD-3-Clause",
+      "license_files": [
+        {
+          "file": "lxml-6.1.3.dist-info/licenses/LICENSE.txt",
+          "sha256": "e7c3ce8d76331b0101cc46790ab43958ea90a364bcf962ed8763d5a818340e69"
+        },
+        {
+          "file": "lxml-6.1.3.dist-info/licenses/LICENSES.txt",
+          "sha256": "df682c668de65321677b5e4861dca4128a8bad8067f230956e9da3f985b3d398"
+        }
+      ]
+    },
+    {
+      "name": "openpyxl",
+      "version": "3.1.5",
+      "license_expression": null,
+      "license_metadata": "MIT",
+      "license_files": []
+    },
+    {
+      "name": "Pillow",
+      "version": "12.3.0",
+      "license_expression": "MIT-CMU",
+      "license_metadata": null,
+      "license_files": [
+        {
+          "file": "pillow-12.3.0.dist-info/licenses/LICENSE",
+          "sha256": "4f7866a74802c6326f81faff59a56546b6aec2b10b91973e0e9308de95e79857"
+        }
+      ]
+    },
+    {
+      "name": "PyMuPDF",
+      "version": "1.28.2",
+      "license_expression": null,
+      "license_metadata": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License",
+      "license_files": [
+        {
+          "file": "pymupdf-1.28.2.dist-info/COPYING",
+          "sha256": "40e60697600535eabfb5ae05f72829d88cfe8d02dd4792f5a754f6f51dabe55b"
+        }
+      ]
+    },
+    {
+      "name": "python-docx",
+      "version": "1.2.0",
+      "license_expression": null,
+      "license_metadata": "MIT",
+      "license_files": [
+        {
+          "file": "python_docx-1.2.0.dist-info/licenses/LICENSE",
+          "sha256": "7652f271e46d0d533e9dc463f3b5fcbdcacf4d6a9c8d6b554d15efd0f37f6132"
+        }
+      ]
+    },
+    {
+      "name": "python-pptx",
+      "version": "1.0.2",
+      "license_expression": null,
+      "license_metadata": "MIT",
+      "license_files": [
+        {
+          "file": "python_pptx-1.0.2.dist-info/LICENSE",
+          "sha256": "7652f271e46d0d533e9dc463f3b5fcbdcacf4d6a9c8d6b554d15efd0f37f6132"
+        }
+      ]
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "license_expression": "PSF-2.0",
+      "license_metadata": null,
+      "license_files": [
+        {
+          "file": "typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+          "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+        }
+      ]
+    },
+    {
+      "name": "XlsxWriter",
+      "version": "3.2.9",
+      "license_expression": null,
+      "license_metadata": "BSD-2-Clause",
+      "license_files": [
+        {
+          "file": "xlsxwriter-3.2.9.dist-info/LICENSE.txt",
+          "sha256": "cf08b60a4ded986b58a617cb8304373bda5c4eff42fb4e30d7597b616e116e87"
+        }
+      ]
+    },
+    {
+      "name": "freoa-md-converter",
+      "version": "6.0.0rc2",
+      "license_expression": "MIT",
+      "license_metadata": null,
+      "license_files": []
+    }
+  ],
+  "candidate_version": "6.0.0rc3",
+  "python_dependencies_snapshot_note": "The freoa-md-converter 6.0.0rc2 entry below is inherited observed metadata, not a claim that candidate rc3 has been installed in this environment.",
+  "ocr_assets_lock_sha256": "4c3c319711bc8b03459252c832ea64891ff2abc810580377a24346d6ac1084d1",
+  "ocr_downloads": [
+    {
+      "name": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "url": "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.3/tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "bytes": 26573224,
+      "github_digest": "sha256:bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4"
+    },
+    {
+      "name": "7zr.exe",
+      "url": "https://github.com/ip7z/7zip/releases/download/26.03/7zr.exe",
+      "sha256": "ad4c82fadcbdf93c03b4fc440f300509c7d60c5c2f4d183e35d9d70d6957037d",
+      "bytes": 602624,
+      "github_digest": "sha256:ad4c82fadcbdf93c03b4fc440f300509c7d60c5c2f4d183e35d9d70d6957037d"
+    },
+    {
+      "name": "7z2603-x64.exe",
+      "url": "https://github.com/ip7z/7zip/releases/download/26.03/7z2603-x64.exe",
+      "sha256": "0859c524b8a63551848f0c246abddcb1d0b7b656b0fbfe879f8d85e61a9e6edd",
+      "bytes": 1661239,
+      "github_digest": "sha256:0859c524b8a63551848f0c246abddcb1d0b7b656b0fbfe879f8d85e61a9e6edd"
+    },
+    {
+      "name": "por.traineddata",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/por.traineddata",
+      "sha256": "c4932b937207a9514b7514d518b931a99938c02a28a5a5a553f8599ed58b7deb",
+      "git_blob_sha1": "e9f373e95c66b4bf557c263721ef31f78e5bc301",
+      "bytes": 1982756,
+      "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd"
+    },
+    {
+      "name": "eng.traineddata",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata",
+      "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2",
+      "git_blob_sha1": "bbef4675053b5b468cdb477053e28b1c698ba08e",
+      "bytes": 4113088,
+      "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd"
+    },
+    {
+      "name": "spa.traineddata",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/spa.traineddata",
+      "sha256": "6f2e04d02774a18f01bed44b1111f2cd7f3ba7ac9dc4373cd3f898a40ea6b464",
+      "git_blob_sha1": "72e901f13ca52cfe34cf239a368b9ed3c0ddaf26",
+      "bytes": 2294433,
+      "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd"
+    },
+    {
+      "name": "ita.traineddata",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/ita.traineddata",
+      "sha256": "b8f89e1e785118dac4d51ae042c029a64edb5c3ee42ef73027a6d412748d8827",
+      "git_blob_sha1": "edbffbe0e51892b240630b5eeabededa7e7c9c4f",
+      "bytes": 2701314,
+      "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd"
+    },
+    {
+      "name": "fra.traineddata",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/fra.traineddata",
+      "sha256": "ced037562e8c80c13122dece28dd477d399af80911a28791a66a63ac1e3445ca",
+      "git_blob_sha1": "d9e2b2160be0d1ca3b8f1bf2730fae476ef3b4a6",
+      "bytes": 1130365,
+      "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd"
+    },
+    {
+      "name": "deu.traineddata",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/deu.traineddata",
+      "sha256": "19d219bbb6672c869d20a9636c6816a81eb9a71796cb93ebe0cb1530e2cdb22d",
+      "git_blob_sha1": "97ed7b2b60f2771c07040660ef0f6daf596dc7bf",
+      "bytes": 1525436,
+      "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd"
+    },
+    {
+      "name": "TESSDATA-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "git_blob_sha1": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd"
+    }
+  ],
+  "ocr_provenance": {
+    "tesseract_release": "https://github.com/tesseract-ocr/tesseract/releases/tag/5.5.3",
+    "tesseract_winget_manifest": "https://raw.githubusercontent.com/microsoft/winget-pkgs/master/manifests/t/tesseract-ocr/tesseract/5.5.3/tesseract-ocr.tesseract.installer.yaml",
+    "seven_zip_release": "https://github.com/ip7z/7zip/releases/tag/26.03",
+    "seven_zip_winget_manifest": "https://raw.githubusercontent.com/microsoft/winget-pkgs/master/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
+    "tessdata_repository": "https://github.com/tesseract-ocr/tessdata_fast/tree/87416418657359cb625c412a48b6e1d6d41c29bd",
+    "verification": "Engine and full extractor archive SHA256 match official GitHub release digest and independent Microsoft winget manifest; 7zr digest matches official release; model SHA256 computed on pinned raw content and independently checked against repository Git blob IDs. Extracted member hashes derived from these authenticated archives.",
+    "pinned_independent_manifests": [
+      {
+        "manifest": "winget-tesseract-5.5.3.yaml",
+        "repository_commit": "3c56bb363c7700349f1d7afc4ffb26c24d5f061a",
+        "pinned_url": "https://raw.githubusercontent.com/microsoft/winget-pkgs/3c56bb363c7700349f1d7afc4ffb26c24d5f061a/manifests/t/tesseract-ocr/tesseract/5.5.3/tesseract-ocr.tesseract.installer.yaml",
+        "bytes": 1024,
+        "manifest_sha256": "6071e82c3dff1f3c2761a3383434e96c24d97cf680ba78be188a83e8ed55cdc3",
+        "saved_snapshot_identical": true
+      },
+      {
+        "manifest": "winget-7zip-26.03.yaml",
+        "repository_commit": "c23c145e9295dfd42541b28a996da7e23ffb0029",
+        "pinned_url": "https://raw.githubusercontent.com/microsoft/winget-pkgs/c23c145e9295dfd42541b28a996da7e23ffb0029/manifests/7/7zip/7zip/26.03/7zip.7zip.installer.yaml",
+        "bytes": 3162,
+        "manifest_sha256": "1586e065d2db62978de5baf7b27e54c7c4de21276bd37e87f40a0b35c35d4e55",
+        "saved_snapshot_identical": true
+      }
+    ]
+  },
+  "ocr_model_license": {
+    "expression": "Apache-2.0",
+    "repository_commit": "87416418657359cb625c412a48b6e1d6d41c29bd",
+    "languages": [
+      "por",
+      "eng",
+      "spa",
+      "ita",
+      "fra",
+      "deu"
+    ],
+    "retained_license": "ocr/doc/TESSDATA-LICENSE.txt",
+    "compatibility": "LSTM only, Tesseract4/5; OEM0/2 unsupported",
+    "git_blob_match": "VERIFIED_ON_DOWNLOADED_BYTES",
+    "independent_second_published_sha256": "NOT_AVAILABLE_NOT_CLAIMED"
+  },
+  "ocr_engine": {
+    "name": "Tesseract",
+    "version": "5.5.3",
+    "windows_build": "5.5.3.20260724",
+    "provider": "Official tesseract-ocr/tesseract release Windows GitHub CI build",
+    "license_expression": "Apache-2.0 for Tesseract source; native dependencies have separate terms",
+    "retained_license": "ocr/doc/LICENSE",
+    "upstream_source": "https://github.com/tesseract-ocr/tesseract/tree/5.5.3",
+    "private_extraction": true,
+    "installers_executed": false,
+    "runtime_member_count": 62,
+    "runtime_members": [
+      {
+        "path": "tesseract.exe",
+        "bytes": 1867784,
+        "sha256": "c66f0f12ed76f6aa455dac97684bbc86756d6a732380bee09122454cfda3f420"
+      },
+      {
+        "path": "libtesseract-5.dll",
+        "bytes": 3501048,
+        "sha256": "54d54528b453ce3a5ba79487687f8df43e7b194b9ea97beba74200453fe1fb46"
+      },
+      {
+        "path": "libLerc.dll",
+        "bytes": 804265,
+        "sha256": "6887fb5aeabf382a835a4cb693025e8d48d9c90e82ca4eae5d2d8ffb70c6ca9a"
+      },
+      {
+        "path": "libarchive-13.dll",
+        "bytes": 972210,
+        "sha256": "ddabddfdc98e1e1342ce4a7069fb4004de6c870d7bc9f4e95ef243dd18468e97"
+      },
+      {
+        "path": "libb2-1.dll",
+        "bytes": 34653,
+        "sha256": "77bab532b5421d6cdddb96c3ae9a4bde144eb481ccaf243336c9f8c690a50987"
+      },
+      {
+        "path": "libbrotlicommon.dll",
+        "bytes": 143429,
+        "sha256": "ca7bc06ead80259971badf2cd0bfc688db9154dad65f139f49a38b4be9976f97"
+      },
+      {
+        "path": "libbrotlidec.dll",
+        "bytes": 62461,
+        "sha256": "a142dc6cfa77cb907028aa9426f486f3d8de37855e8db2ae2894147908121881"
+      },
+      {
+        "path": "libbz2-1.dll",
+        "bytes": 100964,
+        "sha256": "b79cd3a7102e359ef6324e98966a67939e58ec2b651ae2847cae84a4dfa453f7"
+      },
+      {
+        "path": "libcairo-2.dll",
+        "bytes": 1247164,
+        "sha256": "c474166543aed18b389b20122ca2741189504994dafd86cd5ed121e95bd82ce4"
+      },
+      {
+        "path": "libcurl-4.dll",
+        "bytes": 1226963,
+        "sha256": "3d302f9690e810fdfd950254e2f0663d0ff768737f350c602a4ed3a06e9b6b2b"
+      },
+      {
+        "path": "libdatrie-1.dll",
+        "bytes": 35033,
+        "sha256": "2f784872e6404e57847201fe1e7e591bd5b5be4a319ef38ebcb36014ac7f385d"
+      },
+      {
+        "path": "libdeflate.dll",
+        "bytes": 99228,
+        "sha256": "3f3fc3a73bc3623dc93b37bb321c484d3731d93006fd01c0495d15711826eb44"
+      },
+      {
+        "path": "libexpat-1.dll",
+        "bytes": 237603,
+        "sha256": "92ae866c6c58dd2d8366aa0e6230ba8d434d5306e8d8c3a08b7e61750fc16153"
+      },
+      {
+        "path": "libffi-8.dll",
+        "bytes": 40945,
+        "sha256": "390e4bf8abd037abd0e1dd1f311606715e43f8efe812e5c5b8775acf2cb2f21e"
+      },
+      {
+        "path": "libfontconfig-1.dll",
+        "bytes": 502866,
+        "sha256": "661c44249b9b06820554940a984b783b1daae9740a4a2eb265fe77205962486f"
+      },
+      {
+        "path": "libfreetype-6.dll",
+        "bytes": 790651,
+        "sha256": "bbb3e6390ee229c867ef31f10e42a49a61a92e434a11d40c6139a2608ebc6194"
+      },
+      {
+        "path": "libfribidi-0.dll",
+        "bytes": 156403,
+        "sha256": "84930fd86a3b46b62794a3bbaff21fbbaeaade5ff7cdc70be7f717ad29af87ed"
+      },
+      {
+        "path": "libgcc_s_seh-1.dll",
+        "bytes": 954773,
+        "sha256": "172cfdc9d83703ec0a0ca2cee08f6cf2a166b801717ee51a56b3a63b36bc2f83"
+      },
+      {
+        "path": "libgif-7.dll",
+        "bytes": 45777,
+        "sha256": "5b3d837ccaab84683dd93fbaddf2d98e1a9f90e0ddb8ea73dc70157adb4d26f1"
+      },
+      {
+        "path": "libgio-2.0-0.dll",
+        "bytes": 1915159,
+        "sha256": "3dc3d4d477633cc9265b0796f9037a9fa387f4a1e8b7258890987a8c2c21eb0a"
+      },
+      {
+        "path": "libglib-2.0-0.dll",
+        "bytes": 1566649,
+        "sha256": "43f2015fccfb10e22ecece61855d9ea21835f833b6533bc53ab77b54f4d66c34"
+      },
+      {
+        "path": "libgmodule-2.0-0.dll",
+        "bytes": 26748,
+        "sha256": "69cf44cda7756a6ec4a926e0cf9fe81721f05d65abfab88ff83004fa508bb0e7"
+      },
+      {
+        "path": "libgobject-2.0-0.dll",
+        "bytes": 359475,
+        "sha256": "acf20d5ddd3d2e4b4355576f5cf662c18f42746c50f43eaccc0596592616602a"
+      },
+      {
+        "path": "libgraphite2.dll",
+        "bytes": 167155,
+        "sha256": "063a9ad34a5ec87d038b4646660957395224ecf2cf707917256b7d251a7c5f57"
+      },
+      {
+        "path": "libharfbuzz-0.dll",
+        "bytes": 1541957,
+        "sha256": "54fb644a1143b3b81d494684f299aca9ff4b72134f12a7b1cfb2bd0f8fa9cef7"
+      },
+      {
+        "path": "libiconv-2.dll",
+        "bytes": 1143148,
+        "sha256": "7a282a854e01be726c6cccfe46f548c716aa45b3014818468253aaa4efbcd067"
+      },
+      {
+        "path": "libicudt78.dll",
+        "bytes": 33120806,
+        "sha256": "47d19b605a28461d44e0d8c062c465e92c9edfb0244f023a8066f7337d317d0e"
+      },
+      {
+        "path": "libicuin78.dll",
+        "bytes": 3186867,
+        "sha256": "af3341827897a41ab16667ee0699acdb2b0338c3bf4ecc7f510a324f18755422"
+      },
+      {
+        "path": "libicuuc78.dll",
+        "bytes": 1999466,
+        "sha256": "3186171e946552e2a5e371cd0bc68bf37bd6e229a85dbb0d3c40231cf0858b49"
+      },
+      {
+        "path": "libidn2-0.dll",
+        "bytes": 247081,
+        "sha256": "9880b52651a0247640a2531d777380f7c35fac7efa7e3979b265ddcb78db8642"
+      },
+      {
+        "path": "libintl-8.dll",
+        "bytes": 298731,
+        "sha256": "0537c3dd2378218508ebe3cc416d72a99ee2d24ae1c5525e23458f32544ef861"
+      },
+      {
+        "path": "libjbig-0.dll",
+        "bytes": 62083,
+        "sha256": "275a827ba6839d47cfdbe059db1b1b403a92ff26e2b76a29362915487868bef2"
+      },
+      {
+        "path": "libjpeg-8.dll",
+        "bytes": 967968,
+        "sha256": "b564d34adaca83e73af0e2231719dd0198ea6cd074c64b2ba85bfd7182f27db7"
+      },
+      {
+        "path": "libleptonica-6.dll",
+        "bytes": 2850600,
+        "sha256": "1869b44e3d46fd830620b042477e5d60a950779582f38f60291547efb27792f1"
+      },
+      {
+        "path": "liblz4.dll",
+        "bytes": 158649,
+        "sha256": "35f917274bca8f19677ba66f1b3cc3c83568c3249fc43215fc16e76439c8e856"
+      },
+      {
+        "path": "liblzma-5.dll",
+        "bytes": 191836,
+        "sha256": "dc9edb9bd83b0371fe68d96cb3e70cd17b7a5aba958326a18f8210cb812432e9"
+      },
+      {
+        "path": "libopenjp2-7.dll",
+        "bytes": 519082,
+        "sha256": "123587086cb1a25d2a338fb9b7c1d6bda10bf9062625b4f08c6a92b3d9cafe47"
+      },
+      {
+        "path": "libpango-1.0-0.dll",
+        "bytes": 437317,
+        "sha256": "a7722692aa345f88cd0cb0296ad144e14b89a25c9926b5c3bac815331bba2127"
+      },
+      {
+        "path": "libpangocairo-1.0-0.dll",
+        "bytes": 84876,
+        "sha256": "f0efa65511bc8f35186e9adf4628fb9ed505b31435a93afe218ae6c348197954"
+      },
+      {
+        "path": "libpangoft2-1.0-0.dll",
+        "bytes": 112015,
+        "sha256": "adeeffc8438397998f449f8da1bd3832f4c031215415d7ed21109582dc6908a6"
+      },
+      {
+        "path": "libpangowin32-1.0-0.dll",
+        "bytes": 112948,
+        "sha256": "08a8ac72c621158d47eb713139e0ad9021c43bef1af01f1365a41fb7f33272c8"
+      },
+      {
+        "path": "libpcre2-8-0.dll",
+        "bytes": 717955,
+        "sha256": "a499fb8a7eff453d6e4f0842576bc5171d40a1505d8f7f13fff6cee51b738a62"
+      },
+      {
+        "path": "libpixman-1-0.dll",
+        "bytes": 740378,
+        "sha256": "55ce45825eb8e825c635416171be4736147a6b0b690469f545d8c4ae8e85b4a3"
+      },
+      {
+        "path": "libpng16-16.dll",
+        "bytes": 264269,
+        "sha256": "3737838ee8d6b893df7bdabf7439775371a57dce7e17ee6b35586023c64bd9ab"
+      },
+      {
+        "path": "libpsl-5.dll",
+        "bytes": 105304,
+        "sha256": "b31fc70eda598a39b65fe2736d815518db0652d641346f75eac40c2a0499b058"
+      },
+      {
+        "path": "libsharpyuv-0.dll",
+        "bytes": 53757,
+        "sha256": "ab0c9f61dc69b6bcdff1011e215f8d5fd6e5096aba9be3386ab87f217fbbeffe"
+      },
+      {
+        "path": "libssh2-1.dll",
+        "bytes": 271318,
+        "sha256": "ee7fe3e749859334c99e9261689481dd879811122598d22585421f95d29fc7ae"
+      },
+      {
+        "path": "libstdc++-6.dll",
+        "bytes": 26390974,
+        "sha256": "5fe5d4d8f6636eb6f2dc55be99dc5dc8a6c40db1abdf592e84480d1e6985abd0"
+      },
+      {
+        "path": "libthai-0.dll",
+        "bytes": 72294,
+        "sha256": "5d741974fdec19e0f6cddbcdb539428af0c7392740a056634714c2884157fdb9"
+      },
+      {
+        "path": "libtiff-6.dll",
+        "bytes": 625178,
+        "sha256": "47fe69165bf8e211aaa84224f51f145dc894e330fe7ca167f7c99419e0c8c894"
+      },
+      {
+        "path": "libunistring-5.dll",
+        "bytes": 2251328,
+        "sha256": "b91e2850d3668d4931056a8f4d35783b8ec3eea3735485108a936a072cd16071"
+      },
+      {
+        "path": "libwebp-7.dll",
+        "bytes": 749724,
+        "sha256": "c6c21a10f8cfe13270832e64640b82709e1d87b956b5f15af435a6c25acd6bbf"
+      },
+      {
+        "path": "libwebpmux-3.dll",
+        "bytes": 82858,
+        "sha256": "2c8a2e9d7901ec65330f31f9989c2a07ef0506e903b485fcd8b241a6bab9b88f"
+      },
+      {
+        "path": "libwinpthread-1.dll",
+        "bytes": 65955,
+        "sha256": "6a661d5846d80a91394dbb9b2dab87ba3cc705eac80ad45fe73677bff70cd6d2"
+      },
+      {
+        "path": "libzstd.dll",
+        "bytes": 1218273,
+        "sha256": "b95c223a9548a9ecf51377c962e0bc8f0c51eb0c6f67a296dbc885996f0dd40d"
+      },
+      {
+        "path": "zlib1.dll",
+        "bytes": 128488,
+        "sha256": "93e9243a44c29200eeacaf9658efe2558581770e4b11ca4b500e18e424a6e3b5"
+      },
+      {
+        "path": "tessdata/pdf.ttf",
+        "bytes": 572,
+        "sha256": "c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59"
+      },
+      {
+        "path": "tessdata/configs/tsv",
+        "bytes": 22,
+        "sha256": "59d079bb75d8b3d7c839a3564580cb559e362c93a9d70f234e421c0c3e767e04"
+      },
+      {
+        "path": "tessdata/configs/txt",
+        "bytes": 166,
+        "sha256": "9bcbdbe285fd3a024be563cb237751ceb3435d86610e231f08894023321af5d7"
+      },
+      {
+        "path": "doc/AUTHORS",
+        "bytes": 787,
+        "sha256": "720862b7253993b348fe15f37ed6e0d4feb0fc8df8324284d75975d54dd29923"
+      },
+      {
+        "path": "doc/LICENSE",
+        "bytes": 11358,
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      },
+      {
+        "path": "doc/README.md",
+        "bytes": 8152,
+        "sha256": "35ca53a67a2895ebdc2cf6777fc5808c1b0c5df650b896b79c82b2c4a004bd76"
+      }
+    ]
+  },
+  "bootstrap_extractor": {
+    "name": "7-Zip",
+    "version": "26.03",
+    "members": [
+      {
+        "path": "7z.exe",
+        "bytes": 577536,
+        "sha256": "6ee3c0ed0b27663c1b948ae85a7c0bb073aed1498983182f3f0df1f6a8c30b2f"
+      },
+      {
+        "path": "7z.dll",
+        "bytes": 1906688,
+        "sha256": "65e4c1f855f9ef6e8f0f5df8e3f27d9eb5f07311408639da0a1ca0b8f4871b0d"
+      },
+      {
+        "path": "License.txt",
+        "bytes": 6031,
+        "sha256": "519ac0a4bded9c18ea02e0afb71f663d8c47373bd9facd3ac96a79f51d77765d"
+      }
+    ],
+    "licenses": "LGPL-2.1-or-later with BSD portions and unRAR restrictions; reduced 7zr declares public domain",
+    "source": "https://github.com/ip7z/7zip/tree/26.03",
+    "license_source": "https://github.com/ip7z/7zip/blob/26.03/DOC/License.txt",
+    "retained_license": "ocr/doc/7ZIP-LICENSE.txt",
+    "purpose": "Private archive extraction during install; original installer executables not run",
+    "redistribution_clearance": "NOT_ATTESTED"
+  },
+  "ocr_native_dlls": [
+    {
+      "path": "libtesseract-5.dll",
+      "bytes": 3501048,
+      "sha256": "54d54528b453ce3a5ba79487687f8df43e7b194b9ea97beba74200453fe1fb46",
+      "component_identification": "TESSERACT_LIBRARY_OFFICIAL_RELEASE",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": "Apache-2.0",
+      "exact_native_license_verification": "TESSERACT_PROJECT_LICENSE_RETAINED_TRANSITIVE_TERMS_SEPARATE",
+      "license_reference": "https://github.com/tesseract-ocr/tesseract/blob/5.5.3/LICENSE"
+    },
+    {
+      "path": "libLerc.dll",
+      "bytes": 804265,
+      "sha256": "6887fb5aeabf382a835a4cb693025e8d48d9c90e82ca4eae5d2d8ffb70c6ca9a",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libarchive-13.dll",
+      "bytes": 972210,
+      "sha256": "ddabddfdc98e1e1342ce4a7069fb4004de6c870d7bc9f4e95ef243dd18468e97",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libb2-1.dll",
+      "bytes": 34653,
+      "sha256": "77bab532b5421d6cdddb96c3ae9a4bde144eb481ccaf243336c9f8c690a50987",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libbrotlicommon.dll",
+      "bytes": 143429,
+      "sha256": "ca7bc06ead80259971badf2cd0bfc688db9154dad65f139f49a38b4be9976f97",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libbrotlidec.dll",
+      "bytes": 62461,
+      "sha256": "a142dc6cfa77cb907028aa9426f486f3d8de37855e8db2ae2894147908121881",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libbz2-1.dll",
+      "bytes": 100964,
+      "sha256": "b79cd3a7102e359ef6324e98966a67939e58ec2b651ae2847cae84a4dfa453f7",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libcairo-2.dll",
+      "bytes": 1247164,
+      "sha256": "c474166543aed18b389b20122ca2741189504994dafd86cd5ed121e95bd82ce4",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libcurl-4.dll",
+      "bytes": 1226963,
+      "sha256": "3d302f9690e810fdfd950254e2f0663d0ff768737f350c602a4ed3a06e9b6b2b",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libdatrie-1.dll",
+      "bytes": 35033,
+      "sha256": "2f784872e6404e57847201fe1e7e591bd5b5be4a319ef38ebcb36014ac7f385d",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libdeflate.dll",
+      "bytes": 99228,
+      "sha256": "3f3fc3a73bc3623dc93b37bb321c484d3731d93006fd01c0495d15711826eb44",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libexpat-1.dll",
+      "bytes": 237603,
+      "sha256": "92ae866c6c58dd2d8366aa0e6230ba8d434d5306e8d8c3a08b7e61750fc16153",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libffi-8.dll",
+      "bytes": 40945,
+      "sha256": "390e4bf8abd037abd0e1dd1f311606715e43f8efe812e5c5b8775acf2cb2f21e",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libfontconfig-1.dll",
+      "bytes": 502866,
+      "sha256": "661c44249b9b06820554940a984b783b1daae9740a4a2eb265fe77205962486f",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libfreetype-6.dll",
+      "bytes": 790651,
+      "sha256": "bbb3e6390ee229c867ef31f10e42a49a61a92e434a11d40c6139a2608ebc6194",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libfribidi-0.dll",
+      "bytes": 156403,
+      "sha256": "84930fd86a3b46b62794a3bbaff21fbbaeaade5ff7cdc70be7f717ad29af87ed",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libgcc_s_seh-1.dll",
+      "bytes": 954773,
+      "sha256": "172cfdc9d83703ec0a0ca2cee08f6cf2a166b801717ee51a56b3a63b36bc2f83",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN",
+      "license_family_reference": "GNU runtime terms; libstdc++ manual describes GPL with GCC Runtime Library Exception, binary source revision not independently audited",
+      "license_reference": "https://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html"
+    },
+    {
+      "path": "libgif-7.dll",
+      "bytes": 45777,
+      "sha256": "5b3d837ccaab84683dd93fbaddf2d98e1a9f90e0ddb8ea73dc70157adb4d26f1",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libgio-2.0-0.dll",
+      "bytes": 1915159,
+      "sha256": "3dc3d4d477633cc9265b0796f9037a9fa387f4a1e8b7258890987a8c2c21eb0a",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libglib-2.0-0.dll",
+      "bytes": 1566649,
+      "sha256": "43f2015fccfb10e22ecece61855d9ea21835f833b6533bc53ab77b54f4d66c34",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libgmodule-2.0-0.dll",
+      "bytes": 26748,
+      "sha256": "69cf44cda7756a6ec4a926e0cf9fe81721f05d65abfab88ff83004fa508bb0e7",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libgobject-2.0-0.dll",
+      "bytes": 359475,
+      "sha256": "acf20d5ddd3d2e4b4355576f5cf662c18f42746c50f43eaccc0596592616602a",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libgraphite2.dll",
+      "bytes": 167155,
+      "sha256": "063a9ad34a5ec87d038b4646660957395224ecf2cf707917256b7d251a7c5f57",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libharfbuzz-0.dll",
+      "bytes": 1541957,
+      "sha256": "54fb644a1143b3b81d494684f299aca9ff4b72134f12a7b1cfb2bd0f8fa9cef7",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libiconv-2.dll",
+      "bytes": 1143148,
+      "sha256": "7a282a854e01be726c6cccfe46f548c716aa45b3014818468253aaa4efbcd067",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libicudt78.dll",
+      "bytes": 33120806,
+      "sha256": "47d19b605a28461d44e0d8c062c465e92c9edfb0244f023a8066f7337d317d0e",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libicuin78.dll",
+      "bytes": 3186867,
+      "sha256": "af3341827897a41ab16667ee0699acdb2b0338c3bf4ecc7f510a324f18755422",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libicuuc78.dll",
+      "bytes": 1999466,
+      "sha256": "3186171e946552e2a5e371cd0bc68bf37bd6e229a85dbb0d3c40231cf0858b49",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libidn2-0.dll",
+      "bytes": 247081,
+      "sha256": "9880b52651a0247640a2531d777380f7c35fac7efa7e3979b265ddcb78db8642",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libintl-8.dll",
+      "bytes": 298731,
+      "sha256": "0537c3dd2378218508ebe3cc416d72a99ee2d24ae1c5525e23458f32544ef861",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libjbig-0.dll",
+      "bytes": 62083,
+      "sha256": "275a827ba6839d47cfdbe059db1b1b403a92ff26e2b76a29362915487868bef2",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libjpeg-8.dll",
+      "bytes": 967968,
+      "sha256": "b564d34adaca83e73af0e2231719dd0198ea6cd074c64b2ba85bfd7182f27db7",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libleptonica-6.dll",
+      "bytes": 2850600,
+      "sha256": "1869b44e3d46fd830620b042477e5d60a950779582f38f60291547efb27792f1",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "liblz4.dll",
+      "bytes": 158649,
+      "sha256": "35f917274bca8f19677ba66f1b3cc3c83568c3249fc43215fc16e76439c8e856",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "liblzma-5.dll",
+      "bytes": 191836,
+      "sha256": "dc9edb9bd83b0371fe68d96cb3e70cd17b7a5aba958326a18f8210cb812432e9",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libopenjp2-7.dll",
+      "bytes": 519082,
+      "sha256": "123587086cb1a25d2a338fb9b7c1d6bda10bf9062625b4f08c6a92b3d9cafe47",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpango-1.0-0.dll",
+      "bytes": 437317,
+      "sha256": "a7722692aa345f88cd0cb0296ad144e14b89a25c9926b5c3bac815331bba2127",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpangocairo-1.0-0.dll",
+      "bytes": 84876,
+      "sha256": "f0efa65511bc8f35186e9adf4628fb9ed505b31435a93afe218ae6c348197954",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpangoft2-1.0-0.dll",
+      "bytes": 112015,
+      "sha256": "adeeffc8438397998f449f8da1bd3832f4c031215415d7ed21109582dc6908a6",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpangowin32-1.0-0.dll",
+      "bytes": 112948,
+      "sha256": "08a8ac72c621158d47eb713139e0ad9021c43bef1af01f1365a41fb7f33272c8",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpcre2-8-0.dll",
+      "bytes": 717955,
+      "sha256": "a499fb8a7eff453d6e4f0842576bc5171d40a1505d8f7f13fff6cee51b738a62",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpixman-1-0.dll",
+      "bytes": 740378,
+      "sha256": "55ce45825eb8e825c635416171be4736147a6b0b690469f545d8c4ae8e85b4a3",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpng16-16.dll",
+      "bytes": 264269,
+      "sha256": "3737838ee8d6b893df7bdabf7439775371a57dce7e17ee6b35586023c64bd9ab",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libpsl-5.dll",
+      "bytes": 105304,
+      "sha256": "b31fc70eda598a39b65fe2736d815518db0652d641346f75eac40c2a0499b058",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libsharpyuv-0.dll",
+      "bytes": 53757,
+      "sha256": "ab0c9f61dc69b6bcdff1011e215f8d5fd6e5096aba9be3386ab87f217fbbeffe",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libssh2-1.dll",
+      "bytes": 271318,
+      "sha256": "ee7fe3e749859334c99e9261689481dd879811122598d22585421f95d29fc7ae",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libstdc++-6.dll",
+      "bytes": 26390974,
+      "sha256": "5fe5d4d8f6636eb6f2dc55be99dc5dc8a6c40db1abdf592e84480d1e6985abd0",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN",
+      "license_family_reference": "GNU runtime terms; libstdc++ manual describes GPL with GCC Runtime Library Exception, binary source revision not independently audited",
+      "license_reference": "https://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html"
+    },
+    {
+      "path": "libthai-0.dll",
+      "bytes": 72294,
+      "sha256": "5d741974fdec19e0f6cddbcdb539428af0c7392740a056634714c2884157fdb9",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libtiff-6.dll",
+      "bytes": 625178,
+      "sha256": "47fe69165bf8e211aaa84224f51f145dc894e330fe7ca167f7c99419e0c8c894",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libunistring-5.dll",
+      "bytes": 2251328,
+      "sha256": "b91e2850d3668d4931056a8f4d35783b8ec3eea3735485108a936a072cd16071",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libwebp-7.dll",
+      "bytes": 749724,
+      "sha256": "c6c21a10f8cfe13270832e64640b82709e1d87b956b5f15af435a6c25acd6bbf",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libwebpmux-3.dll",
+      "bytes": 82858,
+      "sha256": "2c8a2e9d7901ec65330f31f9989c2a07ef0506e903b485fcd8b241a6bab9b88f",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libwinpthread-1.dll",
+      "bytes": 65955,
+      "sha256": "6a661d5846d80a91394dbb9b2dab87ba3cc705eac80ad45fe73677bff70cd6d2",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "libzstd.dll",
+      "bytes": 1218273,
+      "sha256": "b95c223a9548a9ecf51377c962e0bc8f0c51eb0c6f67a296dbc885996f0dd40d",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    },
+    {
+      "path": "zlib1.dll",
+      "bytes": 128488,
+      "sha256": "93e9243a44c29200eeacaf9658efe2558581770e4b11ca4b500e18e424a6e3b5",
+      "component_identification": "FILE_NAME_ONLY_NOT_COMPLETE_PE_OR_SOURCE_SBOM",
+      "source_artifact": "tesseract-ocr-w64-setup-5.5.3.20260724.exe",
+      "source_artifact_sha256": "bee9e3434bd94fd65387d9be28cd467a41f61b1275383b55b0f59a1331270ae4",
+      "component_source_revision": null,
+      "license_expression": null,
+      "exact_native_license_verification": "NOT_RUN"
+    }
+  ],
+  "native_license_scope": {
+    "dll_count": 55,
+    "physical_hashes": "VERIFIED_AGAINST_AUTHENTICATED_OFFICIAL_INSTALLER_EXTRACTION",
+    "complete_component_license_sbom": "NOT_COMPLETE",
+    "complete_corresponding_sources_and_notices_audit": "NOT_RUN",
+    "license_clearance": "NOT_ATTESTED",
+    "public_redistribution_authorization": "NOT_INFERRED_FROM_TECHNICAL_TESTS",
+    "limits": "Official binary provenance and Apache notices do not assign Apache licensing to every native DLL; preserve notices/licenses and fulfill applicable source-access obligations. No blanket MIT/Apache aggregate claim."
+  },
+  "mineru_exclusion": {
+    "bundled": false,
+    "audited_version": "4.0.10",
+    "audited_commit": "ed50cc15bc2c9bfb00520dadfe61979866e62236",
+    "license_reference": "https://github.com/opendatalab/MinerU/blob/ed50cc15bc2c9bfb00520dadfe61979866e62236/LICENSE.md",
+    "license_description": "Custom Apache-based terms, commercial thresholds, online attribution and termination conditions; not pure Apache-2.0",
+    "docvortex_and_model_license_review": "PENDING_NOT_BUNDLED"
+  }
+}

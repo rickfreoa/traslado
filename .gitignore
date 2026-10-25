@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+build/
+work/
+ocr-cache/
+*.egg-info/
+dist/*
+!dist/.gitignore
+INSTALL-PAYLOAD.json
