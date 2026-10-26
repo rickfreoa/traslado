@@ -1218,6 +1218,7 @@
     "docvortex_and_model_license_review": "PENDING_NOT_BUNDLED"
   },
   "lacunas": [
+    {"id": "sem-recibos-de-instalacao", "escopo": "instalação no computador do usuário", "descricao": "O inventário é conferido contra os locks e declarações do repositório, não contra os bytes instalados; recibos com hash por membro e leitura dos textos de licença instalados não existem."},
     {
       "id": "dlls-nativas-licenca-nao-auditada",
       "escopo": "54 das 55 DLLs de ocr_native_dlls (todas exceto libtesseract-5.dll)",
