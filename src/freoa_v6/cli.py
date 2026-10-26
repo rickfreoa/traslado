@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     convert.add_argument("--dpi", type=int)
     convert.add_argument("--job-timeout", type=int)
     convert.add_argument("--ocr-timeout", type=int)
+    convert.add_argument("--ocr-workers", type=int)
     convert.add_argument("--tesseract")
     convert.add_argument("--tessdata")
     convert.add_argument("--advanced-kit", help="Experimental: caminho absoluto do MinerU Kit 4.0.10 local")
@@ -64,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
             if set(data) != {"conversion"} or not isinstance(data["conversion"], dict):
                 raise ValueError("Use somente a seção [conversion]")
             values.update(data["conversion"])
-        for name in ("mode", "furniture", "language", "dpi", "job_timeout", "ocr_timeout", "tesseract", "tessdata", "advanced_kit", "advanced_timeout",
+        for name in ("mode", "furniture", "language", "dpi", "job_timeout", "ocr_timeout", "ocr_workers", "tesseract", "tessdata", "advanced_kit", "advanced_timeout",
                      "chunks", "overwrite", "chunk_size_chars", "chunk_overlap_chars"):
             value = getattr(args, name)
             if value is not None:

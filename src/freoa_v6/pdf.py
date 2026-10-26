@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, deque
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
+from ctypes import c_float
+import os
 import json
 from pathlib import Path
 import re
@@ -51,7 +55,7 @@ def reading_order(blocks: list[Block], width: float) -> tuple[list[Block], bool]
     return [blocks[i] for i in out], True
 
 
-def render_page(page: Any, path: Path, options: Options, clip: Any = None) -> None:
+def render_page(page: Any, path: Path, options: Options, clip: Any = None, *, admit=None) -> None:
     import fitz
     rect = clip or page.rect
     scale = options.dpi / 72
@@ -60,7 +64,12 @@ def render_page(page: Any, path: Path, options: Options, clip: Any = None) -> No
     pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), clip=clip, alpha=False)
     if pix.width * pix.height > options.max_pixels:
         raise ValueError("Renderização excede limite de pixels")
-    pix.save(path)
+    if admit is None:
+        pix.save(path)
+    else:
+        data = pix.tobytes("png")
+        admit(len(data))  # no PNG exists on disk before count/byte admission
+        path.write_bytes(data)
 
 
 def render_scan_preview(page: Any, path: Path, options: Options) -> None:
@@ -255,7 +264,52 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
         raise RuntimeError("Instale o perfil PDF: pip install .[pdf]") from exc
     assets = workspace / "assets"
     assets.mkdir(exist_ok=True)
-    with fitz.open(path) as pdf:
+    workers = min(options.ocr_workers, os.cpu_count() or 1)
+    with ExitStack() as stack, fitz.open(path) as pdf, ExitStack() as executor_stack:
+        pool = ThreadPoolExecutor(max_workers=workers)
+        executor_stack.callback(pool.shutdown, wait=True, cancel_futures=True)
+        pending = deque()
+        input_directory = None
+        live_bytes = 0
+        completed = {}
+        next_progress = 1
+
+        def progress(number, total, route):
+            nonlocal next_progress
+            completed.setdefault(number, []).append(route)
+            while next_progress in completed:
+                routes = completed.pop(next_progress)
+                for event in routes:
+                    _progress(workspace, next_progress, total, event)
+                if routes[-1] in {"analyzing", "ocr"}:
+                    break
+                next_progress += 1
+
+        def finish():
+            nonlocal live_bytes
+            future, page, fallback, image, size, extras, notes = pending.popleft()
+            try:
+                ocr_blocks, warnings = future.result()
+                for block in ocr_blocks:
+                    block.details["source_page"] = page.number
+                page.blocks.extend(ocr_blocks)
+                page.warnings.extend(warnings)
+            except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                page.warnings.append("ocr_failed: " + str(exc))
+                page.blocks.extend(fallback)
+            finally:
+                image.unlink(missing_ok=True)
+                live_bytes -= size
+            page.blocks.extend(extras)
+            page.warnings.extend(notes)
+            progress(page.number, len(pdf), "ocr_done")
+
+        def admit(size):
+            if size > options.max_output_bytes:
+                raise ValueError("PNG OCR excede limite de saída")
+            while live_bytes + size > options.max_output_bytes:
+                finish()
+
         if pdf.needs_pass:
             raise ValueError("PDF protegido por senha não é suportado")
         if len(pdf) > options.max_pages:
@@ -263,7 +317,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
         heights = []
         for index, source in enumerate(pdf, 1):
             heights.append((source.rect.height, source.rotation_matrix))
-            _progress(workspace, index, len(pdf), "analyzing")
+            progress(index, len(pdf), "analyzing")
             native_raw = source.get_text("blocks", flags=fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES)
             blocks = [Block("text", str(b[4]).strip(), finite_box(b[:4]), engine="pymupdf")
                       for b in native_raw if len(b) >= 7 and b[6] == 0 and str(b[4]).strip()]
@@ -298,52 +352,67 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             document.pages.append(page)
             if needs_ocr:
                 page.route = "ocr"
-                _progress(workspace, index, len(pdf), page.route)
+                progress(index, len(pdf), page.route)
                 if native.strip():
                     page.metrics["native_text_retained_in_json_ocr_supersedes_markdown"] = True
+                while len(pending) >= workers:
+                    finish()
+                # Capture all PyMuPDF geometry on the main thread. The OCR
+                # transform uses plain floats, never a page or a fitz object.
+                _attach_native_lines(source, native_raw, blocks)
+                extras, notes = [], []
+                if input_directory is None:
+                    input_directory = Path(stack.enter_context(tempfile.TemporaryDirectory(
+                        prefix=".freoa-ocr-page-", dir=workspace.parent)))
+                image = input_directory / f"page-{index}.png"
                 try:
-                    # One high-resolution OCR input at a time, outside the final
-                    # package. A book must not accumulate a PNG for every page.
-                    with tempfile.TemporaryDirectory(prefix=".freoa-ocr-page-", dir=workspace.parent) as raw:
-                        image = Path(raw) / "page.png"
-                        render_page(source, image, options)
-                        scale = options.dpi / 72
-                        raster_rect = (source.rect * fitz.Matrix(scale, scale)).irect
-                        derotation = source.derotation_matrix
+                    render_page(source, image, options, admit=admit)
+                    size = image.stat().st_size if image.is_file() else 0
+                    live_bytes += size
+                    scale = options.dpi / 72
+                    raster_rect = (source.rect * fitz.Matrix(scale, scale)).irect
+                    x0, y0 = raster_rect.x0, raster_rect.y0
+                    matrix = tuple(source.derotation_matrix)
 
-                        def transform(x: float, y: float) -> tuple[float, float]:
-                            # Pixmap pixels start at its integer device origin.
-                            # Native text boxes are unrotated and crop-local:
-                            # cropbox.x0/y0 must NOT be added a second time.
-                            point = fitz.Point((x + raster_rect.x0) / scale,
-                                               (y + raster_rect.y0) / scale) * derotation
-                            return point.x, point.y
+                    def transform(x, y, x0=x0, y0=y0, scale=scale, matrix=matrix):
+                        a, b, c, d, e, f = matrix
+                        x, y = c_float((x + x0) / scale).value, c_float((y + y0) / scale).value
+                        return c_float(a*x + c*y + e).value, c_float(b*x + d*y + f).value
 
-                        ocr_blocks, warnings = recognize_blocks(image, workspace, options, transform)
-                        for block in ocr_blocks:
-                            block.details["source_page"] = index
-                        page.blocks.extend(ocr_blocks)
-                        page.warnings.extend(warnings)
+                    def run(image=image, transform=transform):
+                        try:
+                            return recognize_blocks(image, workspace, options, transform)
+                        finally:
+                            image.unlink(missing_ok=True)
+
+                    future = pool.submit(run)
+                    pending.append((future, page, blocks, image, size, extras, notes))
                 except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                    image.unlink(missing_ok=True)
                     page.warnings.append("ocr_failed: " + str(exc))
-                    _attach_native_lines(source, native_raw, blocks)
                     page.blocks.extend(blocks)
+                # Preview and warning ordering is applied after OCR results.
                 if options.images and options.scan_previews:
                     preview = assets / f"page-{index}-preview.jpg"
                     try:
                         render_scan_preview(source, preview, options)
-                        page.blocks.append(Block("image", asset=f"assets/{preview.name}", engine="pymupdf",
+                        extras.append(Block("image", asset=f"assets/{preview.name}", engine="pymupdf",
                                                  details={"lossy_preview": True, "long_edge_pixels": 1200}))
                         page.metrics["scan_previews_exported"] = True
                     except (ValueError, OSError, RuntimeError) as exc:
                         preview.unlink(missing_ok=True)
-                        page.warnings.append("scan_preview_failed: " + str(exc))
+                        notes.append("scan_preview_failed: " + str(exc))
                 if metrics["suspect"]:
-                    page.warnings.append("native_unicode_suspect_retained_in_json")
-                _progress(workspace, index, len(pdf), "ocr_done")
+                    notes.append("native_unicode_suspect_retained_in_json")
+                if not any(item[1] is page for item in pending):
+                    page.blocks.extend(extras)
+                    page.warnings.extend(notes)
+                    progress(index, len(pdf), "ocr_done")
+                if workers == 1 and pending:
+                    finish()
                 continue
             if blank:
-                _progress(workspace, index, len(pdf), "blank")
+                progress(index, len(pdf), "blank")
                 continue
             _attach_native_lines(source, native_raw, blocks)
             if metrics["suspect"]:
@@ -410,6 +479,8 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         page.warnings.append("image_render_failed: " + str(exc))
                 region_has_native = any(_within(b, box) for b in blocks if b.kind == "text")
                 if options.mode == "auto" and not region_has_native and box.width*box.height >= area * .15:
+                    while pending:
+                        finish()
                     try:
                         if not image_path.exists():
                             render_page(source, image_path, options, box)
@@ -427,6 +498,8 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             # Image placement is approximate and explicit in the report.
             if any(max(0, box.width*box.height) / area <= .65 for box in image_boxes):
                 page.warnings.append("image_semantics_unverified")
-            _progress(workspace, index, len(pdf), page.route)
+            progress(index, len(pdf), page.route)
+        while pending:
+            finish()
         if options.furniture == "mark":
             _mark_furniture(document, heights)

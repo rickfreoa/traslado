@@ -14,6 +14,7 @@ class Options:
     language: str = field(default_factory=default_language)
     dpi: int = 250
     job_timeout: int = 3600
+    ocr_workers: int = 4
     ocr_timeout: int = 45
     max_input_bytes: int = 256 * 1024 * 1024
     max_archive_bytes: int = 512 * 1024 * 1024
@@ -42,7 +43,7 @@ class Options:
             raise ValueError("Modo inválido")
         if not re.fullmatch(r"[a-zA-Z_]+(?:\+[a-zA-Z_]+)*", self.language):
             raise ValueError("Idioma OCR inválido")
-        limits = {"dpi": (72, 400), "job_timeout": (1, 3600), "ocr_timeout": (1, 600),
+        limits = {"ocr_workers": (1, 4), "dpi": (72, 400), "job_timeout": (1, 3600), "ocr_timeout": (1, 600),
                   "max_input_bytes": (1, 1_073_741_824), "max_archive_bytes": (1, 2_147_483_648),
                   "max_pages": (1, 10000), "max_pixels": (1000, 80_000_000),
                   "max_output_bytes": (100, 536_870_912), "max_cells": (1, 2_000_000),

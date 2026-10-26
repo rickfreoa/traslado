@@ -113,7 +113,8 @@ def _recognize(image: Path, workspace: Path, options: Options) -> tuple[Block, l
         # Direct flags also work with a traineddata-only directory (no configs/).
         argv.extend(["-c", "tessedit_create_txt=1", "-c", "tessedit_create_tsv=1"])
         log = temp / "stderr.log"
-        code = run_bounded(argv, temp, options.ocr_timeout, log)
+        code = run_bounded(argv, temp, options.ocr_timeout, log,
+                           env={**os.environ, "OMP_THREAD_LIMIT": "1"}, share_session=True)
         diagnostics = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
         if code != 0 or re.search(r"failed loading language|error opening data file|couldn't load any languages|lstm requested, but not present", diagnostics, re.I):
             raise RuntimeError("Tesseract falhou ao carregar/executar os idiomas solicitados (" + options.language + "); confira tessdata e doctor. " + diagnostics[-1500:])
@@ -151,7 +152,8 @@ def _validate_languages(exe: str, data: str | None, options: Options, temp: Path
     if data:
         argv += ["--tessdata-dir", data]
     log = temp / "languages.log"
-    code = run_bounded(argv + ["--list-langs"], temp, options.ocr_timeout, log)
+    code = run_bounded(argv + ["--list-langs"], temp, options.ocr_timeout, log,
+                       env={**os.environ, "OMP_THREAD_LIMIT": "1"}, share_session=True)
     if code != 0 or not log.is_file():
         raise RuntimeError("Não foi possível validar os idiomas do Tesseract; confira doctor")
     available = sorted({line.strip() for line in log.read_text(encoding="utf-8", errors="replace").splitlines()

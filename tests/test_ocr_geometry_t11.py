@@ -58,7 +58,7 @@ class GeometryT11(unittest.TestCase):
         self.temp.cleanup()
 
     def fake(self, text=TXT, rows=None, languages="eng", diagnostics="", code=0, missing=False, raw_tsv=None):
-        def run(argv, cwd, timeout, log):
+        def run(argv, cwd, timeout, log, **kwargs):
             self.calls.append(argv)
             if "--list-langs" in argv:
                 log.write_text("List of available languages:\n" + languages + "\n", encoding="utf-8")
@@ -211,7 +211,7 @@ class GeometryT11(unittest.TestCase):
         workspace = self.root / "package"
         workspace.mkdir()
         seen = []
-        def bounded(argv, cwd, timeout, log):
+        def bounded(argv, cwd, timeout, log, **kwargs):
             if "--list-langs" in argv:
                 log.write_text("eng\n", encoding="utf-8")
             else:
@@ -294,8 +294,8 @@ class GeometryT11(unittest.TestCase):
                     with fitz.open(path) as source:
                         native = fitz.Rect(source[0].get_text("words")[0][:4])
                     captured = []
-                    def capture(argv, cwd, timeout, log):
-                        code = real_run(argv, cwd, timeout, log)
+                    def capture(argv, cwd, timeout, log, **kwargs):
+                        code = real_run(argv, cwd, timeout, log, **kwargs)
                         if "--list-langs" not in argv:
                             base = Path(argv[2])
                             txt = base.with_suffix(".txt").read_text(encoding="utf-8")
