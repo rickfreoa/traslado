@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 import json
 from pathlib import Path
+import re
 import tempfile
 from typing import Any
 
@@ -130,6 +131,78 @@ def _attach_native_lines(source: Any, raw: list, blocks: list[Block]) -> None:
             block.lines = lines
 
 
+def _weighted_select(values: list[tuple[float, int]], rank: int) -> float:
+    """Select a character-weighted rank in deterministic linear time."""
+    if len(values) <= 5:
+        for size, weight in sorted(values):
+            if rank < weight:
+                return size
+            rank -= weight
+        raise ValueError("Rank fora dos pesos")
+    medians = [(sorted(values[i:i + 5])[len(values[i:i + 5]) // 2][0], 1)
+               for i in range(0, len(values), 5)]
+    pivot = _weighted_select(medians, len(medians) // 2)
+    lower, upper = [], []
+    low_weight = equal_weight = 0
+    for size, weight in values:
+        if size < pivot:
+            lower.append((size, weight))
+            low_weight += weight
+        elif size > pivot:
+            upper.append((size, weight))
+        else:
+            equal_weight += weight
+    if rank < low_weight:
+        return _weighted_select(lower, rank)
+    if rank < low_weight + equal_weight:
+        return pivot
+    return _weighted_select(upper, rank - low_weight - equal_weight)
+
+
+def _mark_furniture(document: Document, heights: list[float]) -> None:
+    """Annotate only native text; leave content, geometry and order untouched."""
+    body_sizes = []
+    candidates = []
+    groups: dict[tuple[str, str], set[int]] = {}
+    for sheet, (page, height) in enumerate(zip(document.pages, heights)):
+        for block in page.blocks:
+            if block.engine != "pymupdf" or block.kind != "text":
+                continue
+            block.role = "body"
+            box = block.bbox
+            if box is None or block.lines is None:
+                continue
+            spans = [span for line in block.lines for span in line["spans"]]
+            band = "top" if box[3] <= .10 * height else "bottom" if box[1] >= .90 * height else None
+            if box[1] >= .10 * height and box[3] <= .90 * height:
+                body_sizes.extend((span["size"], len(span["text"])) for span in spans if span["text"])
+            if band is not None and len(block.lines) <= 2 and spans:
+                candidates.append((block, band, sheet, max(span["size"] for span in spans)))
+    total = sum(weight for _, weight in body_sizes)
+    if not total:
+        return
+    median = (_weighted_select(body_sizes, (total - 1) // 2) + _weighted_select(body_sizes, total // 2)) / 2
+    eligible = []
+    for block, band, sheet, size in candidates:
+        if size > median + .5:
+            continue
+        normalized = " ".join(re.sub(r"\d", "", block.text.lower()).split())
+        start, end = 0, len(normalized)
+        while start < end and not normalized[start].isalnum():
+            start += 1
+        while end > start and not normalized[end - 1].isalnum():
+            end -= 1
+        normalized = normalized[start:end]
+        key = (band, normalized)
+        if normalized:
+            groups.setdefault(key, set()).add(sheet)
+        eligible.append((block, key))
+    for block, key in eligible:
+        if (re.fullmatch(r"[\W_]*(\d{1,4}|[ivxlcdmIVXLCDM]{1,8})[\W_]*", block.text.strip())
+                or (key[1] and len(groups[key]) >= 3)):
+            block.role = "furniture"
+
+
 def extract(path: Path, workspace: Path, options: Options, document: Document) -> None:
     try:
         import fitz
@@ -142,7 +215,9 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             raise ValueError("PDF protegido por senha não é suportado")
         if len(pdf) > options.max_pages:
             raise ValueError("PDF excede limite de páginas")
+        heights = []
         for index, source in enumerate(pdf, 1):
+            heights.append(source.rect.height)
             _progress(workspace, index, len(pdf), "analyzing")
             native_raw = source.get_text("blocks", flags=fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES)
             blocks = [Block("text", str(b[4]).strip(), finite_box(b[:4]), engine="pymupdf")
@@ -305,3 +380,5 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             if any(max(0, box.width*box.height) / area <= .65 for box in image_boxes):
                 page.warnings.append("image_semantics_unverified")
             _progress(workspace, index, len(pdf), page.route)
+        if options.furniture == "mark":
+            _mark_furniture(document, heights)

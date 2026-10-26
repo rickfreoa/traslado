@@ -77,7 +77,11 @@ class GeometryT11(unittest.TestCase):
 
     def baseline(self, name):
         # Immutable 1.0.0 source, read only; no checkout or other worktree writes.
-        source = subprocess.check_output(["git", "show", f"v1.0.0:src/freoa_v6/{name}.py"], cwd=ROOT)
+        try:
+            source = subprocess.check_output(["git", "show", f"v1.0.0:src/freoa_v6/{name}.py"], cwd=ROOT,
+                                             stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.CalledProcessError):  # installed-wheel CI has no history
+            raise unittest.SkipTest("v1.0.0 indisponível fora do repositório")
         module = types.ModuleType(f"freoa_v6._t11_baseline_{name}")
         module.__package__ = "freoa_v6"
         exec(compile(source, f"v1.0.0/{name}.py", "exec"), module.__dict__)
@@ -253,7 +257,7 @@ class GeometryT11(unittest.TestCase):
     def test_native_artifacts_byte_identical_to_1_0_0(self):
         baseline = self.baseline("pdf")
         path = self.source(rotation=90, crop=True)
-        options = Options(mode="auto", language="eng", chunks=True)
+        options = Options(mode="auto", language="eng", chunks=True, furniture="off")  # off = stage 5 state
         before, after = self.root / "before", self.root / "after"
         before.mkdir()
         after.mkdir()

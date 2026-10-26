@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     convert.add_argument("-o", "--output", type=Path, required=True)
     convert.add_argument("--recursive", action="store_true")
     convert.add_argument("--mode", choices=["auto", "native", "ocr"])
+    convert.add_argument("--furniture", choices=["off", "mark"])
     convert.add_argument("--language")
     convert.add_argument("--dpi", type=int)
     convert.add_argument("--job-timeout", type=int)
@@ -63,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
             if set(data) != {"conversion"} or not isinstance(data["conversion"], dict):
                 raise ValueError("Use somente a seção [conversion]")
             values.update(data["conversion"])
-        for name in ("mode", "language", "dpi", "job_timeout", "ocr_timeout", "tesseract", "tessdata", "advanced_kit", "advanced_timeout",
+        for name in ("mode", "furniture", "language", "dpi", "job_timeout", "ocr_timeout", "tesseract", "tessdata", "advanced_kit", "advanced_timeout",
                      "chunks", "overwrite", "chunk_size_chars", "chunk_overlap_chars"):
             value = getattr(args, name)
             if value is not None:

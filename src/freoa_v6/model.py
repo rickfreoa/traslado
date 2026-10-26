@@ -33,8 +33,11 @@ class Options:
     advanced_kit: str | None = None
     advanced_timeout: int = 90
     max_memory_mb: int = 2048
+    furniture: str = "mark"
 
     def __post_init__(self) -> None:
+        if self.furniture not in ("off", "mark"):
+            raise ValueError("Opção inválida: furniture")
         if self.mode not in {"auto", "native", "ocr"}:
             raise ValueError("Modo inválido")
         if not re.fullmatch(r"[a-zA-Z_]+(?:\+[a-zA-Z_]+)*", self.language):

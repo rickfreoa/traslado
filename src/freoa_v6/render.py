@@ -161,6 +161,8 @@ def layout(document: Document) -> MarkdownLayout:
                          "route": page.route, "warnings": list(page.warnings),
                          "confidence": block.confidence, "bbox": block.bbox,
                          "asset": block.asset, "presentation": presentation})
+            if getattr(block, "role", None) is not None:
+                refs[-1]["role"] = block.role
             if block.kind in {"table", "html_table", "image"}:
                 atomic_parts.append(part)
             previous = block

@@ -22,8 +22,12 @@ BASELINE = "1ff904eafe5f313ea359ff4a8131286e2b6e14a1"
 
 
 def baseline_module(name, revision=BASELINE):
-    source = subprocess.check_output(
-        ["git", "show", f"{revision}:src/freoa_v6/{name}.py"], cwd=ROOT)
+    try:
+        source = subprocess.check_output(
+            ["git", "show", f"{revision}:src/freoa_v6/{name}.py"], cwd=ROOT, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        # Stage-identity checks need the repository history; installed-wheel CI runs skip them.
+        raise unittest.SkipTest(f"revisão {revision} indisponível fora do repositório")
     module = types.ModuleType(f"freoa_v6._p0_{revision.replace('.', '_')}_{name}")
     module.__package__ = "freoa_v6"
     # dataclasses resolves annotations through the defining module.
@@ -71,7 +75,7 @@ class PDFLinesT11(unittest.TestCase):
         workspace = self.root / f"extract-{len(list(self.root.iterdir()))}"
         workspace.mkdir()
         document = Document(path.name, sha256(path))
-        pdf.extract(path, workspace, options or Options(mode="native"), document)
+        pdf.extract(path, workspace, options or Options(mode="native", furniture="off"), document)
         return document
 
     def test_lines_spans_sizes_and_one_dict_call_with_unchanged_flags(self):
@@ -175,7 +179,8 @@ class PDFLinesT11(unittest.TestCase):
         request = self.root / "request.json"
         request.write_text(json.dumps({"workspace": str(workspace), "snapshot": str(path),
             "source_name": path.name, "sha256": sha256(path),
-            "options": asdict(Options(mode="native", chunks=True))}), encoding="utf-8")
+            # furniture="off": the stage 6 contract makes "off" reproduce the stage 5 state exactly.
+            "options": asdict(Options(mode="native", chunks=True, furniture="off"))}), encoding="utf-8")
         with patch.object(sys, "argv", ["worker", str(request)]), \
                 patch.object(worker.time, "monotonic", return_value=100), \
                 patch.object(worker, "Document", document_type), patch.object(pdf, "extract", extractor):
