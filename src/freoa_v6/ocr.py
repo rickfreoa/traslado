@@ -28,9 +28,11 @@ def find_tesseract(explicit: str | None = None) -> str | None:
         directory = Path(entry.strip('"'))
         if not directory.is_absolute() or directory.resolve() == current:
             continue
-        found = shutil.which(str(directory / "tesseract"))
-        if found:
-            return str(Path(found).resolve())
+        # No lookup by shutil.which: before Python 3.12 it ignores PATHEXT for a path with a directory part.
+        for extension in (os.environ.get("PATHEXT", ".EXE").split(os.pathsep) if os.name == "nt" else [""]):
+            found = directory / ("tesseract" + extension.lower())
+            if found.is_file() and os.access(found, os.X_OK):
+                return str(found.resolve())
     for variable in ("LOCALAPPDATA", "ProgramFiles"):
         root = os.environ.get(variable)
         if root:

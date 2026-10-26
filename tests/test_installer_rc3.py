@@ -166,7 +166,8 @@ class InstallerRC3(unittest.TestCase):
                 raise RuntimeError('SYNTHETIC_NEW_RELEASE_FAILURE')
             return self.fake_run(argv, **kwargs)
         try:
-            with self.assertRaisesRegex(ValueError, 'Link/junction'):
+            # Python 3.11 não tem Path.is_junction: a junction é recusada pelo teste de reparse point (mesma recusa, outra mensagem)
+            with self.assertRaisesRegex(ValueError, 'Link/junction' if hasattr(Path, 'is_junction') else 'Reparse point'):
                 self.install(run=run)
             self.assertFalse((self.root / '.installation-lock').exists())
             self.assert_old_preserved()
