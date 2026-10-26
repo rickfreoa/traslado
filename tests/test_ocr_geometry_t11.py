@@ -57,7 +57,7 @@ class GeometryT11(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def fake(self, text=TXT, rows=None, languages="eng", diagnostics="", code=0, missing=False):
+    def fake(self, text=TXT, rows=None, languages="eng", diagnostics="", code=0, missing=False, raw_tsv=None):
         def run(argv, cwd, timeout, log):
             self.calls.append(argv)
             if "--list-langs" in argv:
@@ -66,7 +66,8 @@ class GeometryT11(unittest.TestCase):
             base = Path(argv[2])
             base.with_suffix(".txt").write_text(text, encoding="utf-8")
             if not missing:
-                base.with_suffix(".tsv").write_text(tsv(ROWS if rows is None else rows), encoding="utf-8")
+                base.with_suffix(".tsv").write_text(raw_tsv if raw_tsv is not None else
+                                                    tsv(ROWS if rows is None else rows), encoding="utf-8")
             log.write_text(diagnostics, encoding="utf-8")
             return code
         return patch.object(ocr, "run_bounded", side_effect=run)
@@ -103,6 +104,21 @@ class GeometryT11(unittest.TestCase):
         argv = self.calls[1]
         self.assertEqual(argv[3:], ["-l", "eng", "--psm", "3", "-c", "tessedit_create_txt=1", "-c", "tessedit_create_tsv=1"])
 
+    def test_raw_tesseract_tsv_with_unescaped_quotes_keeps_geometry(self):
+        # Tesseract writes quotes verbatim; a CSV-quoting reader would swallow the following rows.
+        raw = "\t".join(HEADER) + "\n" + "".join("\t".join(map(str, r)) + "\n" for r in [
+            [5, 1, 1, 1, 1, 1, 10, 20, 30, 10, 90, '"Acordo'],
+            [5, 1, 1, 1, 1, 2, 45, 20, 40, 10, 80, 'de'],
+            [5, 1, 1, 1, 1, 3, 90, 20, 50, 10, -1, 'Acionistas"'],
+            [5, 1, 1, 1, 2, 1, 10, 40, 10, 10, 70, '"A"'],
+        ])
+        with self.fake(text='"Acordo de Acionistas"\n"A"\n', raw_tsv=raw):
+            blocks, notes = self.recognize()
+        self.assertEqual(notes, [])
+        self.assertEqual([b.text for b in blocks], ['"Acordo de Acionistas"\n"A"'])
+        self.assertIsNotNone(blocks[0].bbox)
+        self.assertAlmostEqual(blocks[0].confidence, (.9 + .8 + .7) / 3)  # conf -1 stays out of the mean
+
     def test_mismatch_fallback_preserves_txt_and_whole_page_confidence(self):
         for text in ("Alpha beta gamma Delta 43", "Delta Alpha beta gamma 42"):
             with self.subTest(text=text), self.fake(text=text):
@@ -115,7 +131,9 @@ class GeometryT11(unittest.TestCase):
             self.assertNotIn("geometry", blocks[0].details)
 
     def test_invalid_geometry_and_interleaved_ids_fall_back_without_text_loss(self):
-        for column, value in (("width", "nan"), ("height", 0), ("conf", "nan"), ("left", "bad"), ("line_num", 1)):
+        # A non-finite or negative conf no longer forces fallback: the word keeps its box and stays out of the
+        # mean (review of A3-0); malformed geometry and reordering still fall back.
+        for column, value in (("width", "nan"), ("height", 0), ("conf", "bad"), ("left", "bad"), ("line_num", 1)):
             rows = [row[:] for row in ROWS]
             # Interleave a line ID after another line; grouping must not reorder.
             index = 3 if column != "line_num" else 4
