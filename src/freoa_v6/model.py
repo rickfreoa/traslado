@@ -5,6 +5,7 @@ import math
 import re
 from typing import Any
 
+from . import __version__
 from .runtime import default_language
 
 
@@ -89,7 +90,7 @@ class Document:
     warnings: list[str] = field(default_factory=list)
     status: str = "complete"
     schema_version: int = 1
-    converter_version: str = "1.0.0"
+    converter_version: str = __version__
     duration_seconds: float = 0
     options: dict[str, Any] = field(default_factory=dict)
 
