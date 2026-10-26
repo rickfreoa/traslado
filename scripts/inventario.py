@@ -64,8 +64,15 @@ def verificar(raiz: Path) -> tuple[list[str], list[str]]:
             div.append(f"versão divergente no inventário: {nome} lock={versao} inventário={d['version']}")
         if not (d.get("license_expression") or d.get("license_metadata")):
             div.append(f"dependência sem licença no inventário: {nome}")
-    if set(lock_python(ler("requirements-full.hashes.lock"))) != set(fixas):
-        div.append("requirements-full.hashes.lock e requirements-full.lock fixam conjuntos diferentes")
+    # O lock com hashes é o efetivamente instalado (INSTALAR.ps1 e CI): confronta nome->versão com o outro lock e com o inventário.
+    fixas_hash = lock_python(ler("requirements-full.hashes.lock"))
+    for nome in sorted(fixas.keys() | fixas_hash.keys()):
+        if fixas.get(nome) != fixas_hash.get(nome):
+            div.append(f"lock com hashes diverge de requirements-full.lock: {nome} lock={fixas.get(nome)} hashes={fixas_hash.get(nome)}")
+        d = inventariadas.get(nome)
+        if nome in fixas_hash and (d is None or d["version"] != fixas_hash[nome]):
+            div.append(f"inventário diverge do lock com hashes: {nome} hashes={fixas_hash[nome]} "
+                       f"inventário={d['version'] if d else 'ausente'}")
     div += [f"dependência sem hash SHA-256 no lock com hashes: {n}" for n in fixas if not com_hash.get(n)]
     testes = lock_python(ler("requirements-test.hashes.lock"))
     div += [f"dependência de teste sem menção em THIRD-PARTY.md: {n}" for n in testes if n not in ler("THIRD-PARTY.md").lower()]
