@@ -130,7 +130,7 @@ class GUIRc6(unittest.TestCase):
         self.assertLessEqual(root.minsize()[1],root.winfo_screenheight()-90)
         rows=app.results.get_children()
         visible=[app.results.bbox(row) for row in rows if app.results.bbox(row)]
-        self.assertGreaterEqual(len(visible),2)
+        self.assertGreaterEqual(len(visible),2,f"tela {root.winfo_screenwidth()}x{root.winfo_screenheight()}, janela {root.winfo_width()}x{root.winfo_height()}, minsize {root.minsize()}")
         self.assertGreaterEqual(visible[-1][3],app._body_font.metrics("linespace")+8)
         for button in [app.convert_button,app.cancel_button,app.open_button,app.doctor_button]:
             self.assertLessEqual(button.winfo_rooty()+button.winfo_height(),root.winfo_rooty()+root.winfo_height())
