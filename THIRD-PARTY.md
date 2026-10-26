@@ -29,3 +29,13 @@ As ferramentas de build têm somente versões exatas no pyproject. Python, Tcl/T
 ## Dependências exclusivas de testes (rc9)
 
 `markdown-it-py==4.0.0` e `mdurl==0.1.2` têm licença MIT conforme os arquivos LICENSE das distribuições usadas na validação. O extra `test` e `requirements-test.hashes.lock` os declaram explicitamente; não são instalados no perfil Full pelo bootstrap Windows. Os artefatos de teste não são bibliotecas do runtime.
+
+## Lacunas declaradas (1.1.0)
+
+`scripts/inventario.py` confronta `THIRD-PARTY-INVENTORY.json` com os locks Python, `ocr-assets.lock.json`, os membros extraídos pelo bootstrap, as DLLs e os modelos, e falha se algo distribuído ou baixado não tiver entrada e licença. O que segue é lacuna conhecida, declarada em `"lacunas"` no inventário e nunca silenciada:
+
+- **OCR só em windows-x64.** `ocr-assets.lock.json` cobre apenas `windows-x64`. Em Linux não há lock: o CI Linux Full instala o Tesseract do pacote do sistema (apt), registra versão e idiomas no log e falha se o motor faltar; o binário e os modelos do sistema não têm hash fixado nem entram neste inventário.
+- **DLLs nativas.** 54 das 55 DLLs do Tesseract Windows têm hash e origem verificados, mas licença e fontes correspondentes não auditadas.
+- **Perfil Python histórico.** A resolução inventariada é a de CPython 3.14.6 em Windows; 3.11 a 3.13 e Linux usam os mesmos locks com hash, sem inventário próprio.
+- **PyMuPDF/MuPDF.** Nenhum ZIP ou wheel distribuído contém seus bytes (verificado no build e no workflow de release); o extra Full o instala no ambiente do usuário e segue a decisão de licenciamento acima.
+- **Sem SBOM completo** para interpretador, Tcl/Tk, ferramentas de build e bibliotecas nativas embutidas em wheels de terceiros.
