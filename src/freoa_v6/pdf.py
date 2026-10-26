@@ -105,6 +105,31 @@ def _progress(workspace: Path, number: int, total: int, route: str) -> None:
             pass
 
 
+def _attach_native_lines(source: Any, raw: list, blocks: list[Block]) -> None:
+    import fitz
+
+    # The existing blocks remain the authority for text, identity and order.
+    flags = fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES
+    try:
+        data = source.get_text("dict", flags=flags)
+    except Exception:  # line detail is optional: never let it break the page extraction
+        return
+    by_number = {b["number"]: b for b in data["blocks"]
+                 if b.get("type") == 0 and b.get("number") is not None}
+    native_raw = [b for b in raw if len(b) >= 7 and b[6] == 0 and str(b[4]).strip()]
+    for block, native in zip(blocks, native_raw):
+        matched = by_number.get(native[5])
+        if matched is None:
+            continue
+        lines = [{"bbox": finite_box(line["bbox"]), "spans": [
+            {"text": span["text"], "size": float(span["size"]), "flags": int(span["flags"]),
+             "font": span["font"], "bbox": finite_box(span["bbox"])}
+            for span in line["spans"]]} for line in matched["lines"]]
+        text = "\n".join("".join(span["text"] for span in line["spans"]) for line in lines)
+        if text.split() == block.text.split():
+            block.lines = lines
+
+
 def extract(path: Path, workspace: Path, options: Options, document: Document) -> None:
     try:
         import fitz
@@ -119,9 +144,9 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             raise ValueError("PDF excede limite de páginas")
         for index, source in enumerate(pdf, 1):
             _progress(workspace, index, len(pdf), "analyzing")
-            raw = source.get_text("blocks", flags=fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES)
+            native_raw = source.get_text("blocks", flags=fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES)
             blocks = [Block("text", str(b[4]).strip(), finite_box(b[:4]), engine="pymupdf")
-                      for b in raw if len(b) >= 7 and b[6] == 0 and str(b[4]).strip()]
+                      for b in native_raw if len(b) >= 7 and b[6] == 0 and str(b[4]).strip()]
             native = "\n\n".join(b.text for b in blocks)
             metrics = text_metrics(native)
             images = source.get_image_info()
@@ -178,6 +203,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         page.warnings.extend(warnings)
                 except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
                     page.warnings.append("ocr_failed: " + str(exc))
+                    _attach_native_lines(source, native_raw, blocks)
                     page.blocks.extend(blocks)
                 if options.images and options.scan_previews:
                     preview = assets / f"page-{index}-preview.jpg"
@@ -196,6 +222,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             if blank:
                 _progress(workspace, index, len(pdf), "blank")
                 continue
+            _attach_native_lines(source, native_raw, blocks)
             if metrics["suspect"]:
                 page.warnings.append("native_unicode_suspect")
             if options.tables and len(drawings) >= 3:

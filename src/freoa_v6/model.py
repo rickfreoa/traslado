@@ -69,6 +69,8 @@ class Block:
     rows: list[list[str]] | None = None
     confidence: float | None = None
     details: dict[str, Any] = field(default_factory=dict)
+    role: str | None = None
+    lines: list[dict] | None = None
 
 
 @dataclass
@@ -94,7 +96,14 @@ class Document:
     options: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        for page in data["pages"]:
+            for block in page["blocks"]:
+                # Line geometry is internal to PDF analysis, never an output payload.
+                block.pop("lines", None)
+                if block.get("role") is None:
+                    block.pop("role", None)
+        return data
 
 
 def text_metrics(text: str) -> dict[str, Any]:
