@@ -373,10 +373,10 @@ class Workflows(unittest.TestCase):
         self.assertLess(gate, t.index("gh release create"))
         passo = t[gate - 600:t.index("attest-build-provenance")]
         # espera a matriz (60 min, passo de 30 s), decide pela execução mais recente e recusa falha ou prazo esgotado
-        for trecho in ("timeout-minutes: 65", "PRAZO=$((SECONDS + 3600))", "sleep 30", "sort_by(.created_at) | last",
-                       '"completed success") break', '"completed "*)', "exit 1", "per_page=100"):
+        for trecho in ("timeout-minutes: 65", "PRAZO=$((SECONDS + 3600))", "sleep 30", "gh api --paginate",
+                       "python scripts/ci_gate.py", "liberar) break", "recusar)", "exit 1", "per_page=100", "|| DECISAO=erro-na-consulta"):
             self.assertIn(trecho, passo)
-        self.assertLess(passo.index('"completed success"'), passo.index('"completed "*)'))  # sucesso antes do caso geral de falha
+        self.assertNotIn("--jq", passo)  # a decisão não fica em jq
         self.assertNotIn("status=success", passo)  # sucesso antigo não pode mascarar execução mais recente
         self.assertLess(gate, t.index("attest-build-provenance"))
         self.assertIn("actions: read", t)
@@ -435,18 +435,41 @@ def falha_de_importacao(nome: str, exc: BaseException) -> unittest.TestCase:
     return Falha()
 
 
+def declaracoes_de_skip(arquivo: Path) -> set[tuple[str, str]]:
+    """Linhas '<modulo_de_teste> <raiz_opcional>  # motivo'; arquivo ausente = nada declarado."""
+    if not arquivo.is_file():
+        return set()
+    pares = set()
+    for linha in arquivo.read_text(encoding="utf-8").splitlines():
+        campos = linha.split("#", 1)[0].split()
+        if campos:
+            assert len(campos) == 2, f"{arquivo.name}: linha inválida: {linha!r}"
+            pares.add((campos[0], campos[1]))
+    return pares
+
+
 def executar_core(pasta: Path | None = None, opcionais=OPCIONAIS, fluxo=None) -> int:
     """Roda a suíte no perfil Core: ausência de módulo de extra opcional vira skip; qualquer outra falha continua falha.
 
     Cada módulo de teste é importado aqui, com o tipo da exceção à vista (o loader do unittest só guarda o texto).
     """
+    pasta = pasta or Path(__file__).resolve().parent
+    declarados, usados = declaracoes_de_skip(pasta / "core-skips.txt"), set()
+
+    def autorizado(modulo: str, exc: BaseException) -> bool:
+        """Skip exige extra realmente ausente E o par (módulo de teste, raiz) declarado em core-skips.txt."""
+        if not extra_ausente(exc, opcionais):
+            return False
+        par = (modulo, exc.name.split(".")[0])
+        usados.add(par)
+        return par in declarados
+
     class Resultado(unittest.TextTestResult):
         def addError(self, test, err):
-            if extra_ausente(err[1], opcionais):
+            if autorizado(type(test).__module__, err[1]):
                 return self.addSkip(test, f"Core: extra ausente ({err[1].name})")
             super().addError(test, err)
 
-    pasta = pasta or Path(__file__).resolve().parent
     sys.path.insert(0, str(pasta))
     loader, suite, pulados = unittest.TestLoader(), unittest.TestSuite(), []
     try:
@@ -454,7 +477,7 @@ def executar_core(pasta: Path | None = None, opcionais=OPCIONAIS, fluxo=None) ->
             try:
                 modulo = importlib.import_module(arquivo.stem)
             except Exception as exc:
-                if extra_ausente(exc, opcionais):
+                if autorizado(arquivo.stem, exc):
                     pulados.append(f"{arquivo.stem} ({exc.name})")
                 else:  # vira falha visível, com a exceção original
                     suite.addTest(falha_de_importacao(arquivo.stem, exc))
@@ -464,26 +487,55 @@ def executar_core(pasta: Path | None = None, opcionais=OPCIONAIS, fluxo=None) ->
     finally:
         sys.path.remove(str(pasta))
     print("Core: módulos de teste pulados por extra ausente:", ", ".join(pulados) or "nenhum", file=fluxo or sys.stderr)
+    for modulo, raiz in sorted(declarados - usados):  # aviso, não falha: a declaração pode ter deixado de ser necessária
+        print(f"AVISO core-skips.txt: '{modulo} {raiz}' não foi usado neste Core", file=fluxo or sys.stderr)
     return 0 if resultado.wasSuccessful() else 1
 
 
 class RunnerCore(unittest.TestCase):
     """O modo --core não pode transformar erro real em skip."""
 
-    def rodar(self, **arquivos):
+    def rodar(self, declarar=None, **arquivos):
         pasta = Path(tempfile.mkdtemp(prefix="t11-core-"))
         self.addCleanup(shutil.rmtree, pasta, True)
         for nome, texto in arquivos.items():
             (pasta / f"{nome}.py").write_text(texto, encoding="utf-8")
             self.addCleanup(sys.modules.pop, nome, None)
-        return executar_core(pasta, {"modulo_opcional_fake"}, io.StringIO())
+        if declarar is not None:
+            (pasta / "core-skips.txt").write_text(declarar, encoding="utf-8")
+        self.saida = io.StringIO()
+        return executar_core(pasta, {"modulo_opcional_fake"}, self.saida)
 
     CORPO = "import unittest\nclass T(unittest.TestCase):\n    def test_x(self):\n        {}\n"
     DISFARCE = 'raise ValueError("ModuleNotFoundError: No module named \'modulo_opcional_fake\'")'
 
-    def test_extra_ausente_legitimo_vira_skip(self):
-        self.assertEqual(self.rodar(test_t11fake_a="import modulo_opcional_fake\n",
+    DECL = "test_t11fake_a modulo_opcional_fake  # importação\ntest_t11fake_b modulo_opcional_fake\n"
+
+    def test_extra_ausente_declarado_vira_skip(self):
+        self.assertEqual(self.rodar(self.DECL, test_t11fake_a="import modulo_opcional_fake\n",
                                     test_t11fake_b=self.CORPO.format("import modulo_opcional_fake")), 0)
+        self.assertNotIn("AVISO", self.saida.getvalue())
+
+    def test_extra_ausente_sem_declaracao_falha(self):
+        corpo = self.CORPO.format("import modulo_opcional_fake")
+        self.assertEqual(self.rodar(test_t11fake_h=corpo), 1)  # sem core-skips.txt
+        self.assertEqual(self.rodar("test_t11fake_outro modulo_opcional_fake\n", test_t11fake_i=corpo), 1)  # par de outro módulo
+        self.assertEqual(self.rodar("test_t11fake_j outro_extra\n", test_t11fake_j=corpo), 1)  # raiz diferente
+        self.assertEqual(self.rodar(test_t11fake_k="import modulo_opcional_fake\n"), 1)  # falha na importação
+
+    def test_declaracao_nao_usada_apenas_avisa(self):
+        self.assertEqual(self.rodar("test_t11fake_l modulo_opcional_fake\n",
+                                    test_t11fake_l=self.CORPO.format("pass")), 0)
+        self.assertIn("AVISO core-skips.txt: 'test_t11fake_l modulo_opcional_fake'", self.saida.getvalue())
+
+    def test_declaracao_nao_autoriza_extra_presente(self):
+        # declarar não basta: a raiz precisa estar realmente ausente (json existe)
+        pasta = Path(tempfile.mkdtemp(prefix="t11-core-"))
+        self.addCleanup(shutil.rmtree, pasta, True)
+        (pasta / "test_t11fake_m.py").write_text(self.CORPO.format("import json.interno_inexistente"), encoding="utf-8")
+        (pasta / "core-skips.txt").write_text("test_t11fake_m json\n", encoding="utf-8")
+        self.addCleanup(sys.modules.pop, "test_t11fake_m", None)
+        self.assertEqual(executar_core(pasta, {"json"}, io.StringIO()), 1)
 
     def test_valueerror_com_mensagem_de_modulo_ausente_falha_no_corpo(self):
         self.assertEqual(self.rodar(test_t11fake_c=self.CORPO.format(self.DISFARCE)), 1)
@@ -514,6 +566,59 @@ class RunnerCore(unittest.TestCase):
         self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="freoa_v6.cli"), OPCIONAIS))
         self.assertFalse(extra_ausente(ImportError("x", name="fitz"), OPCIONAIS))
         self.assertFalse(extra_ausente(ValueError("No module named 'fitz'"), OPCIONAIS))
+
+
+class CiGate(unittest.TestCase):
+    """scripts/ci_gate.py só decide; o laço e o prazo ficam no release.yml."""
+
+    @staticmethod
+    def run(id, status="completed", conclusion="success", iniciado="2026-10-26T10:00:00Z", criado=None):
+        return {"id": id, "status": status, "conclusion": conclusion, "run_started_at": iniciado,
+                "created_at": criado or iniciado}
+
+    def setUp(self):
+        self.gate = carregar("ci_gate")
+
+    def test_sem_execucao_aguarda(self):
+        self.assertEqual(self.gate.decidir([]), "aguardar")
+
+    def test_sucesso_libera_e_falha_recusa(self):
+        self.assertEqual(self.gate.decidir([self.run(1)]), "liberar")
+        self.assertEqual(self.gate.decidir([self.run(1, conclusion="failure")]), "recusar")
+        self.assertEqual(self.gate.decidir([self.run(1, conclusion="cancelled")]), "recusar")
+
+    def test_execucao_em_andamento_aguarda_mesmo_com_sucesso_antigo(self):
+        antigo = self.run(1)
+        for status in ("queued", "in_progress", "waiting"):
+            novo = self.run(2, status=status, conclusion=None, iniciado="2026-10-26T11:00:00Z")
+            self.assertEqual(self.gate.decidir([antigo, novo]), "aguardar", status)
+
+    def test_empate_de_data_desempata_pelo_id(self):
+        a = self.run(10, conclusion="failure")
+        b = self.run(11, conclusion="success")
+        self.assertEqual(self.gate.decidir([a, b]), "liberar")
+        self.assertEqual(self.gate.decidir([b, a]), "liberar")
+        c = self.run(12, conclusion="failure")
+        self.assertEqual(self.gate.decidir([a, b, c]), "recusar")
+
+    def test_reexecucao_falha_de_run_antigo_depois_de_run_novo_verde_recusa(self):
+        antigo_reexecutado = self.run(1, conclusion="failure", criado="2026-10-26T09:00:00Z", iniciado="2026-10-26T12:00:00Z")
+        novo_verde = self.run(2, conclusion="success", iniciado="2026-10-26T10:00:00Z")
+        self.assertEqual(self.gate.decidir([novo_verde, antigo_reexecutado]), "recusar")
+        # ordenar por created_at liberaria erradamente: o run de id 2 é o mais recente por criação
+        self.assertGreater(novo_verde["created_at"], antigo_reexecutado["created_at"])
+
+    def test_leitura_de_todas_as_paginas_concatenadas(self):
+        p1 = json.dumps({"total_count": 3, "workflow_runs": [self.run(1), self.run(2, conclusion="failure", iniciado="2026-10-26T10:30:00Z")]})
+        p2 = json.dumps({"total_count": 3, "workflow_runs": [self.run(3, iniciado="2026-10-26T10:45:00Z")]})
+        self.assertEqual(self.gate.decidir(self.gate.execucoes(p1 + "\n" + p2)), "liberar")
+        self.assertEqual(self.gate.decidir(self.gate.execucoes(p1)), "recusar")
+        self.assertEqual(self.gate.execucoes(""), [])
+
+    def test_cli_imprime_a_decisao(self):
+        r = subprocess.run([sys.executable, "-I", str(SCRIPTS / "ci_gate.py")], input=json.dumps({"workflow_runs": [self.run(1)]}),
+                           capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), "liberar")
 
 
 class Nucleo(unittest.TestCase):
