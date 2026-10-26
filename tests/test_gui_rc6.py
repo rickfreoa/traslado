@@ -127,6 +127,8 @@ class GUIRc6(unittest.TestCase):
     # (telas simuladas de 776 a 796 px de altura mostraram 1 linha; 800 px mostrou 2). A janela usa a altura da tela menos 90.
     ALTURA_JANELA_PARA_DUAS_LINHAS_2X=710
     MARGEM_DE_TELA=90
+    # Atenção: em telas abaixo de 800 px de altura (ex.: runner Windows 1024x768) este método é pulado e fica SEM as verificações
+    # de duas linhas, altura da linha e botões; elas só rodam em tela maior (máquina local, Linux/xvfb).
 
     def test_high_dpi_minimum_window_preserves_two_results_and_screen_margin(self):
         root,app=self.make_app(2.0,(900,650))

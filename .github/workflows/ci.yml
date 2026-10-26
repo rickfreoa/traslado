@@ -130,6 +130,29 @@ jobs:
           "$PY" -m pip check
           "$PY" -m pip list
 
+      - name: Comprova TEMP com alias 8.3 (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          "$PY" -I -X utf8 - <<'PYEOF'
+          import os, re, sys, tempfile
+          from pathlib import Path
+          t, tmp = os.environ.get("TEMP", ""), os.environ.get("TMP", "")
+          bruto = tempfile.mkdtemp()
+          resolvido = Path(bruto).resolve()
+          print("TEMP =", t); print("TMP  =", tmp)
+          print("mkdtemp =", bruto); print("resolvido =", resolvido)
+          erros = []
+          if not any(re.search(r"~\d", v) for v in (t, tmp)):
+              erros.append("nem TEMP nem TMP contêm alias curto (~N): o runner deixou de expor 8.3")
+          if str(resolvido) == bruto:
+              erros.append("o caminho resolvido é igual ao bruto")
+          if not os.path.samefile(bruto, resolvido):
+              erros.append("bruto e resolvido não apontam para o mesmo diretório")
+          os.rmdir(bruto)
+          if erros:
+              sys.exit("FALHA: " + "; ".join(erros))
+          PYEOF
+
       - name: Suíte contra o wheel instalado, fora do checkout
         env:
           T11_EXIGE_INSTALADO: "1"
