@@ -32,8 +32,19 @@ DATA_FIXA = (1980, 1, 1, 0, 0, 0)
 # Nomes de membro que denunciam PyMuPDF/MuPDF (qualquer componente do caminho, sem diferenciar caixa).
 NOME_MUPDF = re.compile(r"(?:^|[/\\._-])(?:fitz|pymupdf|mupdf|_mupdf)(?:$|[/\\._-])", re.I)
 CONTEUDO_MUPDF = re.compile(rb"mupdf", re.I)
-# Texto (código/documentação do próprio projeto) pode citar PyMuPDF; só o conteúdo binário é varrido.
-TEXTO = {".py", ".ps1", ".bat", ".md", ".txt", ".json", ".toml", ".lock", ".yml", ".yaml", ".cfg", ".ini", ""}
+# Assinaturas executáveis: PE, ELF, Mach-O (32/64, ambas as ordens) e fat binary.
+ASSINATURAS = (b"MZ", b"\x7fELF", b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xce\xfa\xed\xfe", b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe")
+
+
+def e_binario(dados: bytes) -> bool:
+    """Independe do nome: assinatura executável, byte NUL ou bytes que não são UTF-8 válido."""
+    if dados.startswith(ASSINATURAS) or b"\0" in dados:
+        return True
+    try:
+        dados.decode("utf-8")
+    except UnicodeDecodeError:
+        return True
+    return False
 
 
 def sha(dados: bytes | Path) -> str:
@@ -60,19 +71,30 @@ def checkout_limpo(nomes: list[str]) -> bool:
         ["git", "-C", str(ROOT), "diff", "--quiet", "HEAD", "--", *nomes]).returncode == 0
 
 
-def construir_wheel(destino: Path) -> Path:
-    """Compila a partir de cópia dos arquivos rastreados: build/ e egg-info locais nunca contaminam o wheel."""
+def conferir_wheel(wheel: Path, nomes: list[str]) -> None:
+    """Os membros do wheel têm de ser exatamente o código autorizado em release-files.txt mais o dist-info."""
+    esperado = {n.removeprefix("src/") for n in nomes if n.startswith("src/")}
+    with zipfile.ZipFile(wheel) as z:
+        membros = set(z.namelist())
+    info = {m for m in membros if m.split("/")[0] == f"freoa_md_converter-{VERSION}.dist-info"}
+    if membros - info != esperado:
+        raise SystemExit(f"Wheel diverge da seleção autorizada: a mais {sorted(membros - info - esperado)}, "
+                         f"a menos {sorted(esperado - membros)}")
+
+
+def construir_wheel(destino: Path, nomes: list[str]) -> Path:
+    """Compila só a partir dos arquivos autorizados (release-files.txt), copiados para um diretório novo."""
     with tempfile.TemporaryDirectory(prefix="t11-wheel-") as tmp:
         fonte = Path(tmp) / "fonte"
-        for nome in git("ls-files", "-z").split("\0"):
-            if nome and not nome.startswith(("tests/", ".github/")):
-                (fonte / nome).parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(ROOT / nome, fonte / nome)
+        for nome in nomes:
+            (fonte / nome).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / nome, fonte / nome)
         env = {**os.environ, "SOURCE_DATE_EPOCH": git("log", "-1", "--format=%ct").strip()}
         subprocess.run([sys.executable, "-m", "pip", "wheel", str(fonte), "--no-deps", "-w", str(destino)],
                        check=True, env=env)
     wheels = list(destino.glob(f"freoa_md_converter-{VERSION}-py3-none-any.whl"))
     assert len(wheels) == 1, wheels
+    conferir_wheel(wheels[0], nomes)
     return wheels[0]
 
 
@@ -85,7 +107,7 @@ def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
         with zipfile.ZipFile(io.BytesIO(dados)) as z:
             for info in z.infolist():
                 achados += membros_proibidos(info.filename, z.read(info), f"{caminho}{nome}!")
-    elif Path(nome).suffix.lower() not in TEXTO and CONTEUDO_MUPDF.search(dados):
+    elif e_binario(dados) and CONTEUDO_MUPDF.search(dados):  # texto UTF-8 válido pode citar MuPDF (ex.: THIRD-PARTY.md)
         achados.append(f"{caminho}{nome}: conteúdo")
     return achados
 
@@ -105,7 +127,7 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
     dist.mkdir(parents=True, exist_ok=True)
     for velho in dist.glob("*.whl"):
         velho.unlink()
-    wheel = construir_wheel(dist)
+    wheel = construir_wheel(dist, nomes)
     itens = {n: (ROOT / n).read_bytes() for n in nomes}
     itens[f"dist/{wheel.name}"] = wheel.read_bytes()  # o instalador exige o wheel próprio no payload
     payload = {"schema_version": 1, "product": PRODUCT, "version": VERSION, "checkout_limpo": limpo,
