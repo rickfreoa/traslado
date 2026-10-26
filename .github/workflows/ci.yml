@@ -133,9 +133,6 @@ jobs:
       - name: Suíte contra o wheel instalado, fora do checkout
         env:
           T11_EXIGE_INSTALADO: "1"
-          # o TEMP padrão do runner Windows é C:\Users\RUNNER~1\... (nome 8.3); os testes comparam caminhos resolvidos
-          TEMP: ${{ runner.temp }}
-          TMP: ${{ runner.temp }}
         run: |
           cp -r fonte/tests "$PKG/tests"
           cd "$PKG"

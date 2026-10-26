@@ -14,7 +14,7 @@ from freoa_v6.model import Options
 class RuntimeRC3(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()  # o produto resolve; TEMP pode ser 8.3 (RUNNER~1)
         self.prefix = patch.object(sys, 'prefix', str(self.root / '.venv'))
         self.prefix.start()
 

@@ -73,7 +73,7 @@ class CloudGuardsRC5(unittest.TestCase):
 class InstallerDiagnosticsRC5(unittest.TestCase):
     def test_child_error_is_visible_and_persisted_even_without_capture(self):
         with tempfile.TemporaryDirectory() as raw:
-            logs = Path(raw)
+            logs = Path(raw).resolve()
             stdout, stderr = io.StringIO(), io.StringIO()
             with patch.object(installer, "LOG_DIRECTORY", logs), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 with self.assertRaises(subprocess.CalledProcessError) as caught:

@@ -16,7 +16,7 @@ from freoa_v6.runner import execute
 class OutputLayoutRC4(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="freoa-output-contract-")
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.output = self.root / "Destino escolhido"
 
     def tearDown(self):

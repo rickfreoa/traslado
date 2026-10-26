@@ -36,7 +36,7 @@ class LauncherRC3(unittest.TestCase):
         self.assertEqual(LAUNCHER_BYTES.count(b' -Encoding UTF8'), 2)
         old_bytes, origin = predecessor()
         with tempfile.TemporaryDirectory(prefix='freoa-launcher-review-') as raw:
-            base = Path(raw)
+            base = Path(raw).resolve()
             install = base / 'managed'
             data = base / 'documentos-áé-José'
             data.mkdir()
