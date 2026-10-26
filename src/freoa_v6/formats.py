@@ -12,8 +12,7 @@ from .model import Block, Document, Options, Page, text_metrics
 from .ocr import recognize
 from .safety import check_archive
 
-SUPPORTED = {".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".md", ".json", ".xml", ".csv", ".tsv",
-             ".html", ".htm", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
+from .registry import SUPPORTED, lookup
 
 
 class HTMLText(HTMLParser):
@@ -150,166 +149,230 @@ def docx_table(table, options: Options) -> Block:
                  details={"warnings": sorted(set(notes))})
 
 
-def extract(path: Path, workspace: Path, options: Options, document: Document) -> None:
+def _extract_docx(path: Path, workspace: Path, options: Options, document: Document) -> None:
     suffix = path.suffix.lower()
     assets = workspace / "assets"
-    assets.mkdir(exist_ok=True)
-    if suffix == ".pdf":
-        from .pdf import extract as extract_pdf
-        extract_pdf(path, workspace, options, document)
-        return
     page = Page(1, "native")
     document.pages.append(page)
-    if suffix in {".docx", ".xlsx", ".pptx"}:
-        check_archive(path, options)
-    if suffix == ".docx":
-        from docx import Document as Docx
-        from docx.oxml.ns import qn
-        from docx.table import Table
-        from docx.text.paragraph import Paragraph
-        doc = Docx(path)
-        asset_index = 0
-        if any(True for _ in doc.element.body.iter(qn("w:ins"))) or any(True for _ in doc.element.body.iter(qn("w:del"))):
-            page.warnings.append("docx_tracked_changes_not_resolved")
-        for node in _docx_body_blocks(doc.element.body):
-            if node.tag == qn("w:p"):
-                paragraph = Paragraph(node, doc)
-                text = _docx_paragraph_text(node)
-                if text.strip():
-                    style = paragraph.style.name.lower() if paragraph.style else ""
-                    prefix = ""
-                    if style.startswith("heading ") and style[-1:].isdigit():
-                        prefix = "#" * max(1, min(6, int(style[-1]))) + " "
-                    page.blocks.append(Block("text", prefix + text, engine="python-docx"))
-                if options.images:
-                    for blip in node.iter(qn("a:blip")):
-                        rid = blip.get(qn("r:embed"))
-                        if rid and rid in doc.part.related_parts:
-                            asset_index += 1
-                            target = assets / f"docx-{asset_index}.png"
-                            try:
-                                image_to_png(doc.part.related_parts[rid].blob, target, options)
-                                page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="python-docx"))
-                            except (OSError, ValueError) as exc:
-                                page.warnings.append("docx_image_failed: " + type(exc).__name__)
-            elif node.tag == qn("w:tbl"):
-                block = docx_table(Table(node, doc), options)
-                page.blocks.append(block)
-                page.warnings.extend(block.details.get("warnings", []))
-        page.warnings.extend(["docx_headers_footnotes_comments_not_extracted", "docx_formatting_partial"])
-    elif suffix == ".xlsx":
-        from openpyxl import load_workbook
-        wb = load_workbook(path, read_only=True, data_only=False, keep_links=False)
-        document.pages.clear()
-        total_cells = 0
-        try:
-            if len(wb.worksheets) > options.max_pages:
-                raise ValueError("Planilha excede limite de abas")
-            for index, sheet in enumerate(wb.worksheets, 1):
-                rows = []
-                for row in sheet.iter_rows(values_only=True):
-                    total_cells += len(row)
-                    if total_cells > options.max_cells:
-                        raise ValueError("Planilha excede limite de células")
-                    rows.append(["" if c is None else str(c) for c in row])
-                document.pages.append(Page(index, "native", [Block("text", f"## {sheet.title}"),
-                                      Block("table", rows=rows, engine="openpyxl")],
-                                      ["xlsx_formulas_preserved_not_calculated", "xlsx_merges_styles_images_not_extracted"]))
-        finally:
-            wb.close()
-    elif suffix == ".pptx":
-        from pptx import Presentation
-        from pptx.enum.shapes import MSO_SHAPE_TYPE
-        prs = Presentation(path)
-        if len(prs.slides) > options.max_pages:
-            raise ValueError("Apresentação excede limite de slides")
-        document.pages.clear()
-        for index, slide in enumerate(prs.slides, 1):
-            page = Page(index, "native", warnings=["pptx_groups_notes_charts_not_extracted", "pptx_order_geometric_heuristic"])
-            document.pages.append(page)
-            shapes = list(slide.shapes)
-            if any(shape.top is None or shape.left is None for shape in shapes):
-                # Missing transforms have no trustworthy geometric position.
-                # Preserve source shape order rather than invent coordinates.
-                page.warnings.append("pptx_shape_coordinates_missing_document_order")
-            else:
-                shapes.sort(key=lambda shape: (shape.top, shape.left))
-            for number, shape in enumerate(shapes, 1):
-                if shape.has_table:
-                    rows = [[c.text for c in row.cells] for row in shape.table.rows]
-                    if sum(len(r) for r in rows) > options.max_cells:
-                        raise ValueError("Tabela excede limite de células")
-                    page.blocks.append(Block("table", rows=rows, engine="python-pptx"))
-                elif shape.has_text_frame:
-                    page.blocks.append(Block("text", shape.text, engine="python-pptx"))
-                elif shape.shape_type == MSO_SHAPE_TYPE.PICTURE and options.images:
-                    target = assets / f"slide-{index}-{number}.png"
-                    try:
-                        image_to_png(shape.image.blob, target, options)
-                    except (OSError, ValueError) as exc:
-                        # A failed optional image cannot discard valid slide
-                        # text/tables. Never publish an incomplete image asset.
-                        target.unlink(missing_ok=True)
-                        page.warnings.append(f"pptx_image_failed: shape={number} {type(exc).__name__}")
-                    else:
-                        page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="python-pptx"))
-    elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}:
-        from PIL import Image
-        document.pages.clear()
-        with Image.open(path) as source:
-            count = getattr(source, "n_frames", 1)
-            if count > options.max_pages:
-                raise ValueError("Imagem excede limite de quadros")
-            for index in range(count):
-                source.seek(index)
-                if source.width * source.height > options.max_pixels:
-                    raise ValueError("Imagem excede limite de pixels")
-                target = assets / f"image-{index+1}.png"
-                source.convert("RGB").save(target, "PNG")
-                page = Page(index+1, "image" if options.mode == "native" else "ocr")
-                document.pages.append(page)
-                if options.images:
-                    page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="pillow"))
-                if options.mode == "native":
-                    page.warnings.append("image_text_not_extracted_native_mode")
-                else:
-                    try:
-                        block, notes = recognize(target, workspace, options)
-                        page.blocks.append(block)
-                        page.warnings.extend(notes)
-                    except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
-                        page.warnings.append("ocr_failed: " + str(exc))
-                page.warnings.append("image_semantics_unverified")
-                if not options.images:
-                    target.unlink(missing_ok=True)
-    else:
-        try:
-            text = path.read_text(encoding="utf-8-sig", errors="strict")
-        except UnicodeDecodeError as exc:
-            raise ValueError("Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
-        if suffix in {".csv", ".tsv"}:
-            reader = csv.reader(io.StringIO(text, newline=""), delimiter="\t" if suffix == ".tsv" else ",")
-            rows, count = [], 0
-            for row in reader:
-                count += len(row)
-                if count > options.max_cells:
-                    raise ValueError("CSV excede limite de células")
-                rows.append(row)
-            page.blocks.append(Block("table", rows=rows, engine="csv"))
-        elif suffix in {".html", ".htm"}:
-            parser = HTMLText()
-            parser.feed(text)
-            page.blocks.append(Block("text", "".join(parser.parts), engine="html.parser"))
-            page.warnings.append("html_table_structure_not_preserved")
-        elif suffix in {".json", ".xml"}:
-            fence = "`" * max(3, 1 + max((len(x) for x in __import__('re').findall(r'`+', text)), default=0))
-            page.blocks.append(Block("text", f"{fence}{suffix[1:]}\n{text}\n{fence}"))
+    check_archive(path, options)
+    from docx import Document as Docx
+    from docx.oxml.ns import qn
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+    doc = Docx(path)
+    asset_index = 0
+    if any(True for _ in doc.element.body.iter(qn("w:ins"))) or any(True for _ in doc.element.body.iter(qn("w:del"))):
+        page.warnings.append("docx_tracked_changes_not_resolved")
+    for node in _docx_body_blocks(doc.element.body):
+        if node.tag == qn("w:p"):
+            paragraph = Paragraph(node, doc)
+            text = _docx_paragraph_text(node)
+            if text.strip():
+                style = paragraph.style.name.lower() if paragraph.style else ""
+                prefix = ""
+                if style.startswith("heading ") and style[-1:].isdigit():
+                    prefix = "#" * max(1, min(6, int(style[-1]))) + " "
+                page.blocks.append(Block("text", prefix + text, engine="python-docx"))
+            if options.images:
+                for blip in node.iter(qn("a:blip")):
+                    rid = blip.get(qn("r:embed"))
+                    if rid and rid in doc.part.related_parts:
+                        asset_index += 1
+                        target = assets / f"docx-{asset_index}.png"
+                        try:
+                            image_to_png(doc.part.related_parts[rid].blob, target, options)
+                            page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="python-docx"))
+                        except (OSError, ValueError) as exc:
+                            page.warnings.append("docx_image_failed: " + type(exc).__name__)
+        elif node.tag == qn("w:tbl"):
+            block = docx_table(Table(node, doc), options)
+            page.blocks.append(block)
+            page.warnings.extend(block.details.get("warnings", []))
+    page.warnings.extend(["docx_headers_footnotes_comments_not_extracted", "docx_formatting_partial"])
+
+
+def _extract_xlsx(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    suffix = path.suffix.lower()
+    assets = workspace / "assets"
+    page = Page(1, "native")
+    document.pages.append(page)
+    check_archive(path, options)
+    from openpyxl import load_workbook
+    wb = load_workbook(path, read_only=True, data_only=False, keep_links=False)
+    document.pages.clear()
+    total_cells = 0
+    try:
+        if len(wb.worksheets) > options.max_pages:
+            raise ValueError("Planilha excede limite de abas")
+        for index, sheet in enumerate(wb.worksheets, 1):
+            rows = []
+            for row in sheet.iter_rows(values_only=True):
+                total_cells += len(row)
+                if total_cells > options.max_cells:
+                    raise ValueError("Planilha excede limite de células")
+                rows.append(["" if c is None else str(c) for c in row])
+            document.pages.append(Page(index, "native", [Block("text", f"## {sheet.title}"),
+                                  Block("table", rows=rows, engine="openpyxl")],
+                                  ["xlsx_formulas_preserved_not_calculated", "xlsx_merges_styles_images_not_extracted"]))
+    finally:
+        wb.close()
+
+
+def _extract_pptx(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    suffix = path.suffix.lower()
+    assets = workspace / "assets"
+    page = Page(1, "native")
+    document.pages.append(page)
+    check_archive(path, options)
+    from pptx import Presentation
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+    prs = Presentation(path)
+    if len(prs.slides) > options.max_pages:
+        raise ValueError("Apresentação excede limite de slides")
+    document.pages.clear()
+    for index, slide in enumerate(prs.slides, 1):
+        page = Page(index, "native", warnings=["pptx_groups_notes_charts_not_extracted", "pptx_order_geometric_heuristic"])
+        document.pages.append(page)
+        shapes = list(slide.shapes)
+        if any(shape.top is None or shape.left is None for shape in shapes):
+            # Missing transforms have no trustworthy geometric position.
+            # Preserve source shape order rather than invent coordinates.
+            page.warnings.append("pptx_shape_coordinates_missing_document_order")
         else:
-            page.blocks.append(Block("text", text))
-        metrics = text_metrics(text)
-        page.metrics = metrics
-        if metrics["suspect"]:
-            page.warnings.append("unicode_suspect")
+            shapes.sort(key=lambda shape: (shape.top, shape.left))
+        for number, shape in enumerate(shapes, 1):
+            if shape.has_table:
+                rows = [[c.text for c in row.cells] for row in shape.table.rows]
+                if sum(len(r) for r in rows) > options.max_cells:
+                    raise ValueError("Tabela excede limite de células")
+                page.blocks.append(Block("table", rows=rows, engine="python-pptx"))
+            elif shape.has_text_frame:
+                page.blocks.append(Block("text", shape.text, engine="python-pptx"))
+            elif shape.shape_type == MSO_SHAPE_TYPE.PICTURE and options.images:
+                target = assets / f"slide-{index}-{number}.png"
+                try:
+                    image_to_png(shape.image.blob, target, options)
+                except (OSError, ValueError) as exc:
+                    # A failed optional image cannot discard valid slide
+                    # text/tables. Never publish an incomplete image asset.
+                    target.unlink(missing_ok=True)
+                    page.warnings.append(f"pptx_image_failed: shape={number} {type(exc).__name__}")
+                else:
+                    page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="python-pptx"))
+
+
+def _extract_image(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    suffix = path.suffix.lower()
+    assets = workspace / "assets"
+    page = Page(1, "native")
+    document.pages.append(page)
+    from PIL import Image
+    document.pages.clear()
+    with Image.open(path) as source:
+        count = getattr(source, "n_frames", 1)
+        if count > options.max_pages:
+            raise ValueError("Imagem excede limite de quadros")
+        for index in range(count):
+            source.seek(index)
+            if source.width * source.height > options.max_pixels:
+                raise ValueError("Imagem excede limite de pixels")
+            target = assets / f"image-{index+1}.png"
+            source.convert("RGB").save(target, "PNG")
+            page = Page(index+1, "image" if options.mode == "native" else "ocr")
+            document.pages.append(page)
+            if options.images:
+                page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="pillow"))
+            if options.mode == "native":
+                page.warnings.append("image_text_not_extracted_native_mode")
+            else:
+                try:
+                    block, notes = recognize(target, workspace, options)
+                    page.blocks.append(block)
+                    page.warnings.extend(notes)
+                except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                    page.warnings.append("ocr_failed: " + str(exc))
+            page.warnings.append("image_semantics_unverified")
+            if not options.images:
+                target.unlink(missing_ok=True)
+
+
+def _extract_csv(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    suffix = path.suffix.lower()
+    assets = workspace / "assets"
+    page = Page(1, "native")
+    document.pages.append(page)
+    try:
+        text = path.read_text(encoding="utf-8-sig", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
+    reader = csv.reader(io.StringIO(text, newline=""), delimiter="\t" if suffix == ".tsv" else ",")
+    rows, count = [], 0
+    for row in reader:
+        count += len(row)
+        if count > options.max_cells:
+            raise ValueError("CSV excede limite de células")
+        rows.append(row)
+    page.blocks.append(Block("table", rows=rows, engine="csv"))
+    metrics = text_metrics(text)
+    page.metrics = metrics
+    if metrics["suspect"]:
+        page.warnings.append("unicode_suspect")
+
+
+def _extract_html(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    suffix = path.suffix.lower()
+    assets = workspace / "assets"
+    page = Page(1, "native")
+    document.pages.append(page)
+    try:
+        text = path.read_text(encoding="utf-8-sig", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
+    parser = HTMLText()
+    parser.feed(text)
+    page.blocks.append(Block("text", "".join(parser.parts), engine="html.parser"))
+    page.warnings.append("html_table_structure_not_preserved")
+    metrics = text_metrics(text)
+    page.metrics = metrics
+    if metrics["suspect"]:
+        page.warnings.append("unicode_suspect")
+
+
+def _extract_text(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    suffix = path.suffix.lower()
+    assets = workspace / "assets"
+    page = Page(1, "native")
+    document.pages.append(page)
+    try:
+        text = path.read_text(encoding="utf-8-sig", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
+    if suffix in {".json", ".xml"}:
+        fence = "`" * max(3, 1 + max((len(x) for x in __import__('re').findall(r'`+', text)), default=0))
+        page.blocks.append(Block("text", f"{fence}{suffix[1:]}\n{text}\n{fence}"))
+    else:
+        page.blocks.append(Block("text", text))
+    metrics = text_metrics(text)
+    page.metrics = metrics
+    if metrics["suspect"]:
+        page.warnings.append("unicode_suspect")
+
+
+def _extract_pdf(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    from .pdf import extract as extract_pdf
+    extract_pdf(path, workspace, options, document)
+
+
+def extract(path: Path, workspace: Path, options: Options, document: Document) -> None:
+    converter = lookup(path.suffix.lower())
+    assets = workspace / "assets"
+    assets.mkdir(exist_ok=True)
+    if converter is None:
+        raise ValueError("Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
+    converter.extract(path, workspace, options, document)
+    # PDF already emits image_semantics_unverified itself, as before.
+    if converter.id == "pdf":
+        return
     for page in document.pages:
         for block in page.blocks:
             if block.kind == "image":

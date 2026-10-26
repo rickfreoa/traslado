@@ -9,6 +9,7 @@ import sys
 import tempfile
 
 from . import __version__
+from .registry import REGISTRY
 from .ocr import find_tesseract
 from .runtime import managed_tessdata_for, runtime_settings
 
@@ -49,4 +50,12 @@ def inspect(tesseract: str | None = None, tessdata: str | None = None) -> dict:
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
         result["warnings"].append(str(exc))
     result["license_notice"] = "PyMuPDF: AGPL ou licença comercial. MinerU não é distribuído. Consulte THIRD-PARTY.md."
+    result["converters"] = []
+    for converter in sorted(REGISTRY, key=lambda item: item.id):
+        status = converter.status(tesseract)
+        result["converters"].append({
+            "id": converter.id, "extensions": list(converter.extensions),
+            "state": status.state, "code": status.code, "detail": status.detail,
+            "capabilities": list(converter.capabilities), "known_losses": list(converter.known_losses),
+        })
     return result
