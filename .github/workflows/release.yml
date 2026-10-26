@@ -57,15 +57,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Decide pela execução MAIS RECENTE de ci.yml para o SHA: sucesso libera; falha recusa; em andamento ou ausente aguarda.
+          # A decisão está em scripts/ci_gate.py (testado): aguardar, liberar ou recusar. Aqui só o laço e o prazo.
           PRAZO=$((SECONDS + 3600))
           while true; do
-            ESTADO=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" \
-              --jq '.workflow_runs | sort_by(.created_at) | last | if . == null then "ausente" else "\(.status) \(.conclusion)" end')
-            echo "ci.yml para $GITHUB_SHA: $ESTADO"
-            case "$ESTADO" in
-              "completed success") break ;;
-              "completed "*) echo "A execução mais recente de ci.yml não foi bem-sucedida: release recusado." >&2; exit 1 ;;
+            DECISAO=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" \
+              | python scripts/ci_gate.py) || DECISAO=erro-na-consulta
+            echo "ci.yml para $GITHUB_SHA: $DECISAO"
+            case "$DECISAO" in
+              liberar) break ;;
+              recusar) echo "A execução mais recente de ci.yml não foi bem-sucedida: release recusado." >&2; exit 1 ;;
             esac
             if [ "$SECONDS" -ge "$PRAZO" ]; then
               echo "Prazo de 60 min esgotado sem ci.yml concluído com sucesso: release recusado." >&2
