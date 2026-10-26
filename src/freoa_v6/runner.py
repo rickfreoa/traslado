@@ -15,7 +15,7 @@ import uuid
 from typing import Callable
 
 from . import __version__
-from .formats import SUPPORTED
+from .registry import SUPPORTED
 from .model import Options
 from .safety import Cancelled, SnapshotLock, is_link, run_bounded, sha256
 
