@@ -215,9 +215,10 @@ class QualificacaoOCR(unittest.TestCase):
         self.assertTrue(exe and Path(exe).is_file(), "motor OCR exigido ausente")
         versao = subprocess.run([exe, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace")
         idiomas = subprocess.run([exe, "--list-langs"], capture_output=True, text=True, encoding="utf-8", errors="replace")
-        print(f"\nT11 OCR motor={exe}\n{versao.stdout or versao.stderr}T11 OCR idiomas={sorted(idiomas.stdout.split()[1:])}", flush=True)
+        instalados = {l.strip() for l in (idiomas.stdout or idiomas.stderr).splitlines()[1:]}
+        print(f"\nT11 OCR motor={exe}\n{versao.stdout or versao.stderr}T11 OCR idiomas={sorted(instalados)}", flush=True)
         exigidos = set(filter(None, os.environ.get("T11_LANGS", "eng").split(",")))
-        self.assertLessEqual(exigidos, set(idiomas.stdout.split()), "idioma OCR exigido ausente")
+        self.assertLessEqual(exigidos, instalados, "idioma OCR exigido ausente")
         caso = test_acceptance.Acceptance("test_clean_scan_real_ocr_recovers_exact_numbers")
         caso.setUp()
         try:
