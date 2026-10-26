@@ -60,9 +60,9 @@ class PathSearchRC3(unittest.TestCase):
         from freoa_v6.ocr import _candidates
         d = Path('D:/ferramentas')
         padrao = [d / ('tesseract' + e) for e in ('.com', '.exe', '.bat', '.cmd')]
-        for pathext in ('', None, ';;'):
+        for pathext in ('', None, os.pathsep * 2):
             self.assertEqual(_candidates(d, True, pathext), padrao, repr(pathext))
-        self.assertEqual(_candidates(d, True, '.CMD;.EXE'), [d / 'tesseract.cmd', d / 'tesseract.exe'])
+        self.assertEqual(_candidates(d, True, os.pathsep.join(['.CMD', '.EXE'])), [d / 'tesseract.cmd', d / 'tesseract.exe'])
         self.assertEqual(_candidates(d, False, '.EXE'), [d / 'tesseract'])
 
     @unittest.skipUnless(os.name == 'nt', 'PATHEXT é do Windows')
