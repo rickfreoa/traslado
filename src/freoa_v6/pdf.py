@@ -159,19 +159,34 @@ def _weighted_select(values: list[tuple[float, int]], rank: int) -> float:
     return _weighted_select(upper, rank - low_weight - equal_weight)
 
 
-def _mark_furniture(document: Document, heights: list[float]) -> None:
+_ROMAN = re.compile(r"M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})")
+
+
+def _isolated_number(text: str) -> bool:
+    """Arabic page number or a canonical roman numeral in one case ('Id.', 'Civil', 'CdL' are words, not folios)."""
+    match = re.fullmatch(r"[\W_]*(\d{1,4}|[ivxlcdmIVXLCDM]{1,8})[\W_]*", text.strip())
+    if not match:
+        return False
+    token = match.group(1)
+    return token.isdigit() or ((token.isupper() or token.islower()) and bool(_ROMAN.fullmatch(token.upper())))
+
+
+def _mark_furniture(document: Document, heights: list[tuple[float, Any]]) -> None:
     """Annotate only native text; leave content, geometry and order untouched."""
+    import fitz
     body_sizes = []
     candidates = []
     groups: dict[tuple[str, str], set[int]] = {}
-    for sheet, (page, height) in enumerate(zip(document.pages, heights)):
+    for sheet, (page, (height, rotation)) in enumerate(zip(document.pages, heights)):
         for block in page.blocks:
             if block.engine != "pymupdf" or block.kind != "text":
                 continue
             block.role = "body"
-            box = block.bbox
-            if box is None or block.lines is None:
+            if block.bbox is None or block.lines is None:
                 continue
+            # Native boxes are unrotated; bands are visual margins of the displayed page (review of A1).
+            visual = fitz.Rect(block.bbox) * rotation
+            box = [visual.x0, visual.y0, visual.x1, visual.y1]
             spans = [span for line in block.lines for span in line["spans"]]
             band = "top" if box[3] <= .10 * height else "bottom" if box[1] >= .90 * height else None
             if box[1] >= .10 * height and box[3] <= .90 * height:
@@ -198,8 +213,7 @@ def _mark_furniture(document: Document, heights: list[float]) -> None:
             groups.setdefault(key, set()).add(sheet)
         eligible.append((block, key))
     for block, key in eligible:
-        if (re.fullmatch(r"[\W_]*(\d{1,4}|[ivxlcdmIVXLCDM]{1,8})[\W_]*", block.text.strip())
-                or (key[1] and len(groups[key]) >= 3)):
+        if _isolated_number(block.text) or (key[1] and len(groups[key]) >= 3):
             block.role = "furniture"
 
 
@@ -217,7 +231,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             raise ValueError("PDF excede limite de páginas")
         heights = []
         for index, source in enumerate(pdf, 1):
-            heights.append(source.rect.height)
+            heights.append((source.rect.height, source.rotation_matrix))
             _progress(workspace, index, len(pdf), "analyzing")
             native_raw = source.get_text("blocks", flags=fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES)
             blocks = [Block("text", str(b[4]).strip(), finite_box(b[:4]), engine="pymupdf")
