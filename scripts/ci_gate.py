@@ -27,8 +27,12 @@ def execucoes(texto: str) -> list[dict]:
 def decidir(runs: list[dict]) -> str:
     if not runs or any(r.get("status") in ABERTOS for r in runs):
         return "aguardar"
+    # Só libera sobre dados completos: estado desconhecido, sem data ou sem id não podem esconder uma falha.
+    if any(r.get("status") != "completed" or not (r.get("run_started_at") or r.get("created_at"))
+           or not isinstance(r.get("id"), int) for r in runs):
+        return "recusar"
     # run_started_at muda quando um run antigo é reexecutado; id desempata.
-    ultimo = max(runs, key=lambda r: (r.get("run_started_at") or r.get("created_at") or "", r.get("id", 0)))
+    ultimo = max(runs, key=lambda r: (r.get("run_started_at") or r["created_at"], r["id"]))
     return "liberar" if ultimo.get("conclusion") == "success" else "recusar"
 
 

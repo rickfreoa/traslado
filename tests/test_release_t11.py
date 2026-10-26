@@ -572,7 +572,7 @@ class CiGate(unittest.TestCase):
     """scripts/ci_gate.py só decide; o laço e o prazo ficam no release.yml."""
 
     @staticmethod
-    def run(id, status="completed", conclusion="success", iniciado="2026-10-26T10:00:00Z", criado=None):
+    def execucao(id, status="completed", conclusion="success", iniciado="2026-10-26T10:00:00Z", criado=None):
         return {"id": id, "status": status, "conclusion": conclusion, "run_started_at": iniciado,
                 "created_at": criado or iniciado}
 
@@ -582,41 +582,49 @@ class CiGate(unittest.TestCase):
     def test_sem_execucao_aguarda(self):
         self.assertEqual(self.gate.decidir([]), "aguardar")
 
+    def test_dados_incompletos_nunca_liberam(self):
+        bom = self.execucao(1)
+        for ruim in ({**self.execucao(2), "status": None}, {**self.execucao(2), "status": "estranho"},
+                     {k: v for k, v in self.execucao(2, conclusion="failure").items() if k != "status"},
+                     {**self.execucao(2, conclusion="failure"), "run_started_at": None, "created_at": None},
+                     {**self.execucao(2), "id": None}):
+            self.assertEqual(self.gate.decidir([bom, ruim]), "recusar", ruim)
+
     def test_sucesso_libera_e_falha_recusa(self):
-        self.assertEqual(self.gate.decidir([self.run(1)]), "liberar")
-        self.assertEqual(self.gate.decidir([self.run(1, conclusion="failure")]), "recusar")
-        self.assertEqual(self.gate.decidir([self.run(1, conclusion="cancelled")]), "recusar")
+        self.assertEqual(self.gate.decidir([self.execucao(1)]), "liberar")
+        self.assertEqual(self.gate.decidir([self.execucao(1, conclusion="failure")]), "recusar")
+        self.assertEqual(self.gate.decidir([self.execucao(1, conclusion="cancelled")]), "recusar")
 
     def test_execucao_em_andamento_aguarda_mesmo_com_sucesso_antigo(self):
-        antigo = self.run(1)
+        antigo = self.execucao(1)
         for status in ("queued", "in_progress", "waiting"):
-            novo = self.run(2, status=status, conclusion=None, iniciado="2026-10-26T11:00:00Z")
+            novo = self.execucao(2, status=status, conclusion=None, iniciado="2026-10-26T11:00:00Z")
             self.assertEqual(self.gate.decidir([antigo, novo]), "aguardar", status)
 
     def test_empate_de_data_desempata_pelo_id(self):
-        a = self.run(10, conclusion="failure")
-        b = self.run(11, conclusion="success")
+        a = self.execucao(10, conclusion="failure")
+        b = self.execucao(11, conclusion="success")
         self.assertEqual(self.gate.decidir([a, b]), "liberar")
         self.assertEqual(self.gate.decidir([b, a]), "liberar")
-        c = self.run(12, conclusion="failure")
+        c = self.execucao(12, conclusion="failure")
         self.assertEqual(self.gate.decidir([a, b, c]), "recusar")
 
     def test_reexecucao_falha_de_run_antigo_depois_de_run_novo_verde_recusa(self):
-        antigo_reexecutado = self.run(1, conclusion="failure", criado="2026-10-26T09:00:00Z", iniciado="2026-10-26T12:00:00Z")
-        novo_verde = self.run(2, conclusion="success", iniciado="2026-10-26T10:00:00Z")
+        antigo_reexecutado = self.execucao(1, conclusion="failure", criado="2026-10-26T09:00:00Z", iniciado="2026-10-26T12:00:00Z")
+        novo_verde = self.execucao(2, conclusion="success", iniciado="2026-10-26T10:00:00Z")
         self.assertEqual(self.gate.decidir([novo_verde, antigo_reexecutado]), "recusar")
         # ordenar por created_at liberaria erradamente: o run de id 2 é o mais recente por criação
         self.assertGreater(novo_verde["created_at"], antigo_reexecutado["created_at"])
 
     def test_leitura_de_todas_as_paginas_concatenadas(self):
-        p1 = json.dumps({"total_count": 3, "workflow_runs": [self.run(1), self.run(2, conclusion="failure", iniciado="2026-10-26T10:30:00Z")]})
-        p2 = json.dumps({"total_count": 3, "workflow_runs": [self.run(3, iniciado="2026-10-26T10:45:00Z")]})
+        p1 = json.dumps({"total_count": 3, "workflow_runs": [self.execucao(1), self.execucao(2, conclusion="failure", iniciado="2026-10-26T10:30:00Z")]})
+        p2 = json.dumps({"total_count": 3, "workflow_runs": [self.execucao(3, iniciado="2026-10-26T10:45:00Z")]})
         self.assertEqual(self.gate.decidir(self.gate.execucoes(p1 + "\n" + p2)), "liberar")
         self.assertEqual(self.gate.decidir(self.gate.execucoes(p1)), "recusar")
         self.assertEqual(self.gate.execucoes(""), [])
 
     def test_cli_imprime_a_decisao(self):
-        r = subprocess.run([sys.executable, "-I", str(SCRIPTS / "ci_gate.py")], input=json.dumps({"workflow_runs": [self.run(1)]}),
+        r = subprocess.run([sys.executable, "-I", str(SCRIPTS / "ci_gate.py")], input=json.dumps({"workflow_runs": [self.execucao(1)]}),
                            capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), "liberar")
 

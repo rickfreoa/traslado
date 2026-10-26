@@ -12,6 +12,7 @@ requirements-full.lock
 requirements-test.hashes.lock
 scripts/bootstrap_ocr.ps1
 scripts/build_release.py
+scripts/ci_gate.py
 scripts/install_windows.py
 scripts/installation_processes.ps1
 scripts/inventario.py
