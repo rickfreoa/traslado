@@ -16,7 +16,11 @@ import time
 import uuid
 
 PRODUCT = "freoa-md-converter"
-VERSION = "1.0.0"
+# Fonte única da versão: src/freoa_v6/__init__.py, lido como texto (sem importar o pacote nem dependências).
+try:
+    VERSION = re.search(r'^__version__ = "([^"]+)"', (Path(__file__).resolve().parents[1] / "src/freoa_v6/__init__.py").read_text(encoding="utf-8"), re.M).group(1)
+except OSError:  # script fora de um pacote completo (ex.: sonda de testes): sem versão, copy_payload recusa
+    VERSION = None
 LOG_DIRECTORY = None
 LANGUAGES = ("por", "eng", "spa", "ita", "fra", "deu")
 POWERSHELL = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"

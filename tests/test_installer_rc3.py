@@ -39,7 +39,7 @@ class InstallerRC3(unittest.TestCase):
         for name in ['shortcut_windows.ps1', 'installation_processes.ps1']:
             shutil.copyfile(SOURCE / 'scripts' / name, self.package / 'scripts' / name)
         (self.package / 'dist').mkdir()
-        self.wheel = self.package / 'dist/freoa_md_converter-1.0.0-py3-none-any.whl'
+        self.wheel = self.package / f'dist/freoa_md_converter-{installer.VERSION}-py3-none-any.whl'
         self.wheel.write_bytes(b'INERT_WHEEL_NEVER_INSTALLED')
         payload_files = [self.wheel, *sorted((self.package / 'scripts').iterdir())]
         json_file(self.package / 'INSTALL-PAYLOAD.json', {'product': installer.PRODUCT, 'version': installer.VERSION,
