@@ -71,12 +71,11 @@ def recognize_blocks(image: Path, workspace: Path, options: Options,
             if width <= 0 or height <= 0:
                 raise ValueError("Invalid word box")
             score = float(row["conf"]) / 100
-            if not 0 <= score <= 1:
-                raise ValueError("Invalid word confidence")
             paragraph = paragraphs.setdefault(key, {"lines": {}, "boxes": [], "scores": []})
             paragraph["lines"].setdefault(line, []).append(row["text"].strip())
             paragraph["boxes"].append((left, top, left + width, top + height))
-            paragraph["scores"].append(score)
+            if 0 <= score <= 1:  # an unscored word (conf -1) keeps its box but stays out of the mean
+                paragraph["scores"].append(score)
         blocks = []
         for key, paragraph in paragraphs.items():
             boxes = paragraph["boxes"]
@@ -87,7 +86,8 @@ def recognize_blocks(image: Path, workspace: Path, options: Options,
                               max(p[0] for p in corners), max(p[1] for p in corners)))
             blocks.append(Block("text", "\n".join(" ".join(line) for line in paragraph["lines"].values()),
                                 bbox=box, engine="tesseract",
-                                confidence=sum(paragraph["scores"]) / len(paragraph["scores"]),
+                                confidence=(sum(paragraph["scores"]) / len(paragraph["scores"])
+                                            if paragraph["scores"] else None),
                                 details={**original.details, "ocr_paragraph": list(key),
                                          "geometry": "tesseract_tsv_word_boxes"}))
         # Also reject interleaved paragraph/line IDs that would reorder tokens.
@@ -124,8 +124,11 @@ def _recognize(image: Path, workspace: Path, options: Options) -> tuple[Block, l
             raise ValueError("OCR excede o limite de saída")
         text = text_file.read_text(encoding="utf-8").strip()
         confidences = []
-        rows = list(csv.DictReader(io.StringIO(tsv_file.read_text(encoding="utf-8")), delimiter="\t"))
-        for row in rows:
+        tsv = tsv_file.read_text(encoding="utf-8")
+        # recognize() keeps its 1.0.0 confidence parse. Geometry needs QUOTE_NONE: Tesseract does not
+        # escape quotes, and a word starting with '"' would otherwise swallow tabs and following rows.
+        rows = list(csv.DictReader(io.StringIO(tsv), delimiter="\t", quoting=csv.QUOTE_NONE))
+        for row in csv.DictReader(io.StringIO(tsv), delimiter="\t"):
             try:
                 value = float(row["conf"])
                 if value >= 0 and row.get("text", "").strip():
