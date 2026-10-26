@@ -52,15 +52,27 @@ jobs:
         run: |
           (cd dist && sha256sum -c SHA256SUMS)
           python -c "import json,zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; assert json.loads(z.read(n))['checkout_limpo'] is True" dist/traslado-"$VERSAO"-windows.zip
-      - name: Exigir ci.yml concluído com sucesso para este mesmo commit
+      - name: Aguardar a matriz de ci.yml deste mesmo commit e exigir sucesso
+        timeout-minutes: 65
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          OK=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count')
-          if [ "${OK:-0}" -lt 1 ]; then
-            echo "Nenhuma execução bem-sucedida de ci.yml para $GITHUB_SHA: release recusado." >&2
-            exit 1
-          fi
+          # Decide pela execução MAIS RECENTE de ci.yml para o SHA: sucesso libera; falha recusa; em andamento ou ausente aguarda.
+          PRAZO=$((SECONDS + 3600))
+          while true; do
+            ESTADO=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" \
+              --jq '.workflow_runs | sort_by(.created_at) | last | if . == null then "ausente" else "\(.status) \(.conclusion)" end')
+            echo "ci.yml para $GITHUB_SHA: $ESTADO"
+            case "$ESTADO" in
+              "completed success") break ;;
+              "completed "*) echo "A execução mais recente de ci.yml não foi bem-sucedida: release recusado." >&2; exit 1 ;;
+            esac
+            if [ "$SECONDS" -ge "$PRAZO" ]; then
+              echo "Prazo de 60 min esgotado sem ci.yml concluído com sucesso: release recusado." >&2
+              exit 1
+            fi
+            sleep 30
+          done
       - name: Attestation de proveniência dos bytes distribuídos
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
