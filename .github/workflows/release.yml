@@ -1,0 +1,92 @@
+name: Release
+
+# Em push de tag v*: build em checkout limpo, SHA256SUMS, attestation e release EM RASCUNHO. Nunca publica.
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+env:
+  PYTHONUTF8: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  release:
+    name: Release em rascunho (Windows)
+    runs-on: windows-latest
+    permissions:
+      actions: read        # consultar a execução de ci.yml do mesmo commit
+      contents: write      # criar o release em rascunho
+      id-token: write      # assinatura da attestation
+      attestations: write  # gravar a attestation
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+      - name: Tag igual a v + versão
+        run: |
+          VERSAO=$(python -c "import re,pathlib; print(re.search(r'^__version__ = \"([^\"]+)\"', pathlib.Path('src/freoa_v6/__init__.py').read_text(encoding='utf-8'), re.M)[1])")
+          echo "VERSAO=$VERSAO" >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_NAME" != "v$VERSAO" ]; then
+            echo "Tag $GITHUB_REF_NAME diverge da versão v$VERSAO" >&2
+            exit 1
+          fi
+      - name: Inventário de terceiros (A8)
+        run: python scripts/inventario.py
+      - name: Testes de release e de inventário
+        env:
+          PYTHONPATH: src
+        run: python -m unittest -v tests.test_release_t11
+      - name: Build em checkout limpo (sem --permitir-sujo)
+        run: python scripts/build_release.py
+      - name: Nenhum byte de PyMuPDF/MuPDF no ZIP nem no wheel
+        run: python scripts/build_release.py --verificar dist/*.zip dist/*.whl
+      - name: SHA256SUMS confere e o payload registra checkout limpo
+        run: |
+          (cd dist && sha256sum -c SHA256SUMS)
+          python -c "import json,zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; assert json.loads(z.read(n))['checkout_limpo'] is True" dist/traslado-"$VERSAO"-windows.zip
+      - name: Aguardar a matriz de ci.yml deste mesmo commit e exigir sucesso
+        timeout-minutes: 65
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A decisão está em scripts/ci_gate.py (testado): aguardar, liberar ou recusar. Aqui só o laço e o prazo.
+          PRAZO=$((SECONDS + 3600))
+          while true; do
+            DECISAO=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" \
+              | python scripts/ci_gate.py) || DECISAO=erro-na-consulta
+            echo "ci.yml para $GITHUB_SHA: $DECISAO"
+            case "$DECISAO" in
+              liberar) break ;;
+              recusar) echo "A execução mais recente de ci.yml não foi bem-sucedida: release recusado." >&2; exit 1 ;;
+            esac
+            if [ "$SECONDS" -ge "$PRAZO" ]; then
+              echo "Prazo de 60 min esgotado sem ci.yml concluído com sucesso: release recusado." >&2
+              exit 1
+            fi
+            sleep 30
+          done
+      - name: Attestation de proveniência dos bytes distribuídos
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: |
+            dist/traslado-${{ env.VERSAO }}-windows.zip
+            dist/freoa_md_converter-${{ env.VERSAO }}-py3-none-any.whl
+            dist/SHA256SUMS
+      - name: Criar release em rascunho (nunca publicar)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/traslado-$VERSAO-windows.zip" \
+            "dist/freoa_md_converter-$VERSAO-py3-none-any.whl" \
+            dist/SHA256SUMS \
+            --draft --verify-tag --title "Traslado $VERSAO" \
+            --notes "Rascunho gerado por workflow. Revisar SHA256SUMS e a attestation antes de publicar manualmente."

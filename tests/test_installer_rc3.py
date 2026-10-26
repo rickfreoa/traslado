@@ -39,7 +39,7 @@ class InstallerRC3(unittest.TestCase):
         for name in ['shortcut_windows.ps1', 'installation_processes.ps1']:
             shutil.copyfile(SOURCE / 'scripts' / name, self.package / 'scripts' / name)
         (self.package / 'dist').mkdir()
-        self.wheel = self.package / 'dist/freoa_md_converter-1.0.0-py3-none-any.whl'
+        self.wheel = self.package / f'dist/freoa_md_converter-{installer.VERSION}-py3-none-any.whl'
         self.wheel.write_bytes(b'INERT_WHEEL_NEVER_INSTALLED')
         payload_files = [self.wheel, *sorted((self.package / 'scripts').iterdir())]
         json_file(self.package / 'INSTALL-PAYLOAD.json', {'product': installer.PRODUCT, 'version': installer.VERSION,
@@ -240,7 +240,11 @@ class InstallerRC3(unittest.TestCase):
         self.assertFalse((self.root / '.installation-lock').exists())
 
     def test_cli_doctor_and_error_json_stay_utf8_when_parent_pipe_is_cp1252(self):
-        prefix = 'import sys;sys.path.insert(0,' + repr(str(SOURCE / 'src')) + ');sys.stdout.reconfigure(encoding="cp1252");sys.stderr.reconfigure(encoding="cp1252");from freoa_v6.cli import main;'
+        if os.environ.get('T11_EXIGE_INSTALADO'):  # modo instalado: nada de injetar o código-fonte; conferir a origem do pacote
+            origin = 'import sys,pathlib,freoa_v6;assert pathlib.Path(freoa_v6.__file__).resolve().is_relative_to(pathlib.Path(sys.prefix).resolve()),freoa_v6.__file__;'
+        else:
+            origin = 'import sys;sys.path.insert(0,' + repr(str(SOURCE / 'src')) + ');'
+        prefix = origin + 'sys.stdout.reconfigure(encoding="cp1252");sys.stderr.reconfigure(encoding="cp1252");from freoa_v6.cli import main;'
         proc = subprocess.run([sys.executable, '-I', '-c', prefix + 'raise SystemExit(main(["doctor"]))'], capture_output=True, timeout=30)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         doctor = json.loads(proc.stdout.decode('utf-8', errors='strict'))

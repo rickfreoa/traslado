@@ -29,3 +29,14 @@ As ferramentas de build têm somente versões exatas no pyproject. Python, Tcl/T
 ## Dependências exclusivas de testes (rc9)
 
 `markdown-it-py==4.0.0` e `mdurl==0.1.2` têm licença MIT conforme os arquivos LICENSE das distribuições usadas na validação. O extra `test` e `requirements-test.hashes.lock` os declaram explicitamente; não são instalados no perfil Full pelo bootstrap Windows. Os artefatos de teste não são bibliotecas do runtime.
+
+## Lacunas declaradas (1.1.0)
+
+`scripts/inventario.py` confronta `THIRD-PARTY-INVENTORY.json` com os locks Python, `ocr-assets.lock.json`, os membros extraídos pelo bootstrap, as DLLs e os modelos, e falha se uma declaração não bater com outra (nome, versão, hash, tamanho, URL, campo de licença presente). A cobertura é **consistência entre declarações** mais os controles que o bootstrap aplica na instalação (tamanho e SHA-256 do lock, origem HTTPS permitida, extração privada, conferência dos membros extraídos) e `pip --require-hashes`. Não lê os arquivos instalados nem seus textos de licença, e não consome recibos de instalação; ver a primeira lacuna. O que segue é lacuna conhecida, declarada em `"lacunas"` no inventário e nunca silenciada:
+
+- **Sem recibos de instalação.** Nada confronta, no computador do usuário, os bytes efetivamente instalados (DLLs, modelos, textos de licença, wheels de terceiros) com o inventário; `ocr-runtime.json` guarda versão do motor, idiomas e hash do lock, não os hashes por membro. Adulterar um arquivo instalado ou seu texto de licença não é detectado pelo `scripts/inventario.py`.
+- **OCR só em windows-x64.** `ocr-assets.lock.json` cobre apenas `windows-x64`. Em Linux não há lock: o CI Linux Full instala o Tesseract do pacote do sistema (apt), registra versão e idiomas no log e falha se o motor faltar; o binário e os modelos do sistema não têm hash fixado nem entram neste inventário.
+- **DLLs nativas.** 54 das 55 DLLs do Tesseract Windows têm hash e origem verificados, mas licença e fontes correspondentes não auditadas.
+- **Perfil Python histórico.** A resolução inventariada é a de CPython 3.14.6 em Windows; 3.11 a 3.13 e Linux usam os mesmos locks com hash, sem inventário próprio.
+- **PyMuPDF/MuPDF.** Nenhum ZIP ou wheel distribuído contém seus bytes (verificado no build e no workflow de release); o extra Full o instala no ambiente do usuário e segue a decisão de licenciamento acima.
+- **Sem SBOM completo** para interpretador, Tcl/Tk, ferramentas de build e bibliotecas nativas embutidas em wheels de terceiros.

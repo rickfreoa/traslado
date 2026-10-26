@@ -1,0 +1,24 @@
+# Skips autorizados no perfil Core (python tests\test_release_t11.py --core).
+# Formato: <modulo_de_teste> <raiz_opcional>   # motivo
+# Um skip por ModuleNotFoundError só vale se este par estiver aqui E a raiz estiver realmente ausente (find_spec).
+# Qualquer outro caso é falha. Entrada que deixou de ser necessária gera AVISO no log, não falha.
+# Gerado de uma execução Core real (wheel instalado, sem extras) em 2026-10-26; revisar a cada novo teste que importe extra.
+
+# Importação do módulo de teste inteiro depende do extra
+test_docx_notes_t11 docx
+test_fidelity_rc2 docx
+test_large_scan_rc4 fitz
+
+# Testes do corpo que importam o extra sob demanda
+test_acceptance docx
+test_acceptance fitz
+test_advanced_rc2 PIL
+test_advanced_rc2 fitz
+test_boundaries fitz
+test_chunk_transport_rc4 PIL
+test_chunk_transport_rc4 fitz
+test_corrections_rc9 fitz
+test_layout_publication_rc6 fitz
+test_minor_rc3 PIL
+test_minor_rc3 pptx
+test_readable_rc6 PIL

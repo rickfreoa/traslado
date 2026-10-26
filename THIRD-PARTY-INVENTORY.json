@@ -113,7 +113,7 @@
       "license_files": []
     }
   ],
-  "candidate_version": "6.0.0rc3",
+  "candidate_version": "1.1.0",
   "python_dependencies_snapshot_note": "The freoa-md-converter 6.0.0rc2 entry below is inherited observed metadata, not a claim that candidate rc3 has been installed in this environment.",
   "ocr_assets_lock_sha256": "4c3c319711bc8b03459252c832ea64891ff2abc810580377a24346d6ac1084d1",
   "ocr_downloads": [
@@ -1216,5 +1216,33 @@
     "license_reference": "https://github.com/opendatalab/MinerU/blob/ed50cc15bc2c9bfb00520dadfe61979866e62236/LICENSE.md",
     "license_description": "Custom Apache-based terms, commercial thresholds, online attribution and termination conditions; not pure Apache-2.0",
     "docvortex_and_model_license_review": "PENDING_NOT_BUNDLED"
-  }
+  },
+  "lacunas": [
+    {"id": "sem-recibos-de-instalacao", "escopo": "instalação no computador do usuário", "descricao": "O inventário é conferido contra os locks e declarações do repositório, não contra os bytes instalados; recibos com hash por membro e leitura dos textos de licença instalados não existem."},
+    {
+      "id": "dlls-nativas-licenca-nao-auditada",
+      "escopo": "54 das 55 DLLs de ocr_native_dlls (todas exceto libtesseract-5.dll)",
+      "descricao": "Hash e origem verificados contra o instalador oficial; licença e fontes correspondentes de cada DLL não auditadas (license_expression nulo, exact_native_license_verification NOT_RUN)."
+    },
+    {
+      "id": "plataforma-ocr-so-windows-x64",
+      "escopo": "ocr-assets.lock.json",
+      "descricao": "O lock de OCR cobre apenas windows-x64. Em Linux o Tesseract vem do pacote do sistema (CI Linux Full), sem hash fixado; versão e idiomas são registrados no log do CI."
+    },
+    {
+      "id": "perfil-python-historico",
+      "escopo": "dependencies",
+      "descricao": "Resolução inventariada apenas em CPython 3.14.6/Windows. As resoluções em 3.11-3.13 e Linux (CI) não têm inventário próprio; os locks com hash são os mesmos."
+    },
+    {
+      "id": "pymupdf-agpl-fora-dos-artefatos",
+      "escopo": "PyMuPDF/MuPDF",
+      "descricao": "O extra Full depende de PyMuPDF (AGPL ou licença comercial). Nenhum ZIP ou wheel distribuído contém seus bytes (verificado no build e no release); a instalação pelo usuário exige decisão de licenciamento."
+    },
+    {
+      "id": "sem-sbom-ferramentas-e-wheels",
+      "escopo": "Python, Tcl/Tk, setuptools, wheel, DLLs de wheels",
+      "descricao": "Sem SBOM completo para o interpretador, Tcl/Tk, ferramentas de build e bibliotecas nativas embutidas em wheels de terceiros."
+    }
+  ]
 }
