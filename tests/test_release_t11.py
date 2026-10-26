@@ -94,7 +94,7 @@ class Build(unittest.TestCase):
         self.assertEqual(re.search(r"^Version: (\S+)\s*$", metadata, re.M)[1], versao_fonte())
 
     def test_zip_contem_exatamente_o_listado(self):
-        listados = {n for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").split() if n}
+        listados = {n for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").split() if n and n[0] not in "#!"}
         esperado = listados | {"INSTALL-PAYLOAD.json", f"dist/{self.wheel.name}"}
         self.assertEqual(self.membros(), esperado)
         self.assertFalse(any(n.startswith(("tests/", ".github/")) or n == "release-files.txt" for n in esperado))
@@ -153,6 +153,20 @@ class DeteccaoMuPDF(unittest.TestCase):
         self.assertTrue(f("dist/x.whl", buf.getvalue()))
         self.assertEqual(f("src/freoa_v6/pdf.py", b"import fitz  # PyMuPDF opcional"), [])
         self.assertEqual(f("THIRD-PARTY.md", b"PyMuPDF AGPL"), [])
+
+    def test_membro_textual_nao_utf8_reprova_com_mensagem_propria(self):
+        f = carregar("build_release").membros_proibidos
+        for nome in ("script.py", "LICENCE", "notas.md", "dados.json"):
+            achados = f(nome, "# Menção a MuPDF".encode("cp1252"))
+            self.assertTrue(any("não UTF-8" in a for a in achados), (nome, achados))
+            self.assertFalse(any(a.endswith(": conteúdo") for a in achados), achados)  # não se confunde com MuPDF binário
+        self.assertEqual(f("script.py", "# Menção a MuPDF".encode("utf-8")), [])
+        self.assertEqual(f("script.ps1", b"\xef\xbb\xbf# com BOM UTF-8"), [])
+        self.assertEqual(f("sem_mupdf.txt", "acentuação".encode("cp1252")) != [], True)  # ainda reprova: exigência é UTF-8
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("pacote/script.py", "# Menção".encode("cp1252"))
+        self.assertTrue(any("não UTF-8" in a for a in f("p.zip", buf.getvalue())))
 
     def test_conteudo_binario_vale_em_qualquer_extensao(self):
         f = carregar("build_release").membros_proibidos
@@ -215,7 +229,9 @@ class Inventario(unittest.TestCase):
         self.assertIn("lxml==6.1.3", texto)
         caminho.write_text(texto.replace("lxml==6.1.3", "lxml==6.1.2"), encoding="utf-8")
         div = self.inv.verificar(self.tmp)[0]
+        # só o lock com hashes foi alterado: o código antigo (que comparava versões apenas com requirements-full.lock) não via nada
         self.assertTrue(any("lxml" in x and "hashes" in x for x in div), div)
+        self.assertEqual(len(div), 2, div)  # diverge do outro lock e do inventário
 
     def test_versao_divergente_entre_locks_falha(self):
         caminho = self.tmp / "requirements-full.lock"
@@ -246,8 +262,18 @@ class SelecaoDoWheel(unittest.TestCase):
             subprocess.run([*git, *comando], check=True, capture_output=True)
         self.assertIn("src/freoa_v6/extra_nao_listado.py",
                       subprocess.run([*git, "ls-files"], capture_output=True, text=True).stdout.split())
-        r = subprocess.run([sys.executable, "-I", "-X", "utf8", str(repo / "scripts/build_release.py"), "--dist", str(tmp / "dist")],
-                           capture_output=True, text=True, encoding="utf-8")
+        construir_copia = [sys.executable, "-I", "-X", "utf8", str(repo / "scripts/build_release.py"), "--dist", str(tmp / "dist")]
+        # sem decisão explícita, módulo rastreado fora da lista reprova o build
+        r = subprocess.run(construir_copia, capture_output=True, text=True, encoding="utf-8")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("módulo rastreado fora de release-files.txt", r.stderr)
+        self.assertIn("extra_nao_listado.py", r.stderr)
+        # com a exclusão declarada (revisável no arquivo), o build passa e o módulo não entra
+        with (repo / "release-files.txt").open("a", encoding="utf-8", newline="\n") as f:
+            f.write("!src/freoa_v6/extra_nao_listado.py\n")
+        for comando in (["add", "-A"], ["commit", "-q", "-m", "exclui"]):
+            subprocess.run([*git, *comando], check=True, capture_output=True)
+        r = subprocess.run(construir_copia, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr[-2000:])
         for artefato in (tmp / "dist").glob("*.zip"), (tmp / "dist").glob("*.whl"):
             for caminho in artefato:
@@ -258,6 +284,15 @@ class SelecaoDoWheel(unittest.TestCase):
                             if n.endswith(".whl"):
                                 with zipfile.ZipFile(io.BytesIO(z.read(n))) as w:
                                     self.assertFalse([m for m in w.namelist() if "extra_nao_listado" in m])
+
+    def test_todo_modulo_rastreado_esta_na_lista_ou_excluido(self):
+        linhas = (ROOT / "release-files.txt").read_text(encoding="utf-8").split()
+        rastreados = [n for n in subprocess.run(["git", "-C", str(ROOT), "ls-files", "src"], capture_output=True, text=True,
+                                                encoding="utf-8").stdout.split() if n.endswith(".py")]
+        self.assertIn("src/freoa_v6/registry.py", rastreados)
+        self.assertIn("src/freoa_v6/registry.py", linhas)
+        for n in rastreados:
+            self.assertTrue(n in linhas or "!" + n in linhas, n)
 
     def test_conferencia_de_membros_do_wheel_rejeita_extra(self):
         b = carregar("build_release")
@@ -308,9 +343,17 @@ class OrigemNoModoInstalado(unittest.TestCase):
         nome = "tests.test_installer_rc3.%s.test_cli_doctor_and_error_json_stay_utf8_when_parent_pipe_is_cp1252"
         classe = re.search(r"^class (\w+)\(.*\):(?:(?!^class ).)*?def test_cli_doctor_and_error_json_stay_utf8",
                            (ROOT / "tests/test_installer_rc3.py").read_text(encoding="utf-8"), re.M | re.S)[1]
-        r = subprocess.run([sys.executable, "-X", "utf8", "-m", "unittest", nome % classe], cwd=ROOT, env=env,
-                           capture_output=True, text=True, encoding="utf-8")
-        self.assertNotEqual(r.returncode, 0, "o subprocesso importou freoa_v6 do código-fonte no modo instalado")
+        executar = lambda ambiente: subprocess.run([sys.executable, "-X", "utf8", "-m", "unittest", nome % classe], cwd=ROOT,  # noqa: E731
+                                                   env=ambiente, capture_output=True, text=True, encoding="utf-8")
+        # controle: sem T11_EXIGE_INSTALADO o mesmo teste passa (injeta src), então o cenário está saudável
+        controle = executar({k: v for k, v in env.items() if k != "T11_EXIGE_INSTALADO"})
+        self.assertEqual(controle.returncode, 0, controle.stderr[-2000:])
+        r = executar(env)
+        saida = r.stdout + r.stderr
+        self.assertNotEqual(r.returncode, 0, saida[-2000:])
+        # a causa tem de ser a importação de freoa_v6 no subprocesso, reportada pela asserção do teste do instalador
+        self.assertIn("FAIL: test_cli_doctor_and_error_json_stay_utf8_when_parent_pipe_is_cp1252", saida)
+        self.assertIn("No module named 'freoa_v6'", saida.replace("\\'", "'"))
 
 
 @unittest.skipUnless((ROOT / ".github/workflows").is_dir(), "workflows ausentes no pacote extraído")
@@ -326,8 +369,15 @@ class Workflows(unittest.TestCase):
 
     def test_release_exige_ci_verde_do_mesmo_commit_antes_do_rascunho(self):
         t = self.texto("release.yml")
-        gate = t.index("actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success")
+        gate = t.index("actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA")
         self.assertLess(gate, t.index("gh release create"))
+        passo = t[gate - 600:t.index("attest-build-provenance")]
+        # espera a matriz (60 min, passo de 30 s), decide pela execução mais recente e recusa falha ou prazo esgotado
+        for trecho in ("timeout-minutes: 65", "PRAZO=$((SECONDS + 3600))", "sleep 30", "sort_by(.created_at) | last",
+                       '"completed success") break', '"completed "*)', "exit 1", "per_page=100"):
+            self.assertIn(trecho, passo)
+        self.assertLess(passo.index('"completed success"'), passo.index('"completed "*)'))  # sucesso antes do caso geral de falha
+        self.assertNotIn("status=success", passo)  # sucesso antigo não pode mascarar execução mais recente
         self.assertLess(gate, t.index("attest-build-provenance"))
         self.assertIn("actions: read", t)
         self.assertIn("--draft", t)
@@ -368,8 +418,13 @@ OPCIONAIS = {"fitz", "pymupdf", "docx", "openpyxl", "pptx", "PIL", "lxml", "xlsx
 
 
 def extra_ausente(exc: BaseException | None, opcionais) -> bool:
-    """Só vale o tipo exato ModuleNotFoundError cujo módulo ausente é um extra opcional; texto de mensagem nunca vale."""
-    return type(exc) is ModuleNotFoundError and (exc.name or "").split(".")[0] in opcionais
+    """Skip só para o tipo exato ModuleNotFoundError cuja raiz é um extra opcional realmente ausente neste ambiente.
+
+    Submódulo inexistente de pacote presente (ou instalação quebrada) é falha; texto de mensagem nunca vale."""
+    if type(exc) is not ModuleNotFoundError:
+        return False
+    raiz = (exc.name or "").split(".")[0]
+    return raiz in opcionais and importlib.util.find_spec(raiz) is None
 
 
 def falha_de_importacao(nome: str, exc: BaseException) -> unittest.TestCase:
@@ -436,12 +491,26 @@ class RunnerCore(unittest.TestCase):
     def test_valueerror_com_mensagem_de_modulo_ausente_falha_na_importacao(self):
         self.assertEqual(self.rodar(test_t11fake_d=self.DISFARCE + "\n"), 1)
 
+    def test_submodulo_inexistente_de_pacote_presente_falha_no_runner(self):
+        corpo = self.CORPO.format("import json.interno_inexistente")
+        pasta = Path(tempfile.mkdtemp(prefix="t11-core-"))
+        self.addCleanup(shutil.rmtree, pasta, True)
+        (pasta / "test_t11fake_g.py").write_text(corpo, encoding="utf-8")
+        self.addCleanup(sys.modules.pop, "test_t11fake_g", None)
+        self.assertEqual(executar_core(pasta, {"json"}, io.StringIO()), 1)
+
     def test_modulo_ausente_que_nao_e_extra_falha(self):
         self.assertEqual(self.rodar(test_t11fake_e="import modulo_que_nao_e_extra_xyz\n"), 1)
         self.assertEqual(self.rodar(test_t11fake_f=self.CORPO.format("import modulo_que_nao_e_extra_xyz")), 1)
 
     def test_classificacao_exige_tipo_exato(self):
-        self.assertTrue(extra_ausente(ModuleNotFoundError("x", name="fitz.sub"), OPCIONAIS))
+        fake = {"modulo_opcional_fake"}
+        self.assertTrue(extra_ausente(ModuleNotFoundError("x", name="modulo_opcional_fake"), fake))
+        self.assertTrue(extra_ausente(ModuleNotFoundError("x", name="modulo_opcional_fake.sub"), fake))  # raiz ausente de verdade
+        # raiz presente: submódulo inexistente é falha, não skip
+        self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="json.interno_inexistente"), {"json"}))
+        if importlib.util.find_spec("PIL"):
+            self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="PIL.interno_inexistente"), OPCIONAIS))
         self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="freoa_v6.cli"), OPCIONAIS))
         self.assertFalse(extra_ausente(ImportError("x", name="fitz"), OPCIONAIS))
         self.assertFalse(extra_ausente(ValueError("No module named 'fitz'"), OPCIONAIS))
@@ -460,7 +529,7 @@ class Nucleo(unittest.TestCase):
             "        if nome.split('.')[0] in %r: raise ModuleNotFoundError(nome, name=nome)\n"
             "sys.meta_path.insert(0, Bloqueio())\n"
             "for m in %r:\n"
-            "    if importlib.util.find_spec('freoa_v6.' + m): importlib.import_module('freoa_v6.' + m)\n"
+            "    importlib.import_module('freoa_v6.' + m)\n"  # lista declarada: módulo ausente é falha, nunca skip
         ) % (str(ROOT / "src"), sorted(OPCIONAIS), self.MODULOS)
         r = subprocess.run([sys.executable, "-I", "-X", "utf8", "-c", codigo], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr[-2000:])
