@@ -77,6 +77,31 @@ class FurnitureT11(unittest.TestCase):
         self.assertTrue(chunks)
         self.assertTrue(all("role" in b for c in chunks for b in c["blocks"]))
 
+    def test_rotated_pages_use_visual_bands(self):
+        # Review of A1: native boxes are unrotated; the bands must follow the displayed page.
+        path = self.root / "rotated.pdf"
+        with fitz.open() as source:
+            for i in range(4):
+                page = source.new_page(width=600, height=800)
+                page.set_rotation(90)  # displayed 800 x 600
+                to_native = page.derotation_matrix
+                page.insert_text(fitz.Point(40, 25) * to_native, "Visual running header", fontsize=9, rotate=90)
+                page.insert_text(fitz.Point(40, 200) * to_native, "Body prose with measurable font size " * 2,
+                                 fontsize=11, rotate=90)
+                # Displayed y=300 is mid-page; in unrotated coordinates its box sits at y > 0.9 * rect.height.
+                page.insert_text(fitz.Point(40, 300) * to_native, "Section title in the middle", fontsize=9, rotate=90)
+            source.save(path)
+        document, _ = self.extract(path)
+        roles = {b.text.split("\n")[0]: b.role for p in document.pages for b in p.blocks}
+        self.assertEqual(roles["Visual running header"], "furniture")
+        self.assertEqual(roles["Section title in the middle"], "body")
+
+    def test_isolated_number_rejects_roman_lookalike_words(self):
+        for text in ("12", "(12)", "§ 5", "xiv", "XIV", "- iii -", "CC"):
+            self.assertTrue(pdf._isolated_number(text), text)
+        for text in ("Id.", "Civil", "CdL", "Dim", "Vi", "5º", "Art. 5º", "Idem."):
+            self.assertFalse(pdf._isolated_number(text), text)
+
     def test_off_matches_stage5_and_docx_unchanged(self):
         path = self.source()
         off, _ = self.extract(path, "off")
@@ -171,7 +196,7 @@ class FurnitureT11(unittest.TestCase):
             blocks.append(self.block("alternating", [0, 0, 100, 80] if i < 2 else [0, 720, 100, 790]))
             pages.append(Page(i + 1, "native", blocks))
         document = Document("source.pdf", "hash", pages=pages)
-        pdf._mark_furniture(document, [800] * 4)
+        pdf._mark_furniture(document, [(800, fitz.Identity)] * 4)
         expected = ["body", "furniture", "furniture", "furniture", "body", "body", "body", "body", "body", "furniture", "body", None, None, "body"]
         for page in pages:
             self.assertEqual([b.role for b in page.blocks], expected)
@@ -181,12 +206,12 @@ class FurnitureT11(unittest.TestCase):
             document = Document("source.pdf", "hash", pages=[Page(1, "native", body + [
                 self.block("1", [0, 0, 100, 80]),
                 *[self.block("repeated", [0, 0, 100, 80]) for _ in range(4)]])])
-            pdf._mark_furniture(document, [800])
+            pdf._mark_furniture(document, [(800, fitz.Identity)])
             self.assertTrue(all(b.role == "body" for b in document.pages[0].blocks))
         document = Document("source.pdf", "hash", pages=[Page(1, "native", [
             self.block("body", [0, 100, 100, 700]),
             *[self.block("repeated", [0, 0, 100, 80]) for _ in range(4)]])])
-        pdf._mark_furniture(document, [800])
+        pdf._mark_furniture(document, [(800, fitz.Identity)])
         self.assertTrue(all(b.role == "body" for b in document.pages[0].blocks))
 
     def test_weighted_selection_matches_expanded_median_ranks(self):
