@@ -36,15 +36,21 @@ CONTEUDO_MUPDF = re.compile(rb"mupdf", re.I)
 ASSINATURAS = (b"MZ", b"\x7fELF", b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xce\xfa\xed\xfe", b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe")
 
 
-def e_binario(dados: bytes) -> bool:
-    """Independe do nome: assinatura executável, byte NUL ou bytes que não são UTF-8 válido."""
-    if dados.startswith(ASSINATURAS) or b"\0" in dados:
-        return True
+# Exigência declarada: todo membro com estas extensões (ou sem extensão, como LICENCE) é texto UTF-8, com ou sem BOM.
+TEXTUAIS = {".py", ".ps1", ".bat", ".md", ".txt", ".json", ".toml", ".lock", ".yml", ".yaml", ".cfg", ".ini", ""}
+
+
+def utf8_valido(dados: bytes) -> bool:
     try:
         dados.decode("utf-8")
     except UnicodeDecodeError:
-        return True
-    return False
+        return False
+    return True
+
+
+def e_binario(dados: bytes) -> bool:
+    """Independe do nome: assinatura executável, byte NUL ou bytes que não são UTF-8 válido."""
+    return dados.startswith(ASSINATURAS) or b"\0" in dados or not utf8_valido(dados)
 
 
 def sha(dados: bytes | Path) -> str:
@@ -57,12 +63,17 @@ def git(*args: str) -> str:
 
 
 def listados() -> list[str]:
-    nomes = [n.strip() for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines()
-             if n.strip() and not n.startswith("#")]
+    linhas = [n.strip() for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines()
+              if n.strip() and not n.startswith("#")]
+    nomes = [n for n in linhas if not n.startswith("!")]
+    excecoes = [n[1:] for n in linhas if n.startswith("!")]  # "!caminho" = módulo rastreado fora do pacote, por decisão revisável
     rastreados = set(git("ls-files", "-z").split("\0"))
-    ausentes = [n for n in nomes if n not in rastreados]
-    if ausentes or len(set(nomes)) != len(nomes):
-        raise SystemExit(f"release-files.txt: caminho não rastreado pelo git ou repetido: {ausentes}")
+    ausentes = [n for n in nomes + excecoes if n not in rastreados]
+    if ausentes or len(set(nomes)) != len(nomes) or set(nomes) & set(excecoes):
+        raise SystemExit(f"release-files.txt: caminho não rastreado pelo git, repetido ou ao mesmo tempo listado e excluído: {ausentes}")
+    esquecidos = sorted(n for n in rastreados if n.startswith("src/") and n.endswith(".py") and n not in nomes and n not in excecoes)
+    if esquecidos:
+        raise SystemExit(f"módulo rastreado fora de release-files.txt (liste-o ou declare '!caminho'): {esquecidos}")
     return sorted(nomes)
 
 
@@ -107,6 +118,8 @@ def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
         with zipfile.ZipFile(io.BytesIO(dados)) as z:
             for info in z.infolist():
                 achados += membros_proibidos(info.filename, z.read(info), f"{caminho}{nome}!")
+    elif Path(nome).suffix.lower() in TEXTUAIS and not utf8_valido(dados):
+        achados.append(f"{caminho}{nome}: não UTF-8 (membro textual do pacote deve ser UTF-8, com ou sem BOM)")
     elif e_binario(dados) and CONTEUDO_MUPDF.search(dados):  # texto UTF-8 válido pode citar MuPDF (ex.: THIRD-PARTY.md)
         achados.append(f"{caminho}{nome}: conteúdo")
     return achados
