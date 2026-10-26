@@ -159,6 +159,37 @@ def _weighted_select(values: list[tuple[float, int]], rank: int) -> float:
     return _weighted_select(upper, rank - low_weight - equal_weight)
 
 
+def _scan_text_metrics(source: Any, images: list) -> dict[str, Any]:
+    """Inspect text rendering without rasterizing; any failure keeps the old route and records nothing."""
+    import fitz
+
+    try:
+        # Image and texttrace boxes are unrotated; page.rect is the displayed one (review of stage 7).
+        page_box = source.rect * source.derotation_matrix
+        area = max(page_box.get_area(), 1)
+        single_image_ratio = max(((fitz.Rect(i["bbox"]) & page_box).get_area() / area for i in images), default=0.)
+        if single_image_ratio < .50:
+            # Neither class can apply; recording nothing keeps document.json of ordinary pages unchanged.
+            return {}
+        visible_area = 0.
+        invisible_chars = 0
+        visible_text = False
+        for span in source.get_texttrace():
+            if span["type"] == 3 or span["opacity"] == 0:
+                invisible_chars += len(span["chars"])
+            else:
+                visible_area += fitz.Rect(span["bbox"]).get_area()
+                visible_text |= any(chr(char[0]).strip() for char in span["chars"])
+    except Exception:
+        return {}
+    visible_ratio = visible_area / area
+    return {"single_image_ratio": single_image_ratio,
+            "visible_glyph_area_ratio": visible_ratio,
+            "invisible_text_chars": invisible_chars,
+            "scan_stamp": single_image_ratio >= .50 and visible_ratio < .01 and visible_text,
+            "invisible_text_layer": invisible_chars > 0 and single_image_ratio >= .50}
+
+
 def _mark_furniture(document: Document, heights: list[float]) -> None:
     """Annotate only native text; leave content, geometry and order untouched."""
     body_sizes = []
@@ -238,8 +269,11 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                     metrics["scanned_page_with_native_text"] = True
             drawings = source.get_drawings() if options.tables or not native else []
             blank = not native.strip() and not images and not drawings
+            if not blank:
+                metrics.update(_scan_text_metrics(source, images))
             needs_ocr = (options.mode == "ocr" and not blank) or (options.mode == "auto" and not blank and
-                         (metrics["suspect"] or not native.strip() or (coverage > .65 and metrics["chars"] < 160)))
+                         (metrics["suspect"] or not native.strip() or (coverage > .65 and metrics["chars"] < 160)
+                          or metrics.get("scan_stamp", False)))
             page = Page(index, "blank" if blank else "native", metrics=metrics, native_text=native)
             # Appearance text may enter native extraction, but field identity/value
             # relationships and annotation text are not covered by that contract.
