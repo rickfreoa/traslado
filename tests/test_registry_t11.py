@@ -163,6 +163,9 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
         branch = next(n for n in extract.body if isinstance(n, ast.If) and ast.unparse(n.test) == "suffix == '.docx'")
         for name in ("docx", "xlsx", "pptx", "image"):
             function = next(n for n in current.body if isinstance(n, ast.FunctionDef) and n.name == "_extract_" + name)
+            if name == "docx":  # A5a rewrites the DOCX branch on purpose; its contract has its own tests.
+                branch = branch.orelse[0] if len(branch.orelse) == 1 else branch.orelse
+                continue
             self.assertEqual([ast.dump(n) for n in branch.body],
                              [ast.dump(n) for n in function.body[-len(branch.body):]], name)
             branch = branch.orelse[0] if len(branch.orelse) == 1 else branch.orelse
@@ -267,13 +270,15 @@ print(json.dumps(results))
                 self.assertEqual(proc.returncode, 0, proc.stderr)
                 outputs.append(json.loads(proc.stdout))
             compared = []
-            for suffix in sorted(EXPECTED):
+            # DOCX changes on purpose in A5a (notes, per-species warnings) and has its own tests.
+            for suffix in sorted(EXPECTED - {".docx"}):
                 for relative in ("document.md", "document.json", "document-layout.json", "chunks/chunks.jsonl"):
                     payloads = [(Path(out[suffix]) / relative).read_bytes() for out in outputs]
                     if relative == "document.json":
-                        # Remove just this field, preserving every other byte (including ordering and whitespace).
+                        # Remove just these fields (timing; release version), preserving every other byte.
                         import re
-                        payloads = [re.sub(rb'(?m)^  "duration_seconds": [^\r\n]+\r?\n', b'', data) for data in payloads]
+                        payloads = [re.sub(rb'(?m)^  "(?:duration_seconds|converter_version)": [^\r\n]+\r?\n', b'', data)
+                                    for data in payloads]
                     self.assertEqual(payloads[0], payloads[1], (suffix, relative))
                     compared.append(suffix + ":" + relative)
             logs = ROOT / ".t11-logs"
