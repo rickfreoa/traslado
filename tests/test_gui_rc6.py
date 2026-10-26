@@ -123,14 +123,24 @@ class GUIRc6(unittest.TestCase):
         app.results.event_generate("<ButtonRelease-1>"); root.update()
         self.assertIn(" … ",app.results.set(rows[0],"file"))
 
+    # Altura de janela medida (Windows, Tk escala 2.0, fontes padrão) em que duas linhas de resultado cabem: 710 px
+    # (telas simuladas de 776 a 796 px de altura mostraram 1 linha; 800 px mostrou 2). A janela usa a altura da tela menos 90.
+    ALTURA_JANELA_PARA_DUAS_LINHAS_2X=710
+    MARGEM_DE_TELA=90
+    # Atenção: em telas abaixo de 800 px de altura (ex.: runner Windows 1024x768) este método é pulado e fica SEM as verificações
+    # de duas linhas, altura da linha e botões; elas só rodam em tela maior (máquina local, Linux/xvfb).
+
     def test_high_dpi_minimum_window_preserves_two_results_and_screen_margin(self):
         root,app=self.make_app(2.0,(900,650))
+        # Pré-condição de ambiente, medida só pela tela e avaliada antes de qualquer asserção sobre o layout.
+        if root.winfo_screenheight()-self.MARGEM_DE_TELA<self.ALTURA_JANELA_PARA_DUAS_LINHAS_2X:
+            self.skipTest(f"tela {root.winfo_screenwidth()}x{root.winfo_screenheight()} abaixo de {self.ALTURA_JANELA_PARA_DUAS_LINHAS_2X+self.MARGEM_DE_TELA} px de altura: não há espaço para duas linhas em escala 2x")
         self.add_results(root,app)
         self.assertGreater(root.winfo_height(),650)
-        self.assertLessEqual(root.minsize()[1],root.winfo_screenheight()-90)
+        self.assertLessEqual(root.minsize()[1],root.winfo_screenheight()-self.MARGEM_DE_TELA)
         rows=app.results.get_children()
         visible=[app.results.bbox(row) for row in rows if app.results.bbox(row)]
-        self.assertGreaterEqual(len(visible),2)
+        self.assertGreaterEqual(len(visible),2,f"tela {root.winfo_screenwidth()}x{root.winfo_screenheight()}, janela {root.winfo_width()}x{root.winfo_height()}, minsize {root.minsize()}")
         self.assertGreaterEqual(visible[-1][3],app._body_font.metrics("linespace")+8)
         for button in [app.convert_button,app.cancel_button,app.open_button,app.doctor_button]:
             self.assertLessEqual(button.winfo_rooty()+button.winfo_height(),root.winfo_rooty()+root.winfo_height())

@@ -31,7 +31,7 @@ def json_file(path, value):
 class InstallerRC3(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix='freoa-install-review-')
-        self.base = Path(self.temporary.name)
+        self.base = Path(self.temporary.name).resolve()
         self.package, self.root, self.data, self.desktop = [self.base / name for name in ['package', 'managed', 'data', 'desktop']]
         for folder in [self.package, self.root, self.data, self.desktop]:
             folder.mkdir()
@@ -166,7 +166,8 @@ class InstallerRC3(unittest.TestCase):
                 raise RuntimeError('SYNTHETIC_NEW_RELEASE_FAILURE')
             return self.fake_run(argv, **kwargs)
         try:
-            with self.assertRaisesRegex(ValueError, 'Link/junction'):
+            # Python 3.11 não tem Path.is_junction: a junction é recusada pelo teste de reparse point (mesma recusa, outra mensagem)
+            with self.assertRaisesRegex(ValueError, 'Link/junction' if hasattr(Path, 'is_junction') else 'Reparse point'):
                 self.install(run=run)
             self.assertFalse((self.root / '.installation-lock').exists())
             self.assert_old_preserved()

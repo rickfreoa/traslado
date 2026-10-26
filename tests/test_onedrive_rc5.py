@@ -43,7 +43,7 @@ class CloudGuardsRC5(unittest.TestCase):
     def test_installer_classifier_accepts_cloud_but_rejects_unknown(self):
         with tempfile.TemporaryDirectory() as raw:
             path = Path(raw)
-            with patch.object(Path, "is_symlink", return_value=False), patch.object(Path, "is_junction", return_value=False):
+            with patch.object(Path, "is_symlink", return_value=False), patch.object(Path, "is_junction", return_value=False, create=True):  # is_junction só existe no 3.12+; o produto usa hasattr
                 for n in range(16):
                     with patch.object(Path, "lstat", return_value=SimpleNamespace(st_file_attributes=0x400, st_reparse_tag=0x9000001A | n << 12)):
                         self.assertEqual(installer.no_links(path), path.resolve())
@@ -73,7 +73,7 @@ class CloudGuardsRC5(unittest.TestCase):
 class InstallerDiagnosticsRC5(unittest.TestCase):
     def test_child_error_is_visible_and_persisted_even_without_capture(self):
         with tempfile.TemporaryDirectory() as raw:
-            logs = Path(raw)
+            logs = Path(raw).resolve()
             stdout, stderr = io.StringIO(), io.StringIO()
             with patch.object(installer, "LOG_DIRECTORY", logs), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 with self.assertRaises(subprocess.CalledProcessError) as caught:
