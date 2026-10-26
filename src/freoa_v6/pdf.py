@@ -7,7 +7,7 @@ import tempfile
 from typing import Any
 
 from .model import Block, Document, Options, Page, finite_box, text_metrics
-from .ocr import recognize
+from .ocr import recognize, recognize_blocks
 
 
 def reading_order(blocks: list[Block], width: float) -> tuple[list[Block], bool]:
@@ -159,9 +159,22 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                     with tempfile.TemporaryDirectory(prefix=".freoa-ocr-page-", dir=workspace.parent) as raw:
                         image = Path(raw) / "page.png"
                         render_page(source, image, options)
-                        block, warnings = recognize(image, workspace, options)
-                        block.details["source_page"] = index
-                        page.blocks.append(block)
+                        scale = options.dpi / 72
+                        raster_rect = (source.rect * fitz.Matrix(scale, scale)).irect
+                        derotation = source.derotation_matrix
+
+                        def transform(x: float, y: float) -> tuple[float, float]:
+                            # Pixmap pixels start at its integer device origin.
+                            # Native text boxes are unrotated and crop-local:
+                            # cropbox.x0/y0 must NOT be added a second time.
+                            point = fitz.Point((x + raster_rect.x0) / scale,
+                                               (y + raster_rect.y0) / scale) * derotation
+                            return point.x, point.y
+
+                        ocr_blocks, warnings = recognize_blocks(image, workspace, options, transform)
+                        for block in ocr_blocks:
+                            block.details["source_page"] = index
+                        page.blocks.extend(ocr_blocks)
                         page.warnings.extend(warnings)
                 except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
                     page.warnings.append("ocr_failed: " + str(exc))
