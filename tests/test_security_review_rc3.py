@@ -23,6 +23,85 @@ LAST_PROCESS_PROBE = None
 LAST_TREE_PROBES = []
 
 
+class PathSearchRC3(unittest.TestCase):
+    """Busca de tesseract no PATH: PATHEXT, ordem, X_OK, aspas e symlink para o cwd (valem nos dois sistemas)."""
+    NAME = 'tesseract.exe' if os.name == 'nt' else 'tesseract'
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix='freoa-path-search-')
+        self.addCleanup(self.temporary.cleanup)
+        self.folder = Path(self.temporary.name).resolve()
+        self.cwd = self.folder / 'cwd'
+        self.cwd.mkdir()
+        self.original = Path.cwd()
+        os.chdir(self.cwd)
+        self.addCleanup(os.chdir, self.original)
+        # Sem motor gerenciado nem locais conhecidos.
+        for target in ('freoa_v6.ocr.managed_tesseract',):
+            patcher = patch(target, return_value=None)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        env = patch.dict(os.environ, {'LOCALAPPDATA': str(self.folder / 'x'), 'ProgramFiles': str(self.folder / 'y')})
+        env.start()
+        self.addCleanup(env.stop)
+
+    def engine(self, directory, name=None):
+        directory.mkdir(exist_ok=True)
+        path = directory / (name or self.NAME)
+        path.write_bytes(b'INERT')
+        path.chmod(0o755)
+        return path
+
+    def search(self, path, **extra):
+        with patch.dict(os.environ, {'PATH': path, **extra}):
+            return find_tesseract()
+
+    def test_candidates_pathext_vazio_ou_ausente_usa_o_padrao_do_shutil(self):
+        from freoa_v6.ocr import _candidates
+        d = Path('D:/ferramentas')
+        padrao = [d / ('tesseract' + e) for e in ('.com', '.exe', '.bat', '.cmd')]
+        for pathext in ('', None, ';;'):
+            self.assertEqual(_candidates(d, True, pathext), padrao, repr(pathext))
+        self.assertEqual(_candidates(d, True, '.CMD;.EXE'), [d / 'tesseract.cmd', d / 'tesseract.exe'])
+        self.assertEqual(_candidates(d, False, '.EXE'), [d / 'tesseract'])
+
+    @unittest.skipUnless(os.name == 'nt', 'PATHEXT é do Windows')
+    def test_pathext_vazio_ainda_acha_exe(self):
+        engine = self.engine(self.folder / 'bin')
+        for pathext in ('', ';'):
+            self.assertEqual(self.search(str(engine.parent), PATHEXT=pathext), str(engine))
+
+    @unittest.skipUnless(os.name == 'nt', 'PATHEXT é do Windows')
+    def test_ordem_diretorios_antes_de_extensoes_e_extensoes_na_ordem_do_pathext(self):
+        a, b = self.folder / 'a', self.folder / 'b'
+        self.engine(a, 'tesseract.cmd')
+        self.engine(b, 'tesseract.exe')
+        # primeiro diretório vence mesmo com extensão de menor prioridade
+        self.assertEqual(self.search(os.pathsep.join([str(a), str(b)]), PATHEXT='.EXE;.CMD'), str(a / 'tesseract.cmd'))
+        self.engine(a, 'tesseract.exe')
+        self.assertEqual(self.search(str(a), PATHEXT='.CMD;.EXE'), str(a / 'tesseract.cmd'))
+        self.assertEqual(self.search(str(a), PATHEXT='.EXE;.CMD'), str(a / 'tesseract.exe'))
+
+    def test_arquivo_sem_permissao_de_execucao_e_ignorado(self):
+        engine = self.engine(self.folder / 'bin')
+        with patch('freoa_v6.ocr.os.access', return_value=False):
+            self.assertIsNone(self.search(str(engine.parent)))
+        self.assertEqual(self.search(str(engine.parent)), str(engine))
+
+    def test_diretorio_confiavel_entre_aspas(self):
+        engine = self.engine(self.folder / 'bin')
+        self.assertEqual(self.search('"%s"' % engine.parent), str(engine))
+
+    def test_symlink_de_diretorio_para_o_cwd_e_excluido(self):
+        self.engine(self.cwd)
+        link = self.folder / 'link-para-cwd'
+        try:
+            link.symlink_to(self.cwd, target_is_directory=True)
+        except OSError:
+            self.skipTest('criar symlink exige privilégio neste ambiente')
+        self.assertIsNone(self.search(str(link)))
+
+
 @unittest.skipUnless(os.name == 'nt', 'Windows executable selection')
 class OCRSelectionRC3(unittest.TestCase):
     def setUp(self):
@@ -123,7 +202,7 @@ class ReleaseProcessFilterRC3(unittest.TestCase):
     def test_real_ps_filter_includes_simulated_orphan_ocr_but_excludes_sibling(self):
         global LAST_PROCESS_PROBE
         with tempfile.TemporaryDirectory(prefix='freoa-process-filter-') as raw:
-            folder = Path(raw)
+            folder = Path(raw).resolve()
             release = folder / 'release'
             entries = [
                 {'ProcessId': 101, 'ExecutablePath': str(release / '.venv/Scripts/python.exe')},

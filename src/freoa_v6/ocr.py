@@ -13,6 +13,14 @@ from .runtime import managed_tesseract, managed_tessdata_for
 from .safety import run_bounded
 
 
+def _candidates(directory: Path, windows: bool, pathext: str | None) -> list[Path]:
+    """Executable names in PATH order; empty or missing PATHEXT falls back like shutil.which on Windows."""
+    if not windows:
+        return [directory / "tesseract"]
+    extensions = [e for e in (pathext or "").split(os.pathsep) if e] or [".COM", ".EXE", ".BAT", ".CMD"]
+    return [directory / ("tesseract" + e.lower()) for e in extensions]
+
+
 def find_tesseract(explicit: str | None = None) -> str | None:
     if explicit:
         path = Path(explicit).expanduser()
@@ -29,8 +37,7 @@ def find_tesseract(explicit: str | None = None) -> str | None:
         if not directory.is_absolute() or directory.resolve() == current:
             continue
         # No lookup by shutil.which: before Python 3.12 it ignores PATHEXT for a path with a directory part.
-        for extension in (os.environ.get("PATHEXT", ".EXE").split(os.pathsep) if os.name == "nt" else [""]):
-            found = directory / ("tesseract" + extension.lower())
+        for found in _candidates(directory, os.name == "nt", os.environ.get("PATHEXT")):
             if found.is_file() and os.access(found, os.X_OK):
                 return str(found.resolve())
     for variable in ("LOCALAPPDATA", "ProgramFiles"):
