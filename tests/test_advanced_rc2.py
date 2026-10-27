@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 from html.parser import HTMLParser
 from pathlib import Path
 import sys
@@ -115,13 +116,18 @@ class AdvancedRC2(unittest.TestCase):
                 if 'parse' in argv:
                     Path(argv[argv.index('-o') + 1]).write_text(content)
                 return 0
-            doc = Document('source.pdf', '0' * 64, [Page(1, 'ocr', blocks=[Block('text', 'FALLBACK_SOURCE')])])
+            # T11 P0: internal line geometry must never leak into previous_blocks (document.json).
+            doc = Document('source.pdf', '0' * 64, [Page(1, 'ocr', blocks=[Block('text', 'FALLBACK_SOURCE',
+                                                                               lines=[{'bbox': [0, 0, 1, 1], 'spans': []}])])])
             with patch.object(advanced, 'run_bounded', transport):
                 advanced.refine(source, root, Options(advanced_kit=str(executable)), doc)
             page = doc.pages[0]
             details = page.blocks[0].details
             self.assertEqual(details['raw_model_markdown'], content)
             self.assertEqual(details['previous_blocks'][0]['text'], 'FALLBACK_SOURCE')
+            self.assertNotIn('lines', details['previous_blocks'][0])
+            self.assertNotIn('role', details['previous_blocks'][0])
+            self.assertNotIn('"lines"', json.dumps(doc.to_dict()))
             self.assertIn('SOURCE_SENTINEL', page.blocks[0].text)
             self.assertIn('model_markdown_links_literalized_formatting_partial', page.warnings)
 

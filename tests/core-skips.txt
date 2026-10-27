@@ -22,3 +22,11 @@ test_layout_publication_rc6 fitz
 test_minor_rc3 PIL
 test_minor_rc3 pptx
 test_readable_rc6 PIL
+
+# T11, etapas 4 a 8: módulos de teste que importam PyMuPDF no topo
+test_furniture_t11 fitz
+test_furniture_t11 docx
+test_ocr_concurrency_t11 fitz
+test_ocr_geometry_t11 fitz
+test_pdf_lines_t11 fitz
+test_scan_stamp_t11 fitz

@@ -162,7 +162,9 @@ def refine(source: Path, workspace: Path, options: Options, document: Document) 
                         raise RuntimeError("MinerU produziu resultado vazio")
                     passive = sanitize(content, folder, workspace, page.number, options)
                     # Keep previous extraction as an explicit alternative, never erase provenance.
-                    previous = [b.__dict__.copy() for b in page.blocks]
+                    # T11: line geometry is internal (never serialized); role only when classified.
+                    previous = [{k: v for k, v in b.__dict__.items()
+                                 if k != "lines" and not (k == "role" and v is None)} for b in page.blocks]
                     page.blocks = [Block("text", passive, engine="mineru-kit-4.0.10",
                                          details={"tier": "advanced", "previous_blocks": previous,
                                                   "source_page": page.number, "model_revision": "unverified",

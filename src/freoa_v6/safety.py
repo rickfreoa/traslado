@@ -117,9 +117,12 @@ def kill_tree(proc: subprocess.Popen) -> None:
     else:
         import signal
         # The session/group may still have descendants after its leader exits.
-        # run_bounded always launches POSIX children in a new session.
+        # Only explicitly shared children leave group cleanup to the supervisor.
         try:
-            os.killpg(proc.pid, signal.SIGKILL)
+            if getattr(proc, "_shared_session", False):
+                proc.kill()
+            else:
+                os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
     if proc.poll() is not None:
@@ -136,8 +139,10 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
                 max_log_bytes: int = 4 * 1024 * 1024,
                 max_memory_bytes: int = 2 * 1024 * 1024 * 1024,
                 budget_root: Path | None = None, max_directory_bytes: int | None = None,
-                on_poll: Callable[[], None] | None = None) -> int:
-    kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW | 0x4} if os.name == "nt" else {"start_new_session": True}
+                on_poll: Callable[[], None] | None = None,
+                share_session: bool = False) -> int:
+    kwargs = ({"creationflags": subprocess.CREATE_NO_WINDOW | 0x4} if os.name == "nt"
+              else {"start_new_session": not share_session})
     job = None
     if os.name == "nt":
         from .windows_job import WindowsJob
@@ -148,6 +153,7 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
         try:
             proc = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
                                     stdout=stream, stderr=stream, shell=False, **kwargs)
+            proc._shared_session = share_session
             if job:
                 job.assign_and_resume(proc)
             while proc.poll() is None:

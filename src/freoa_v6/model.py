@@ -15,6 +15,7 @@ class Options:
     language: str = field(default_factory=default_language)
     dpi: int = 250
     job_timeout: int = 3600
+    ocr_workers: int = 4
     ocr_timeout: int = 45
     max_input_bytes: int = 256 * 1024 * 1024
     max_archive_bytes: int = 512 * 1024 * 1024
@@ -34,13 +35,16 @@ class Options:
     advanced_kit: str | None = None
     advanced_timeout: int = 90
     max_memory_mb: int = 2048
+    furniture: str = "mark"
 
     def __post_init__(self) -> None:
+        if self.furniture not in ("off", "mark"):
+            raise ValueError("Opção inválida: furniture")
         if self.mode not in {"auto", "native", "ocr"}:
             raise ValueError("Modo inválido")
         if not re.fullmatch(r"[a-zA-Z_]+(?:\+[a-zA-Z_]+)*", self.language):
             raise ValueError("Idioma OCR inválido")
-        limits = {"dpi": (72, 400), "job_timeout": (1, 3600), "ocr_timeout": (1, 600),
+        limits = {"ocr_workers": (1, 4), "dpi": (72, 400), "job_timeout": (1, 3600), "ocr_timeout": (1, 600),
                   "max_input_bytes": (1, 1_073_741_824), "max_archive_bytes": (1, 2_147_483_648),
                   "max_pages": (1, 10000), "max_pixels": (1000, 80_000_000),
                   "max_output_bytes": (100, 536_870_912), "max_cells": (1, 2_000_000),
@@ -70,6 +74,8 @@ class Block:
     rows: list[list[str]] | None = None
     confidence: float | None = None
     details: dict[str, Any] = field(default_factory=dict)
+    role: str | None = None
+    lines: list[dict] | None = None
 
 
 @dataclass
@@ -95,7 +101,14 @@ class Document:
     options: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        for page in data["pages"]:
+            for block in page["blocks"]:
+                # Line geometry is internal to PDF analysis, never an output payload.
+                block.pop("lines", None)
+                if block.get("role") is None:
+                    block.pop("role", None)
+        return data
 
 
 def text_metrics(text: str) -> dict[str, Any]:

@@ -84,7 +84,7 @@ class RuntimeRC3(unittest.TestCase):
         explicit = self.root / 'explicit-data'
         explicit.mkdir()
         seen = []
-        def bounded(argv, cwd, timeout, log):
+        def bounded(argv, cwd, timeout, log, **kwargs):
             if "--list-langs" in argv:
                 log.write_text("List of available languages (2):\npor\nita\n")
                 return 0

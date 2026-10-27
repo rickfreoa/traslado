@@ -274,7 +274,7 @@ class CorrectionsRC9(unittest.TestCase):
         engine = self.root/'tesseract.exe'
         engine.write_bytes(b'inert')
         self.calls = []
-        def bounded(argv,cwd,timeout,log):
+        def bounded(argv,cwd,timeout,log,**kwargs):
             self.calls.append(argv)
             if '--list-langs' in argv:
                 log.write_text('List of available languages:\n' + available + '\n')

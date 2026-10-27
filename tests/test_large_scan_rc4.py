@@ -52,7 +52,8 @@ class LargeScanRC4(unittest.TestCase):
     def test_large_existing_text_scan_has_no_accumulated_page_images(self):
         source = self.source(count=120)
         with patch.object(pdf, "render_page", side_effect=AssertionError("native fast path rendered")), \
-                patch.object(pdf, "recognize", side_effect=AssertionError("native fast path OCR")):
+                patch.object(pdf, "recognize", side_effect=AssertionError("native fast path OCR")), \
+                patch.object(pdf, "recognize_blocks", side_effect=AssertionError("native fast path OCR")):
             document = self.extract(source)
         self.assertEqual(len(document.pages), 120)
         self.assertEqual(list((self.workspace / "assets").iterdir()), [])
@@ -74,7 +75,8 @@ class LargeScanRC4(unittest.TestCase):
             seen.append(image)
             return Block("text", "OCR_SENTINEL", engine="tesseract"), []
 
-        with patch.object(pdf, "recognize", side_effect=recognize):
+        # T11 A3-0: full-page OCR goes through recognize_blocks (same single OCR run per page).
+        with patch.object(pdf, "recognize_blocks", side_effect=lambda i, w, o, transform: ([recognize(i, w, o)[0]], [])):
             document = self.extract(source, Options(dpi=72))
         self.assertEqual(len(seen), 4)
         self.assertTrue(all(not path.exists() for path in seen))

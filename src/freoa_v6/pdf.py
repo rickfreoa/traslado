@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, deque
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
+from ctypes import c_float
+import os
 import json
 from pathlib import Path
+import re
 import tempfile
 from typing import Any
 
 from .model import Block, Document, Options, Page, finite_box, text_metrics
-from .ocr import recognize
+from .ocr import recognize, recognize_blocks
 
 
 def reading_order(blocks: list[Block], width: float) -> tuple[list[Block], bool]:
@@ -50,7 +55,7 @@ def reading_order(blocks: list[Block], width: float) -> tuple[list[Block], bool]
     return [blocks[i] for i in out], True
 
 
-def render_page(page: Any, path: Path, options: Options, clip: Any = None) -> None:
+def render_page(page: Any, path: Path, options: Options, clip: Any = None, *, admit=None) -> None:
     import fitz
     rect = clip or page.rect
     scale = options.dpi / 72
@@ -59,7 +64,12 @@ def render_page(page: Any, path: Path, options: Options, clip: Any = None) -> No
     pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), clip=clip, alpha=False)
     if pix.width * pix.height > options.max_pixels:
         raise ValueError("Renderização excede limite de pixels")
-    pix.save(path)
+    if admit is None:
+        pix.save(path)
+    else:
+        data = pix.tobytes("png")
+        admit(len(data))  # no PNG exists on disk before count/byte admission
+        path.write_bytes(data)
 
 
 def render_scan_preview(page: Any, path: Path, options: Options) -> None:
@@ -105,6 +115,148 @@ def _progress(workspace: Path, number: int, total: int, route: str) -> None:
             pass
 
 
+def _attach_native_lines(source: Any, raw: list, blocks: list[Block]) -> None:
+    import fitz
+
+    # The existing blocks remain the authority for text, identity and order.
+    flags = fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES
+    try:
+        data = source.get_text("dict", flags=flags)
+    except Exception:  # line detail is optional: never let it break the page extraction
+        return
+    by_number = {b["number"]: b for b in data["blocks"]
+                 if b.get("type") == 0 and b.get("number") is not None}
+    native_raw = [b for b in raw if len(b) >= 7 and b[6] == 0 and str(b[4]).strip()]
+    for block, native in zip(blocks, native_raw):
+        matched = by_number.get(native[5])
+        if matched is None:
+            continue
+        lines = [{"bbox": finite_box(line["bbox"]), "spans": [
+            {"text": span["text"], "size": float(span["size"]), "flags": int(span["flags"]),
+             "font": span["font"], "bbox": finite_box(span["bbox"])}
+            for span in line["spans"]]} for line in matched["lines"]]
+        text = "\n".join("".join(span["text"] for span in line["spans"]) for line in lines)
+        if text.split() == block.text.split():
+            block.lines = lines
+
+
+def _weighted_select(values: list[tuple[float, int]], rank: int) -> float:
+    """Select a character-weighted rank in deterministic linear time."""
+    if len(values) <= 5:
+        for size, weight in sorted(values):
+            if rank < weight:
+                return size
+            rank -= weight
+        raise ValueError("Rank fora dos pesos")
+    medians = [(sorted(values[i:i + 5])[len(values[i:i + 5]) // 2][0], 1)
+               for i in range(0, len(values), 5)]
+    pivot = _weighted_select(medians, len(medians) // 2)
+    lower, upper = [], []
+    low_weight = equal_weight = 0
+    for size, weight in values:
+        if size < pivot:
+            lower.append((size, weight))
+            low_weight += weight
+        elif size > pivot:
+            upper.append((size, weight))
+        else:
+            equal_weight += weight
+    if rank < low_weight:
+        return _weighted_select(lower, rank)
+    if rank < low_weight + equal_weight:
+        return pivot
+    return _weighted_select(upper, rank - low_weight - equal_weight)
+
+
+def _scan_text_metrics(source: Any, images: list) -> dict[str, Any]:
+    """Inspect text rendering without rasterizing; any failure keeps the old route and records nothing."""
+    import fitz
+
+    try:
+        # Image and texttrace boxes are unrotated; page.rect is the displayed one (review of stage 7).
+        page_box = source.rect * source.derotation_matrix
+        area = max(page_box.get_area(), 1)
+        single_image_ratio = max(((fitz.Rect(i["bbox"]) & page_box).get_area() / area for i in images), default=0.)
+        if single_image_ratio < .50:
+            # Neither class can apply; recording nothing keeps document.json of ordinary pages unchanged.
+            return {}
+        visible_area = 0.
+        invisible_chars = 0
+        visible_text = False
+        for span in source.get_texttrace():
+            if span["type"] == 3 or span["opacity"] == 0:
+                invisible_chars += len(span["chars"])
+            else:
+                visible_area += fitz.Rect(span["bbox"]).get_area()
+                visible_text |= any(chr(char[0]).strip() for char in span["chars"])
+    except Exception:
+        return {}
+    visible_ratio = visible_area / area
+    return {"single_image_ratio": single_image_ratio,
+            "visible_glyph_area_ratio": visible_ratio,
+            "invisible_text_chars": invisible_chars,
+            "scan_stamp": single_image_ratio >= .50 and visible_ratio < .01 and visible_text,
+            "invisible_text_layer": invisible_chars > 0 and single_image_ratio >= .50}
+
+
+_ROMAN = re.compile(r"M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})")
+
+
+def _isolated_number(text: str) -> bool:
+    """Arabic page number or a canonical roman numeral in one case ('Id.', 'Civil', 'CdL' are words, not folios)."""
+    match = re.fullmatch(r"[\W_]*(\d{1,4}|[ivxlcdmIVXLCDM]{1,8})[\W_]*", text.strip())
+    if not match:
+        return False
+    token = match.group(1)
+    return token.isdigit() or ((token.isupper() or token.islower()) and bool(_ROMAN.fullmatch(token.upper())))
+
+
+def _mark_furniture(document: Document, heights: list[tuple[float, Any]]) -> None:
+    """Annotate only native text; leave content, geometry and order untouched."""
+    import fitz
+    body_sizes = []
+    candidates = []
+    groups: dict[tuple[str, str], set[int]] = {}
+    for sheet, (page, (height, rotation)) in enumerate(zip(document.pages, heights)):
+        for block in page.blocks:
+            if block.engine != "pymupdf" or block.kind != "text":
+                continue
+            block.role = "body"
+            if block.bbox is None or block.lines is None:
+                continue
+            # Native boxes are unrotated; bands are visual margins of the displayed page (review of A1).
+            visual = fitz.Rect(block.bbox) * rotation
+            box = [visual.x0, visual.y0, visual.x1, visual.y1]
+            spans = [span for line in block.lines for span in line["spans"]]
+            band = "top" if box[3] <= .10 * height else "bottom" if box[1] >= .90 * height else None
+            if box[1] >= .10 * height and box[3] <= .90 * height:
+                body_sizes.extend((span["size"], len(span["text"])) for span in spans if span["text"])
+            if band is not None and len(block.lines) <= 2 and spans:
+                candidates.append((block, band, sheet, max(span["size"] for span in spans)))
+    total = sum(weight for _, weight in body_sizes)
+    if not total:
+        return
+    median = (_weighted_select(body_sizes, (total - 1) // 2) + _weighted_select(body_sizes, total // 2)) / 2
+    eligible = []
+    for block, band, sheet, size in candidates:
+        if size > median + .5:
+            continue
+        normalized = " ".join(re.sub(r"\d", "", block.text.lower()).split())
+        start, end = 0, len(normalized)
+        while start < end and not normalized[start].isalnum():
+            start += 1
+        while end > start and not normalized[end - 1].isalnum():
+            end -= 1
+        normalized = normalized[start:end]
+        key = (band, normalized)
+        if normalized:
+            groups.setdefault(key, set()).add(sheet)
+        eligible.append((block, key))
+    for block, key in eligible:
+        if _isolated_number(block.text) or (key[1] and len(groups[key]) >= 3):
+            block.role = "furniture"
+
+
 def extract(path: Path, workspace: Path, options: Options, document: Document) -> None:
     try:
         import fitz
@@ -112,16 +264,63 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
         raise RuntimeError("Instale o perfil PDF: pip install .[pdf]") from exc
     assets = workspace / "assets"
     assets.mkdir(exist_ok=True)
-    with fitz.open(path) as pdf:
+    workers = min(options.ocr_workers, os.cpu_count() or 1)
+    with ExitStack() as stack, fitz.open(path) as pdf, ExitStack() as executor_stack:
+        pool = ThreadPoolExecutor(max_workers=workers)
+        executor_stack.callback(pool.shutdown, wait=True, cancel_futures=True)
+        pending = deque()
+        input_directory = None
+        live_bytes = 0
+        completed = {}
+        next_progress = 1
+
+        def progress(number, total, route):
+            nonlocal next_progress
+            completed.setdefault(number, []).append(route)
+            while next_progress in completed:
+                routes = completed.pop(next_progress)
+                for event in routes:
+                    _progress(workspace, next_progress, total, event)
+                if routes[-1] in {"analyzing", "ocr"}:
+                    break
+                next_progress += 1
+
+        def finish():
+            nonlocal live_bytes
+            future, page, fallback, image, size, extras, notes = pending.popleft()
+            try:
+                ocr_blocks, warnings = future.result()
+                for block in ocr_blocks:
+                    block.details["source_page"] = page.number
+                page.blocks.extend(ocr_blocks)
+                page.warnings.extend(warnings)
+            except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                page.warnings.append("ocr_failed: " + str(exc))
+                page.blocks.extend(fallback)
+            finally:
+                image.unlink(missing_ok=True)
+                live_bytes -= size
+            page.blocks.extend(extras)
+            page.warnings.extend(notes)
+            progress(page.number, len(pdf), "ocr_done")
+
+        def admit(size):
+            if size > options.max_output_bytes:
+                raise ValueError("PNG OCR excede limite de saída")
+            while live_bytes + size > options.max_output_bytes:
+                finish()
+
         if pdf.needs_pass:
             raise ValueError("PDF protegido por senha não é suportado")
         if len(pdf) > options.max_pages:
             raise ValueError("PDF excede limite de páginas")
+        heights = []
         for index, source in enumerate(pdf, 1):
-            _progress(workspace, index, len(pdf), "analyzing")
-            raw = source.get_text("blocks", flags=fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES)
+            heights.append((source.rect.height, source.rotation_matrix))
+            progress(index, len(pdf), "analyzing")
+            native_raw = source.get_text("blocks", flags=fitz.TEXTFLAGS_BLOCKS & ~fitz.TEXT_PRESERVE_IMAGES)
             blocks = [Block("text", str(b[4]).strip(), finite_box(b[:4]), engine="pymupdf")
-                      for b in raw if len(b) >= 7 and b[6] == 0 and str(b[4]).strip()]
+                      for b in native_raw if len(b) >= 7 and b[6] == 0 and str(b[4]).strip()]
             native = "\n\n".join(b.text for b in blocks)
             metrics = text_metrics(native)
             images = source.get_image_info()
@@ -138,8 +337,11 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                     metrics["scanned_page_with_native_text"] = True
             drawings = source.get_drawings() if options.tables or not native else []
             blank = not native.strip() and not images and not drawings
+            if not blank:
+                metrics.update(_scan_text_metrics(source, images))
             needs_ocr = (options.mode == "ocr" and not blank) or (options.mode == "auto" and not blank and
-                         (metrics["suspect"] or not native.strip() or (coverage > .65 and metrics["chars"] < 160)))
+                         (metrics["suspect"] or not native.strip() or (coverage > .65 and metrics["chars"] < 160)
+                          or metrics.get("scan_stamp", False)))
             page = Page(index, "blank" if blank else "native", metrics=metrics, native_text=native)
             # Appearance text may enter native extraction, but field identity/value
             # relationships and annotation text are not covered by that contract.
@@ -150,39 +352,69 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             document.pages.append(page)
             if needs_ocr:
                 page.route = "ocr"
-                _progress(workspace, index, len(pdf), page.route)
+                progress(index, len(pdf), page.route)
                 if native.strip():
                     page.metrics["native_text_retained_in_json_ocr_supersedes_markdown"] = True
+                while len(pending) >= workers:
+                    finish()
+                # Capture all PyMuPDF geometry on the main thread. The OCR
+                # transform uses plain floats, never a page or a fitz object.
+                _attach_native_lines(source, native_raw, blocks)
+                extras, notes = [], []
+                if input_directory is None:
+                    input_directory = Path(stack.enter_context(tempfile.TemporaryDirectory(
+                        prefix=".freoa-ocr-page-", dir=workspace.parent)))
+                image = input_directory / f"page-{index}.png"
                 try:
-                    # One high-resolution OCR input at a time, outside the final
-                    # package. A book must not accumulate a PNG for every page.
-                    with tempfile.TemporaryDirectory(prefix=".freoa-ocr-page-", dir=workspace.parent) as raw:
-                        image = Path(raw) / "page.png"
-                        render_page(source, image, options)
-                        block, warnings = recognize(image, workspace, options)
-                        block.details["source_page"] = index
-                        page.blocks.append(block)
-                        page.warnings.extend(warnings)
+                    render_page(source, image, options, admit=admit)
+                    size = image.stat().st_size if image.is_file() else 0
+                    live_bytes += size
+                    scale = options.dpi / 72
+                    raster_rect = (source.rect * fitz.Matrix(scale, scale)).irect
+                    x0, y0 = raster_rect.x0, raster_rect.y0
+                    matrix = tuple(source.derotation_matrix)
+
+                    def transform(x, y, x0=x0, y0=y0, scale=scale, matrix=matrix):
+                        a, b, c, d, e, f = matrix
+                        x, y = c_float((x + x0) / scale).value, c_float((y + y0) / scale).value
+                        return c_float(a*x + c*y + e).value, c_float(b*x + d*y + f).value
+
+                    def run(image=image, transform=transform):
+                        try:
+                            return recognize_blocks(image, workspace, options, transform)
+                        finally:
+                            image.unlink(missing_ok=True)
+
+                    future = pool.submit(run)
+                    pending.append((future, page, blocks, image, size, extras, notes))
                 except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                    image.unlink(missing_ok=True)
                     page.warnings.append("ocr_failed: " + str(exc))
                     page.blocks.extend(blocks)
+                # Preview and warning ordering is applied after OCR results.
                 if options.images and options.scan_previews:
                     preview = assets / f"page-{index}-preview.jpg"
                     try:
                         render_scan_preview(source, preview, options)
-                        page.blocks.append(Block("image", asset=f"assets/{preview.name}", engine="pymupdf",
+                        extras.append(Block("image", asset=f"assets/{preview.name}", engine="pymupdf",
                                                  details={"lossy_preview": True, "long_edge_pixels": 1200}))
                         page.metrics["scan_previews_exported"] = True
                     except (ValueError, OSError, RuntimeError) as exc:
                         preview.unlink(missing_ok=True)
-                        page.warnings.append("scan_preview_failed: " + str(exc))
+                        notes.append("scan_preview_failed: " + str(exc))
                 if metrics["suspect"]:
-                    page.warnings.append("native_unicode_suspect_retained_in_json")
-                _progress(workspace, index, len(pdf), "ocr_done")
+                    notes.append("native_unicode_suspect_retained_in_json")
+                if not any(item[1] is page for item in pending):
+                    page.blocks.extend(extras)
+                    page.warnings.extend(notes)
+                    progress(index, len(pdf), "ocr_done")
+                if workers == 1 and pending:
+                    finish()
                 continue
             if blank:
-                _progress(workspace, index, len(pdf), "blank")
+                progress(index, len(pdf), "blank")
                 continue
+            _attach_native_lines(source, native_raw, blocks)
             if metrics["suspect"]:
                 page.warnings.append("native_unicode_suspect")
             if options.tables and len(drawings) >= 3:
@@ -247,6 +479,8 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         page.warnings.append("image_render_failed: " + str(exc))
                 region_has_native = any(_within(b, box) for b in blocks if b.kind == "text")
                 if options.mode == "auto" and not region_has_native and box.width*box.height >= area * .15:
+                    while pending:
+                        finish()
                     try:
                         if not image_path.exists():
                             render_page(source, image_path, options, box)
@@ -264,4 +498,8 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
             # Image placement is approximate and explicit in the report.
             if any(max(0, box.width*box.height) / area <= .65 for box in image_boxes):
                 page.warnings.append("image_semantics_unverified")
-            _progress(workspace, index, len(pdf), page.route)
+            progress(index, len(pdf), page.route)
+        while pending:
+            finish()
+        if options.furniture == "mark":
+            _mark_furniture(document, heights)
