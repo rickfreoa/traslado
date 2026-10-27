@@ -1,10 +1,25 @@
-# Traslado 1.0.0
+# Traslado 1.1.0
 
 Conversor local de documentos para Markdown rastreável: texto nativo rápido, OCR seletivo (Tesseract) e chunks com offsets exatos, hashes e páginas de origem, prontos para busca e RAG. O nome vem do *traslado* forense: a cópia fiel que remete sempre ao original.
 
 Traslado é a primeira versão pública do antigo Freoa Markdown Converter v6 (6.0.0rc9). O pacote Python continua `freoa-md-converter` e o módulo continua `freoa_v6`, para que instalações e integrações anteriores sigam funcionando; o comando `traslado` foi acrescentado ao lado de `freoa-md`.
 
 Candidata com limitações explícitas: testes sintéticos não homologam fidelidade jurídica, e todo texto convertido sai marcado `fidelity: unverified`.
+
+## Novidades da 1.1.0
+
+A 1.1 acrescenta geometria e classificação aos artefatos estruturados, notas no DOCX e OCR concorrente, sem mudar o texto. Na amostra de qualificação (80 obras), o Markdown dos PDFs nativos saiu idêntico ao da 1.0.0; nas páginas com OCR, as palavras são as mesmas e só muda o espaçamento, porque cada parágrafo reconhecido vira uma linha (quebras internas passam a espaço). Histórico completo em [CHANGELOG.md](CHANGELOG.md).
+
+- **Notas de rodapé e de fim do DOCX** viram notas Markdown (`[^n]`), ligadas às definições de `footnotes.xml` e `endnotes.xml`, com famílias distintas. Também beneficiam `.doc`, `.rtf` e `.odt` convertidos para `.docx`. O aviso agregado da 1.0.0 dá lugar a avisos por espécie de perda remanescente (chamada sem definição, definição sem chamada, id repetido, conteúdo complexo achatado, cabeçalhos e rodapés, comentários).
+- **Caixas nos blocos de OCR.** Cada parágrafo reconhecido pelo Tesseract leva sua caixa em coordenadas da folha, tirada do TSV da mesma execução; a sequência de palavras é idêntica à do TXT, ou o bloco recai no texto sem geometria com aviso `ocr_geometry_fallback`. Em escaneadas, isso permite localizar o número impresso da página: nas 442 folhas rotuladas à mão da amostra de qualificação, as páginas simples com número correto (pela regra de paginação da Biblioteca) passaram de 13 para 78, sem nenhuma página antes correta piorar.
+- **Linhas e spans** (tamanho de fonte, negrito, itálico) sob os blocos nativos do PDF, em `document-layout.json`.
+- **Mobiliário de página marcado** (`--furniture mark`, padrão): cabeçalhos corridos, rodapés e números de folha recebem `role: furniture` nos chunks, sem nenhum texto omitido. `--furniture off` reproduz a 1.0.0.
+- **Folha escaneada com carimbo** (imagem única que cobre a folha e pouco texto visível) passa a OCR mesmo quando há camada de texto invisível.
+- **OCR concorrente por folha** (`--ocr-workers`, 1 a 4, padrão 4), com resultado idêntico ao serial e ordem determinística.
+- **Registro único de conversores**: despacho, descoberta e `doctor` leem o mesmo cadastro; formato indisponível é recusado com motivo.
+- **Distribuição verificável**: CI em Windows e Linux (Core e Full, Python 3.11 a 3.14), seleção explícita dos arquivos distribuídos, ZIP determinístico, `SHA256SUMS` e attestation vinculada aos bytes.
+
+Fora da 1.1, por decisão medida: a ordem de leitura por calhas (`layout = gutters`) piorou a ordem das folhas de referência e não foi incluída.
 
 ## Novidades da 1.0.0
 
@@ -15,11 +30,11 @@ Candidata com limitações explícitas: testes sintéticos não homologam fideli
 
 ## Obter
 
-Baixe `traslado-1.0.0-windows.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar o pacote a partir do código: `python scripts/build_release.py` (gera o wheel, o `INSTALL-PAYLOAD.json`, o ZIP e as somas em `dist/`).
+Baixe `traslado-1.1.0-windows.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar o pacote a partir do código: `python scripts/build_release.py` (gera o wheel, o `INSTALL-PAYLOAD.json`, o ZIP e as somas em `dist/`).
 
 ## Instalar e abrir no Windows
 
-Requer Windows x64 e Python 3.11–3.14 com Tcl/Tk, pip e venv de origem confiável. O pacote não instala Python. Extraia o ZIP e abra **INSTALAR.bat** na pasta `traslado-1.0.0-windows`. Por padrão instala **Full**, OCR Tesseract 5.5.3 e português, inglês, espanhol, italiano, francês e alemão; cria o atalho **Freoa Markdown Converter** na Área de Trabalho e abre a janela. Não exige administrador. Full inclui PyMuPDF, sujeito a AGPL ou licença comercial; consulte THIRD-PARTY.md antes de redistribuir/integrar.
+Requer Windows x64 e Python 3.11–3.14 com Tcl/Tk, pip e venv de origem confiável. O pacote não instala Python. Extraia o ZIP e abra **INSTALAR.bat** na pasta `traslado-1.1.0-windows`. Por padrão instala **Full**, OCR Tesseract 5.5.3 e português, inglês, espanhol, italiano, francês e alemão; cria o atalho **Freoa Markdown Converter** na Área de Trabalho e abre a janela. Não exige administrador. Full inclui PyMuPDF, sujeito a AGPL ou licença comercial; consulte THIRD-PARTY.md antes de redistribuir/integrar.
 
 Aplicativo: `%LOCALAPPDATA%\Freoa\MarkdownConverter`. Documentos: a pasta `Freoa Markdown Converter` em Documentos; saída inicial em `resultados`. O atalho abre diretamente a interface. `ABRIR.bat` também abre a instalação ativa. Os caminhos reconhecem as pastas especiais do Windows. Pastas com links/junctions/reparse points ou sobreposição entre aplicativo, pacote e dados são recusadas.
 
@@ -115,7 +130,7 @@ Os relatórios de auditoria das versões candidatas não integram o repositório
 
 ```powershell
 & $python -I -m pip install --require-hashes -r requirements-full.hashes.lock -r requirements-test.hashes.lock
-& $python -I -m pip install --no-deps .\dist\freoa_md_converter-1.0.0-py3-none-any.whl
+& $python -I -m pip install --no-deps .\dist\freoa_md_converter-1.1.0-py3-none-any.whl
 & $python -I -m unittest discover -s tests -v
 ```
 
