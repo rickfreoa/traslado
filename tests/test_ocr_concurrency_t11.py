@@ -21,6 +21,15 @@ from freoa_v6.model import Block, Document, Options
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = '14bdfa0642e1dc37751cf4b080f586f717061f5b'
+
+
+def baseline_pdf_source():
+    try:
+        return subprocess.check_output(['git', 'show', BASELINE + ':src/freoa_v6/pdf.py'], cwd=ROOT,
+                                       stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        # Stage-identity checks need the repository history; installed-wheel CI runs skip them.
+        raise unittest.SkipTest('revis\u00e3o ' + BASELINE + ' indispon\u00edvel fora do reposit\u00f3rio')
 FAKE = '''import json, os, sys, time
 from pathlib import Path
 args = sys.argv[1:]
@@ -89,7 +98,7 @@ class OCRConcurrencyT11(unittest.TestCase):
     def test_progress_matches_stage7_for_one_worker(self):
         baseline = types.ModuleType('freoa_v6._stage7_progress')
         baseline.__package__ = 'freoa_v6'
-        source = subprocess.check_output(['git', 'show', BASELINE + ':src/freoa_v6/pdf.py'], cwd=ROOT)
+        source = baseline_pdf_source()
         exec(compile(source, BASELINE + '/pdf.py', 'exec'), baseline.__dict__)
         # Blank, native, full OCR, native + regional OCR, then another native page.
         from PIL import Image
@@ -187,7 +196,7 @@ class OCRConcurrencyT11(unittest.TestCase):
         env = {'T11_RECEIPTS': str(self.root)}
         baseline = types.ModuleType('freoa_v6._stage7')
         baseline.__package__ = 'freoa_v6'
-        source = subprocess.check_output(['git', 'show', BASELINE + ':src/freoa_v6/pdf.py'], cwd=ROOT)
+        source = baseline_pdf_source()
         exec(compile(source, BASELINE + '/pdf.py', 'exec'), baseline.__dict__)
         before = os.environ.get('OMP_THREAD_LIMIT')
         with patch.dict(os.environ, env), patch.object(ocr, 'run_bounded', side_effect=fake_adapter(self.script)), patch.object(pdf.os, 'cpu_count', return_value=4):
