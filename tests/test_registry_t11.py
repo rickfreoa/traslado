@@ -254,7 +254,10 @@ for source in sorted(inputs.iterdir()):
     request.write_text(json.dumps({'source_name': source.name,
         'sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
         'snapshot': str(source), 'workspace': str(workspace),
-        'options': asdict(Options(mode='native', chunks=True))}), encoding='utf-8')
+        # furniture="off" (1.1 only) reproduces the 1.0.0 state; the 1.0.0 Options has no such field.
+        'options': asdict(Options(mode='native', chunks=True,
+                                  **({'furniture': 'off'} if 'furniture' in Options.__dataclass_fields__ else {})))}),
+        encoding='utf-8')
     proc = subprocess.run([sys.executable, '-P', '-m', 'freoa_v6.worker', str(request)],
                           capture_output=True, text=True)
     assert proc.returncode == 0, (source, proc.stderr, (workspace/'error.json').read_text() if (workspace/'error.json').exists() else '')
@@ -275,10 +278,15 @@ print(json.dumps(results))
                 for relative in ("document.md", "document.json", "document-layout.json", "chunks/chunks.jsonl"):
                     payloads = [(Path(out[suffix]) / relative).read_bytes() for out in outputs]
                     if relative == "document.json":
-                        # Remove just these fields (timing; release version), preserving every other byte.
-                        import re
-                        payloads = [re.sub(rb'(?m)^  "(?:duration_seconds|converter_version)": [^\r\n]+\r?\n', b'', data)
-                                    for data in payloads]
+                        # Neutralize just these fields (timing; release version; options added in 1.1); every other
+                        # field must be equal.
+                        def neutral(data):
+                            data = json.loads(data)
+                            data.update(duration_seconds=None, converter_version=None)
+                            data["options"] = {k: v for k, v in data.get("options", {}).items()
+                                               if k not in ("ocr_workers", "furniture")}
+                            return data
+                        payloads = [neutral(data) for data in payloads]
                     self.assertEqual(payloads[0], payloads[1], (suffix, relative))
                     compared.append(suffix + ":" + relative)
             logs = ROOT / ".t11-logs"

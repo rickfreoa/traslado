@@ -36,6 +36,17 @@ def baseline_module(name, revision=BASELINE):
     return module
 
 
+def release_neutral_dict(data):
+    """Identity across releases: only the release version (and options added in 1.1) may differ."""
+    data = dict(data, converter_version=None)
+    data["options"] = {k: v for k, v in (data.get("options") or {}).items() if k not in ("ocr_workers", "furniture")}
+    return data
+
+
+def release_neutral(name, payload):
+    return release_neutral_dict(json.loads(payload)) if Path(name).name == "document.json" else payload
+
+
 class PDFLinesT11(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="lines-", dir=ROOT / ".t11-logs")
@@ -146,9 +157,9 @@ class PDFLinesT11(unittest.TestCase):
         document = Document("source", "hash", pages=[model.Page(1, "native", [block])])
         old = baseline_module("model")
         expected = old.Document("source", "hash", pages=[old.Page(1, "native", [old.Block("text", "body")])])
-        self.assertEqual(document.to_dict(), expected.to_dict())
+        self.assertEqual(release_neutral_dict(document.to_dict()), release_neutral_dict(expected.to_dict()))
         block.lines = [{"bbox": [1, 2, 3, 4], "spans": []}]
-        self.assertEqual(document.to_dict(), expected.to_dict())
+        self.assertEqual(release_neutral_dict(document.to_dict()), release_neutral_dict(expected.to_dict()))
         self.assertTrue(block.lines)  # serialization must not mutate memory
         block.role = "reserved"
         self.assertEqual(document.to_dict()["pages"][0]["blocks"][0]["role"], "reserved")
@@ -204,7 +215,8 @@ class PDFLinesT11(unittest.TestCase):
                     files = {p.relative_to(before) for p in before.rglob("*") if p.is_file()}
                     self.assertEqual(files, {p.relative_to(after) for p in after.rglob("*") if p.is_file()})
                     for name in sorted(files):
-                        self.assertEqual((before / name).read_bytes(), (after / name).read_bytes(), str(name))
+                        self.assertEqual(release_neutral(name, (before / name).read_bytes()),
+                                         release_neutral(name, (after / name).read_bytes()), str(name))
 
 
 if __name__ == "__main__":
