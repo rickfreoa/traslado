@@ -50,6 +50,13 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
     if zipfile.is_zipfile(path):
         try:
             check_archive(path, options)
+            # The native parser does not consistently distinguish unsupported
+            # compression and encryption. Validate member headers with zipfile
+            # in the worker, without decompressing their contents.
+            with zipfile.ZipFile(path) as archive:
+                for info in archive.infolist():
+                    with archive.open(info):
+                        pass
         except NotImplementedError as exc:
             raise ConversionError("unsupported", str(exc)) from exc
         except RuntimeError as exc:

@@ -44,10 +44,12 @@ def scratch():
 
 
 class LegacyOptIn(unittest.TestCase):
+    @unittest.skipUnless(HAS_LEGACY, "extra legacy ausente: pip install traslado[legacy]")
     def test_unsupported_zip_method_and_encryption_are_typed(self):
         import io
         import zipfile
         from traslado.detect import sniff
+        from traslado.legacy import extract
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as archive:
             archive.writestr("mimetype", "application/vnd.oasis.opendocument.text")
@@ -63,9 +65,13 @@ class LegacyOptIn(unittest.TestCase):
                     payload[8:10] = (99).to_bytes(2, "little")
                     payload[central+10:central+12] = (99).to_bytes(2, "little")
                 source.write_bytes(payload)
-                with self.assertRaises(ConversionError) as caught:
-                    sniff(source)
-                self.assertEqual(caught.exception.code, expected)
+                with self.subTest(encrypted=encrypted):
+                    self.assertIsNone(sniff(source))
+                    with self.assertRaises(ConversionError) as caught:
+                        extract(source, root, Options(legacy=True), Document(source.name, "hash"))
+                    self.assertEqual(caught.exception.code, expected)
+                    result = execute(source, root / "out", Options(legacy=True))
+                    self.assertEqual(result.get("error_code"), expected, result)
 
     def test_ole_content_detection_is_bounded_and_opt_in(self):
         from traslado.detect import sniff
@@ -178,6 +184,10 @@ import socket
 def forbidden(*a, **k): raise AssertionError("network attempted")
 socket.socket = socket.create_connection = forbidden
 from pathlib import Path
+import importlib.util
+import sys
+if importlib.util.find_spec('traslado') is None:
+    sys.path.insert(0, sys.argv[3])
 from traslado.legacy import extract
 from traslado.model import Document, Options
 assert 'anydoc' not in __import__('sys').modules
@@ -188,7 +198,8 @@ for source in Path(__import__('sys').argv[2]).glob('publico.*'):
 assert 'anydoc' not in __import__('sys').modules
 '''
         with scratch() as root:
-            proc = subprocess.run([sys.executable, "-I", "-c", code, str(root), str(FIXTURES.resolve())],
+            src = Path(__file__).resolve().parents[1] / "src"
+            proc = subprocess.run([sys.executable, "-I", "-c", code, str(root), str(FIXTURES.resolve()), str(src)],
                                   capture_output=True, timeout=120)
             self.assertEqual(proc.returncode, 0, proc.stderr)
 
