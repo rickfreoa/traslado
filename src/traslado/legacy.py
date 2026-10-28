@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import sys
 import zipfile
+import zlib
 
 from .errors import ConversionError
 from .model import Block, Document, Options, Page
@@ -59,6 +60,8 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         pass
         except NotImplementedError as exc:
             raise ConversionError("unsupported", str(exc)) from exc
+        except (zipfile.BadZipFile, zlib.error, EOFError) as exc:
+            raise ConversionError("malformed", str(exc)) from exc
         except RuntimeError as exc:
             if "password" in str(exc).lower() or "encrypted" in str(exc).lower():
                 raise ConversionError("encrypted", str(exc)) from exc
@@ -132,7 +135,7 @@ def _map(source, workspace: Path, options: Options, document: Document) -> None:
                 url = url.replace("<", "%3C").replace(">", "%3E").replace("\n", "%0A")
                 text = "[" + inline(item.content, depth + 1) + "](<" + url + ">)"
             elif kind == "image":
-                text = item.alt or ""
+                text = " ".join((item.alt or "").split())  # alt numa linha: o rebase dos chunks exige o link inteiro
                 image = item.source
                 if options.images and image and image.kind == "asset" and image.asset_id in assets:
                     key = image.asset_id
