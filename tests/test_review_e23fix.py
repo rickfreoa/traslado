@@ -26,7 +26,7 @@ def rewrite_member(path, member, payload):
 
 def candidate(root, release='v1', gates=None):
     (root / 'releases' / release).mkdir(parents=True, exist_ok=True)
-    platform.write_candidate(root, {'release_id': release, 'gates': gates if gates is not None else {'doctor': True, 'fixture': True}})
+    platform.write_candidate(root, {'release_id': release, 'gates': gates if gates is not None else {'doctor': True, 'fixture': True, 'revocation': 'ok'}})
 
 class ReviewE23Fix(unittest.TestCase):
 
