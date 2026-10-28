@@ -1,0 +1,10 @@
+# Perfil Full: mesmas versões fixadas em requirements-full.lock.
+et-xmlfile==2.0.0
+lxml==6.1.3
+openpyxl==3.1.5
+Pillow==12.3.0
+PyMuPDF==1.28.2
+python-docx==1.2.0
+python-pptx==1.0.2
+typing-extensions==4.16.0
+XlsxWriter==3.2.9
