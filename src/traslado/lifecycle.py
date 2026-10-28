@@ -1,0 +1,903 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
+"""Ciclo de vida da instalação gerenciada: setup, where, update, uninstall, rollback e migração."""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import platform as host
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from typing import Callable
+
+from . import __version__
+from . import doctor
+from . import ocr
+from . import platform as plat
+from . import revocation
+from . import runner
+from .model import Options
+from .pathguard import unsafe_link
+
+DEFAULT_LANGUAGES = ("por", "eng", "spa", "ita", "fra", "deu")
+REPOSITORY_URL = "https://github.com/rickfreoa/traslado"
+POWERSHELL_WIN = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+
+
+def _utc_now(now: datetime | str | None = None) -> str:
+    if isinstance(now, str):
+        return now
+    instant = now or datetime.now(timezone.utc)
+    return instant.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def normalize_languages(languages: list[str] | tuple[str, ...] | str | None) -> list[str]:
+    if languages is None:
+        return list(DEFAULT_LANGUAGES)
+    if isinstance(languages, str):
+        items = [part.strip().lower() for part in re.split(r"[,+]", languages) if part.strip()]
+    else:
+        items = [part.strip().lower() for item in languages for part in re.split(r"[,+]", str(item)) if part.strip()]
+    if not items or len(set(items)) != len(items) or not set(items) <= set(DEFAULT_LANGUAGES):
+        raise ValueError("Idiomas inválidos; use por, eng, spa, ita, fra, deu sem duplicatas")
+    return items
+
+
+def normalize_extras(extras: list[str] | tuple[str, ...] | str | None) -> list[str]:
+    if not extras:
+        return []
+    if isinstance(extras, str):
+        items = [part.strip().lower() for part in re.split(r"[,+]", extras) if part.strip()]
+    else:
+        items = [part.strip().lower() for item in extras for part in re.split(r"[,+]", str(item)) if part.strip()]
+    allowed = {"legacy"}
+    if not set(items) <= allowed:
+        raise ValueError(f"Extras inválidos: {items}; permitido: legacy")
+    return sorted(set(items))
+
+
+def compute_release_id(version: str, profile: str, extras: list[str], languages: list[str],
+                       seed: str = "") -> str:
+    payload = f"{version}|{profile}|{','.join(sorted(extras))}|{','.join(languages)}|{seed}"
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+    return f"{version}_{digest}"
+
+
+def _shortcut_dirs_from_env(
+    env: dict[str, str],
+    desktop_dir: Path | None = None,
+    start_menu_dir: Path | None = None,
+    applications_dir: Path | None = None,
+    icons_dir: Path | None = None,
+) -> dict[str, Path | None]:
+    return {
+        "desktop_dir": Path(desktop_dir or env["TRASLADO_SHORTCUT_DESKTOP_DIR"])
+        if (desktop_dir or env.get("TRASLADO_SHORTCUT_DESKTOP_DIR")) else None,
+        "start_menu_dir": Path(start_menu_dir or env["TRASLADO_SHORTCUT_START_MENU_DIR"])
+        if (start_menu_dir or env.get("TRASLADO_SHORTCUT_START_MENU_DIR")) else None,
+        "applications_dir": Path(applications_dir or env["TRASLADO_SHORTCUT_APPLICATIONS_DIR"])
+        if (applications_dir or env.get("TRASLADO_SHORTCUT_APPLICATIONS_DIR")) else None,
+        "icons_dir": Path(icons_dir or env["TRASLADO_SHORTCUT_ICONS_DIR"])
+        if (icons_dir or env.get("TRASLADO_SHORTCUT_ICONS_DIR")) else None,
+    }
+
+
+def _find_ocr_lock(release_dir: Path, from_dir: Path | None = None) -> Path:
+    candidates = [
+        release_dir / "ocr-assets.lock.json",
+        *(
+            [from_dir / "ocr-assets.lock.json", from_dir.parent / "ocr-assets.lock.json"]
+            if from_dir else []
+        ),
+        Path(__file__).resolve().parent / "assets/ocr-assets.lock.json",
+        Path(__file__).resolve().parents[2] / "ocr-assets.lock.json",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError("ocr-assets.lock.json não encontrado")
+
+
+def _find_bootstrap_ps1(release_dir: Path, from_dir: Path | None = None) -> Path:
+    candidates = [
+        release_dir / "scripts/bootstrap_ocr.ps1",
+        *(
+            [from_dir / "scripts/bootstrap_ocr.ps1", from_dir / "bootstrap_ocr.ps1"]
+            if from_dir else []
+        ),
+        Path(__file__).resolve().parent / "assets/bootstrap_ocr.ps1",
+        Path(__file__).resolve().parents[2] / "scripts/bootstrap_ocr.ps1",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError("scripts/bootstrap_ocr.ps1 não encontrado")
+
+
+def _install_tessdata_from_lock(
+    destination_ocr: Path,
+    languages: list[str],
+    lock_path: Path,
+    *,
+    cache_dir: Path | None = None,
+    fetch_bytes: Callable[[str], bytes] | None = None,
+) -> Path:
+    lock = json.loads(lock_path.read_text(encoding="utf-8-sig"))
+    assets_by_name = {a["name"]: a for a in lock.get("assets", []) if isinstance(a, dict) and "name" in a}
+    tessdata_dir = destination_ocr / "tessdata"
+    doc_dir = destination_ocr / "doc"
+    tessdata_dir.mkdir(parents=True, exist_ok=True)
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    fetcher = fetch_bytes or revocation.default_fetch_bytes
+
+    wanted = [*(f"{lang}.traineddata" for lang in languages), "TESSDATA-LICENSE.txt"]
+    for name in wanted:
+        spec = assets_by_name.get(name)
+        if not spec:
+            raise ValueError(f"Asset OCR ausente no lock: {name}")
+        data: bytes | None = None
+        if cache_dir and (cache_dir / name).is_file():
+            data = (cache_dir / name).read_bytes()
+        else:
+            data = fetcher(spec["url"])
+            if cache_dir:
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                (cache_dir / name).write_bytes(data)
+        if len(data) != int(spec["bytes"]):
+            raise ValueError(f"Tamanho divergente para {name}: {len(data)} != {spec['bytes']}")
+        actual_sha = hashlib.sha256(data).hexdigest()
+        if actual_sha != spec["sha256"].lower():
+            raise ValueError(f"SHA-256 divergente para {name}: {actual_sha} != {spec['sha256']}")
+        target = (doc_dir / name) if name == "TESSDATA-LICENSE.txt" else (tessdata_dir / name)
+        target.write_bytes(data)
+    return tessdata_dir
+
+
+def _purge_seven_zip(root: Path) -> None:
+    """Garante que nenhum executável, DLL ou instalador do 7-Zip permaneça na instalação."""
+    if not root.exists():
+        return
+    forbidden_names = {"7z.exe", "7z.dll", "7zr.exe", "7z2603-x64.exe"}
+    for item in list(root.rglob("*")):
+        try:
+            if item.is_dir() and item.name in {".bootstrap-tools", ".ocr-download-cache"}:
+                shutil.rmtree(item, ignore_errors=True)
+            elif item.is_file() and item.name.lower() in forbidden_names:
+                item.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _parse_tesseract_version(raw_text: str) -> str | None:
+    match = re.search(r"tesseract\s+v?([0-9]+(?:\.[0-9]+)*)", raw_text, re.I)
+    return match.group(1) if match else None
+
+
+def setup_ocr(
+    release_dir: Path,
+    *,
+    root: Path | None = None,
+    profile: str = "Full",
+    languages: list[str] | None = None,
+    skip_ocr: bool = False,
+    from_dir: Path | None = None,
+    ocr_cache: Path | None = None,
+    platform_name: str | None = None,
+    env: dict[str, str] | None = None,
+    fetch_bytes: Callable[[str], bytes] | None = None,
+) -> dict:
+    platform_name = platform_name or sys.platform
+    env = os.environ if env is None else env
+    langs = normalize_languages(languages)
+    if profile != "Full" or skip_ocr or env.get("TRASLADO_SKIP_OCR") == "1":
+        return {
+            "ocr_installed": False,
+            "ocr": {"tesseract": None, "origin": "none", "version": None},
+            "tessdata": None,
+        }
+
+    lock_path = _find_ocr_lock(release_dir, from_dir)
+    cache = (
+        Path(ocr_cache)
+        if ocr_cache
+        else Path(env["FREOA_OCR_TEST_CACHE"])
+        if env.get("FREOA_OCR_TEST_CACHE")
+        else (from_dir / "ocr-cache")
+        if (from_dir and (from_dir / "ocr-cache").is_dir())
+        else None
+    )
+
+    dest_ocr = release_dir / "ocr"
+    if platform_name == "win32":
+        if (dest_ocr / "tesseract.exe").is_file() and (dest_ocr / "tessdata").is_dir():
+            exe = str(dest_ocr / "tesseract.exe")
+            version = "5.5.3"
+            receipt_file = dest_ocr / "ocr-runtime.json"
+            if receipt_file.is_file():
+                try:
+                    v = _parse_tesseract_version(json.loads(receipt_file.read_text(encoding="utf-8-sig")).get("version", ""))
+                    if v:
+                        version = v
+                except Exception:
+                    pass
+            if root:
+                _purge_seven_zip(root)
+            _purge_seven_zip(release_dir)
+            return {
+                "ocr_installed": True,
+                "ocr": {"tesseract": exe, "origin": "lock", "version": version},
+                "tessdata": str(dest_ocr / "tessdata"),
+            }
+
+        ps1 = _find_bootstrap_ps1(release_dir, from_dir)
+        temp_cache_ctx = tempfile.TemporaryDirectory(prefix="traslado-ocr-cache-") if cache is None else None
+        try:
+            effective_cache = cache if cache is not None else Path(temp_cache_ctx.name)
+            cmd = [
+                str(POWERSHELL_WIN if POWERSHELL_WIN.is_file() else "powershell.exe"),
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(ps1),
+                "-Destination",
+                str(dest_ocr),
+                "-CacheDirectory",
+                str(effective_cache),
+                "-LockPath",
+                str(lock_path),
+                "-Languages",
+                ",".join(langs),
+            ]
+            if env.get("TRASLADO_OCR_OFFLINE") == "1":
+                cmd.append("-Offline")
+            subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        finally:
+            if temp_cache_ctx is not None:
+                temp_cache_ctx.cleanup()
+            if root:
+                _purge_seven_zip(root)
+            _purge_seven_zip(release_dir)
+
+        exe = str(dest_ocr / "tesseract.exe")
+        version = "5.5.3"
+        receipt_file = dest_ocr / "ocr-runtime.json"
+        if receipt_file.is_file():
+            try:
+                v = _parse_tesseract_version(json.loads(receipt_file.read_text(encoding="utf-8-sig")).get("version", ""))
+                if v:
+                    version = v
+            except Exception:
+                pass
+        return {
+            "ocr_installed": True,
+            "ocr": {"tesseract": exe, "origin": "lock", "version": version},
+            "tessdata": str(dest_ocr / "tessdata"),
+        }
+
+    # macOS (darwin) and Linux
+    exe_path: str | None = None
+    origin = "none"
+    search_path = env.get("PATH", os.environ.get("PATH", ""))
+
+    if platform_name == "darwin":
+        brew = shutil.which("brew", path=search_path)
+        if brew:
+            try:
+                proc = subprocess.run([brew, "--prefix", "tesseract"], capture_output=True, text=True, timeout=15)
+                if proc.returncode == 0 and proc.stdout.strip():
+                    candidate = Path(proc.stdout.strip()) / "bin/tesseract"
+                    if candidate.is_file() and os.access(candidate, os.X_OK):
+                        exe_path = str(candidate.resolve())
+                        origin = "homebrew"
+            except (OSError, subprocess.SubprocessError):
+                pass
+        if not exe_path:
+            found = shutil.which("tesseract", path=search_path)
+            if found:
+                exe_path = str(Path(found).resolve())
+                origin = "system"
+        if not exe_path:
+            print("OCR indisponível. Para instalar o Tesseract no macOS, execute: brew install tesseract")
+            return {
+                "ocr_installed": False,
+                "ocr": {"tesseract": None, "origin": "none", "version": None},
+                "tessdata": None,
+            }
+    else:
+        found = shutil.which("tesseract", path=search_path)
+        if found:
+            exe_path = str(Path(found).resolve())
+            origin = "system"
+        else:
+            print(
+                "OCR indisponível. Para instalar o Tesseract no Linux, execute: "
+                "sudo apt install tesseract-ocr (ou sudo dnf install tesseract)"
+            )
+            return {
+                "ocr_installed": False,
+                "ocr": {"tesseract": None, "origin": "none", "version": None},
+                "tessdata": None,
+            }
+
+    tessdata_dir = _install_tessdata_from_lock(
+        dest_ocr,
+        langs,
+        lock_path,
+        cache_dir=cache,
+        fetch_bytes=fetch_bytes,
+    )
+    version_str = None
+    try:
+        proc = subprocess.run([exe_path, "--version"], capture_output=True, text=True, timeout=10)
+        version_str = _parse_tesseract_version((proc.stdout or "") + "\n" + (proc.stderr or ""))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {
+        "ocr_installed": True,
+        "ocr": {"tesseract": exe_path, "origin": origin, "version": version_str},
+        "tessdata": str(tessdata_dir),
+    }
+
+
+def handle_legacy_windows(
+    new_root: Path,
+    *,
+    version: str = __version__,
+    platform_name: str | None = None,
+    env: dict[str, str] | None = None,
+    home: Path | None = None,
+    desktop_dir: Path | None = None,
+    start_menu_dir: Path | None = None,
+    applications_dir: Path | None = None,
+    icons_dir: Path | None = None,
+    now: datetime | str | None = None,
+) -> list[dict]:
+    platform_name = platform_name or sys.platform
+    env = os.environ if env is None else env
+    if platform_name != "win32":
+        return []
+    candidates = list(plat.legacy_roots(platform=platform_name, env=env))
+    if env.get("TRASLADO_LEGACY_ROOT"):
+        candidates.append(Path(env["TRASLADO_LEGACY_ROOT"]))
+    sibling_legacy = Path(new_root).parent / "Freoa/MarkdownConverter"
+    if sibling_legacy not in candidates:
+        candidates.append(sibling_legacy)
+
+    superseded: list[dict] = []
+    seen: set[Path] = set()
+    for leg_root in candidates:
+        try:
+            resolved = leg_root.resolve()
+        except OSError:
+            continue
+        if resolved in seen or not leg_root.is_dir():
+            continue
+        seen.add(resolved)
+        current = plat.read_current(leg_root)
+        if not isinstance(current, dict) or current.get("product") != "freoa-md-converter":
+            continue
+        removed_shortcuts = plat.remove_shortcuts(
+            ["Freoa Markdown Converter"],
+            platform=platform_name,
+            home=home,
+            desktop_dir=desktop_dir,
+            start_menu_dir=start_menu_dir,
+            applications_dir=applications_dir,
+            icons_dir=icons_dir,
+        )
+        timestamp = _utc_now(now)
+        marker = {
+            "schema": "traslado-superseded-1",
+            "product": "traslado",
+            "version": version,
+            "date": timestamp,
+            "superseded_at": timestamp,
+            "new_root": str(Path(new_root).resolve()),
+            "legacy_release_id": current.get("release_id"),
+            "removed_shortcuts": [str(p) for p in removed_shortcuts],
+        }
+        plat._atomic(leg_root / "superseded-by-traslado.json", marker)
+        superseded.append({"root": str(leg_root), "marker": marker})
+    return superseded
+
+
+def evaluate_doctor_gate(
+    report: dict,
+    *,
+    profile: str = "Full",
+    languages: list[str] | None = None,
+    ocr_installed: bool = False,
+) -> bool:
+    if not isinstance(report, dict):
+        return False
+    caps = report.get("capabilities")
+    if not isinstance(caps, dict):
+        return False
+    if profile == "Full":
+        for mod in ("fitz", "PIL", "docx", "openpyxl", "pptx"):
+            if not isinstance(caps.get(mod), dict) or caps[mod].get("available") is not True:
+                return False
+    if ocr_installed:
+        langs = normalize_languages(languages)
+        avail = set(report.get("languages") or [])
+        if not set(langs) <= avail:
+            return False
+    return True
+
+
+def run_fixture_gate(
+    *,
+    profile: str = "Full",
+    tesseract: str | None = None,
+    tessdata: str | None = None,
+    execute_fn: Callable[..., dict] | None = None,
+) -> bool:
+    assets_dir = Path(__file__).resolve().parent / "assets"
+    docx_fixture = assets_dir / "fixture.docx"
+    pdf_fixture = assets_dir / "fixture.pdf"
+    exec_call = execute_fn or runner.execute
+
+    with tempfile.TemporaryDirectory(prefix="traslado-fixture-") as tmp:
+        tmp_path = Path(tmp)
+        out_dir = tmp_path / "out"
+        targets: list[Path] = []
+        if profile == "Full":
+            if not docx_fixture.is_file() or not pdf_fixture.is_file():
+                return False
+            targets = [docx_fixture, pdf_fixture]
+        else:
+            if docx_fixture.is_file() and importlib.util.find_spec("docx") is not None:
+                targets = [docx_fixture]
+            else:
+                txt_fixture = tmp_path / "fixture.txt"
+                txt_fixture.write_text("Traslado verificacao de instalacao Core OK.\n", encoding="utf-8")
+                targets = [txt_fixture]
+
+        opts = Options(mode="native", chunks=False, tesseract=tesseract, tessdata=tessdata)
+        for fixture in targets:
+            try:
+                res = exec_call(fixture, out_dir, opts)
+            except Exception:
+                return False
+            if not isinstance(res, dict) or res.get("status") not in {"complete", "partial", "ok"}:
+                return False
+            output_folder = res.get("output")
+            if output_folder:
+                out_path = Path(output_folder)
+                if not (out_path / "document.md").is_file() or not (out_path / "manifest.json").is_file():
+                    return False
+    return True
+
+
+def _load_expected_digests(from_dir: Path | None, version: str, profile: str, extras: list[str]) -> dict[str, str]:
+    digests: dict[str, str] = {}
+    if not from_dir:
+        return digests
+    sums_candidates = [from_dir / "SHA256SUMS", from_dir.parent / "SHA256SUMS"]
+    for sums_path in sums_candidates:
+        if sums_path.is_file():
+            for line in sums_path.read_text(encoding="utf-8-sig").splitlines():
+                parts = line.strip().split()
+                if len(parts) >= 2 and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
+                    name = parts[-1].lstrip("*")
+                    digests[name] = parts[0].lower()
+            break
+    wanted = {
+        f"traslado-{version}-py3-none-any.whl",
+        f"requirements-{profile.lower()}.hashes.lock",
+    }
+    if "legacy" in extras:
+        wanted.add("requirements-legacy.hashes.lock")
+    return {k: v for k, v in digests.items() if k in wanted} if digests else {}
+
+
+def setup_release(
+    *,
+    root: Path | None = None,
+    release_id: str | None = None,
+    profile: str = "Full",
+    extras: list[str] | str | None = None,
+    languages: list[str] | str | None = None,
+    no_shortcut: bool = False,
+    promote: bool = False,
+    allow_offline_promotion: bool = False,
+    skip_ocr: bool = False,
+    from_dir: Path | None = None,
+    ocr_cache: Path | None = None,
+    data_root: Path | None = None,
+    platform_name: str | None = None,
+    env: dict[str, str] | None = None,
+    home: Path | None = None,
+    desktop_dir: Path | None = None,
+    start_menu_dir: Path | None = None,
+    applications_dir: Path | None = None,
+    icons_dir: Path | None = None,
+    expected_digests: dict[str, str] | None = None,
+    doctor_fn: Callable[..., dict] | None = None,
+    fixture_fn: Callable[..., bool] | None = None,
+    revocation_fn: Callable[..., dict] | None = None,
+    now: datetime | str | None = None,
+) -> dict:
+    platform_name = platform_name or sys.platform
+    env = os.environ if env is None else env
+    home_path = Path(home) if home else Path(env.get("HOME") or env.get("USERPROFILE") or Path.home())
+    managed = Path(root) if root is not None else plat.managed_root(platform=platform_name, env=env)
+    norm_profile = "Core" if str(profile).lower() == "core" else "Full"
+    norm_extras = normalize_extras(extras)
+    norm_langs = normalize_languages(languages)
+    shortcut_dirs = _shortcut_dirs_from_env(env, desktop_dir, start_menu_dir, applications_dir, icons_dir)
+
+    if release_id is None:
+        # Derive from current interpreter if inside <root>/releases/<id>/.venv, else deterministic id.
+        try:
+            rel_parts = Path(sys.prefix).resolve().relative_to(managed.resolve() / "releases").parts
+            if rel_parts:
+                release_id = rel_parts[0]
+        except Exception:
+            pass
+        if not release_id:
+            release_id = compute_release_id(__version__, norm_profile, norm_extras, norm_langs)
+
+    # Idempotency check: if current.json already has the exact same active release, do not mutate current.json.
+    current = plat.read_current(managed)
+    if (
+        promote
+        and isinstance(current, dict)
+        and current.get("product") == "traslado"
+        and current.get("release_id") == release_id
+        and current.get("version") == __version__
+        and current.get("profile") == norm_profile
+        and sorted(current.get("extras") or []) == norm_extras
+        and (current.get("languages") or []) == norm_langs
+        and (managed / "releases" / release_id).is_dir()
+    ):
+        handle_legacy_windows(
+            managed,
+            version=__version__,
+            platform_name=platform_name,
+            env=env,
+            home=home_path,
+            now=now,
+            **shortcut_dirs,
+        )
+        print(f"Licença: AGPL-3.0-or-later | Fonte: {REPOSITORY_URL}/tree/v{__version__}")
+        return current
+
+    release_dir = managed / "releases" / release_id
+    release_dir.mkdir(parents=True, exist_ok=True)
+    expected_py = plat.release_python(managed, release_id, platform=platform_name)
+    python_exe = str(expected_py.resolve()) if expected_py.is_file() else str(Path(sys.executable).resolve())
+
+    resolved_data_root = (
+        Path(data_root)
+        if data_root
+        else Path(current["data_root"])
+        if (isinstance(current, dict) and current.get("data_root"))
+        else (home_path / "Documents" / "Traslado")
+    )
+    resolved_data_root.mkdir(parents=True, exist_ok=True)
+
+    # (a) OCR
+    ocr_info = setup_ocr(
+        release_dir,
+        root=managed,
+        profile=norm_profile,
+        languages=norm_langs,
+        skip_ocr=skip_ocr,
+        from_dir=from_dir,
+        ocr_cache=ocr_cache,
+        platform_name=platform_name,
+        env=env,
+    )
+
+    runtime_cfg = {
+        "schema_version": 1,
+        "languages": norm_langs,
+        "data_root": str(resolved_data_root),
+        "profile": norm_profile,
+        "ocr_installed": ocr_info["ocr_installed"],
+    }
+    plat._atomic(release_dir / "freoa-runtime.json", runtime_cfg)
+
+    # Legacy Windows installation recognition and old shortcut removal
+    handle_legacy_windows(
+        managed,
+        version=__version__,
+        platform_name=platform_name,
+        env=env,
+        home=home_path,
+        now=now,
+        **shortcut_dirs,
+    )
+
+    # (b) Atalho "Traslado"
+    if not no_shortcut:
+        shortcut_target = expected_py if expected_py.is_file() else Path(python_exe)
+        plat.create_shortcut(
+            shortcut_target,
+            name="Traslado",
+            platform=platform_name,
+            home=home_path,
+            **shortcut_dirs,
+        )
+
+    # (c) Doctor
+    inspect_call = doctor_fn or doctor.inspect
+    try:
+        doctor_report = inspect_call(ocr_info["ocr"]["tesseract"], ocr_info["tessdata"])
+        plat._atomic(release_dir / "installation-doctor.json", doctor_report)
+        doctor_ok = evaluate_doctor_gate(
+            doctor_report,
+            profile=norm_profile,
+            languages=norm_langs,
+            ocr_installed=ocr_info["ocr_installed"],
+        )
+    except Exception:
+        doctor_ok = False
+
+    # (d) Conversão de fixture embutida
+    try:
+        if fixture_fn is not None:
+            fixture_ok = bool(fixture_fn())
+        else:
+            fixture_ok = run_fixture_gate(
+                profile=norm_profile,
+                tesseract=ocr_info["ocr"]["tesseract"],
+                tessdata=ocr_info["tessdata"],
+            )
+    except Exception:
+        fixture_ok = False
+
+    # (e) / (f) Revogação e candidate.json
+    revocation_status = "offline" if allow_offline_promotion else "blocked"
+    revocation_error: str | None = None
+    if doctor_ok and fixture_ok:
+        if allow_offline_promotion:
+            revocation_status = "offline"
+        elif promote:
+            digests = expected_digests if expected_digests is not None else _load_expected_digests(
+                from_dir, __version__, norm_profile, norm_extras
+            )
+            rev_call = revocation_fn or revocation.verify_promotion
+            try:
+                rev_res = rev_call(managed, __version__, digests, now=now)
+                revocation_status = "ok" if rev_res.get("status") == "ok" else "blocked"
+            except Exception as exc:
+                revocation_status = "blocked"
+                revocation_error = str(exc)
+        else:
+            revocation_status = "offline"
+
+    install_id = (
+        current.get("install_id")
+        if (isinstance(current, dict) and isinstance(current.get("install_id"), str) and len(current["install_id"]) == 32)
+        else hashlib.sha256(str(managed).encode("utf-8")).hexdigest()[:32]
+    )
+
+    candidate_data = {
+        "schema_version": 2,
+        "product": "traslado",
+        "install_id": install_id,
+        "release_id": release_id,
+        "version": __version__,
+        "profile": norm_profile,
+        "extras": norm_extras,
+        "python": python_exe,
+        "module": "traslado",
+        "legacy_module": "freoa_v6",
+        "platform": platform_name,
+        "arch": host.machine(),
+        "data_root": str(resolved_data_root),
+        "languages": norm_langs,
+        "ocr_installed": ocr_info["ocr_installed"],
+        "ocr": ocr_info["ocr"],
+        "source": {"tag": f"v{__version__}", "repository": REPOSITORY_URL},
+        "created_at": _utc_now(now),
+        "gates": {
+            "doctor": bool(doctor_ok),
+            "fixture": bool(fixture_ok),
+            "revocation": revocation_status,
+        },
+    }
+    plat.write_candidate(managed, candidate_data)
+    print(f"Licença: AGPL-3.0-or-later | Fonte: {REPOSITORY_URL}/tree/v{__version__}")
+
+    if promote:
+        if not doctor_ok or not fixture_ok or revocation_status == "blocked":
+            reasons = []
+            if not doctor_ok:
+                reasons.append("doctor reprovado")
+            if not fixture_ok:
+                reasons.append("fixture reprovada")
+            if revocation_status == "blocked":
+                reasons.append(f"revogação bloqueada ({revocation_error or 'sem confirmação dos dois canais'})")
+            raise ValueError("Promoção recusada: " + "; ".join(reasons))
+        return plat.promote(managed, now=now)
+
+    return candidate_data
+
+
+def uninstall_managed(
+    *,
+    root: Path | None = None,
+    yes: bool = False,
+    keep_data: bool = False,
+    platform_name: str | None = None,
+    env: dict[str, str] | None = None,
+    home: Path | None = None,
+    desktop_dir: Path | None = None,
+    start_menu_dir: Path | None = None,
+    applications_dir: Path | None = None,
+    icons_dir: Path | None = None,
+    input_fn: Callable[[str], str] = input,
+) -> dict:
+    platform_name = platform_name or sys.platform
+    env = os.environ if env is None else env
+    home_path = Path(home) if home else Path(env.get("HOME") or env.get("USERPROFILE") or Path.home())
+    managed = Path(root) if root is not None else plat.managed_root(platform=platform_name, env=env)
+    shortcut_dirs = _shortcut_dirs_from_env(env, desktop_dir, start_menu_dir, applications_dir, icons_dir)
+
+    if not yes:
+        try:
+            answer = input_fn(f"Remover a instalação gerenciada do Traslado em {managed}? [s/N]: ").strip().lower()
+        except EOFError:
+            answer = ""
+        if answer not in {"s", "sim", "y", "yes"}:
+            raise ValueError("Desinstalação cancelada pelo usuário")
+
+    if unsafe_link(managed):
+        raise ValueError(f"Raiz gerenciada contém link/reparse point não permitido: {managed}")
+
+    current = plat.read_current(managed)
+    data_root = current.get("data_root") if isinstance(current, dict) else None
+
+    removed_shortcuts = plat.remove_shortcuts(
+        ["Traslado"],
+        platform=platform_name,
+        home=home_path,
+        **shortcut_dirs,
+    )
+
+    if managed.exists():
+        if keep_data:
+            for sub in ("current.json", "candidate.json", "releases", "python", "tools"):
+                target = managed / sub
+                if target.is_dir() and not target.is_symlink():
+                    shutil.rmtree(target)
+                elif target.exists():
+                    target.unlink()
+        else:
+            shutil.rmtree(managed)
+
+    return {
+        "status": "uninstalled",
+        "root": str(managed),
+        "removed_shortcuts": [str(p) for p in removed_shortcuts],
+        "data_root_preserved": data_root,
+        "keep_data": bool(keep_data),
+    }
+
+
+def update_release(
+    *,
+    version: str | None = None,
+    yes: bool = False,
+    root: Path | None = None,
+    repo: str = revocation.DEFAULT_REPO,
+    platform_name: str | None = None,
+    env: dict[str, str] | None = None,
+    fetch_json: Callable[[str], dict] | None = None,
+    fetch_bytes: Callable[[str], bytes] | None = None,
+    gh_cmd: str | bool | None = None,
+    run_cmd: Callable[..., subprocess.CompletedProcess] | None = None,
+) -> dict:
+    platform_name = platform_name or sys.platform
+    env = os.environ if env is None else env
+    managed = Path(root) if root is not None else plat.managed_root(platform=platform_name, env=env)
+    json_fetcher = fetch_json or revocation.default_fetch_json
+    bytes_fetcher = fetch_bytes or revocation.default_fetch_bytes
+
+    try:
+        if version:
+            clean_ver = version.removeprefix("v")
+            rel_url = f"https://api.github.com/repos/{repo}/releases/tags/v{clean_ver}"
+        else:
+            rel_url = f"https://api.github.com/repos/{repo}/releases/latest"
+        release_data = json_fetcher(rel_url)
+    except Exception as exc:
+        raise ValueError(f"Sem conexão com o GitHub ou falha ao consultar atualizações; nada foi alterado ({exc})") from exc
+
+    tag_name = str(release_data.get("tag_name") or "")
+    target_version = tag_name.removeprefix("v")
+    if not target_version:
+        raise ValueError("Resposta da API de releases não contém tag_name válida; nada foi alterado")
+
+    script_name = "install.ps1" if platform_name == "win32" else "install.sh"
+    base_download = f"https://github.com/{repo}/releases/download/v{target_version}"
+
+    try:
+        sums_bytes = bytes_fetcher(f"{base_download}/SHA256SUMS")
+        script_bytes = bytes_fetcher(f"{base_download}/{script_name}")
+    except Exception as exc:
+        raise ValueError(f"Sem conexão ao baixar instalador da versão v{target_version}; nada foi alterado ({exc})") from exc
+
+    sums_map: dict[str, str] = {}
+    for line in sums_bytes.decode("utf-8", errors="replace").splitlines():
+        parts = line.strip().split()
+        if len(parts) >= 2 and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
+            sums_map[parts[-1].lstrip("*")] = parts[0].lower()
+
+    expected_script_sha = sums_map.get(script_name)
+    actual_script_sha = hashlib.sha256(script_bytes).hexdigest()
+    if not expected_script_sha or actual_script_sha != expected_script_sha:
+        raise ValueError(f"Hash de {script_name} não confere com SHA256SUMS da tag v{target_version}; nada foi alterado")
+
+    expected_digests = {
+        "SHA256SUMS": hashlib.sha256(sums_bytes).hexdigest(),
+        script_name: actual_script_sha,
+    }
+    revocation.verify_promotion(
+        managed,
+        target_version,
+        expected_digests,
+        repo=repo,
+        fetch_bytes=bytes_fetcher,
+        fetch_json=json_fetcher,
+        gh_cmd=gh_cmd,
+        run_cmd=run_cmd,
+    )
+
+    gh_exe = None if gh_cmd is False else (gh_cmd if isinstance(gh_cmd, str) else shutil.which("gh"))
+    runner_fn = run_cmd or (lambda argv: subprocess.run(argv, capture_output=True, text=True, timeout=300))
+
+    with tempfile.TemporaryDirectory(prefix="traslado-update-") as tmp:
+        tmp_dir = Path(tmp)
+        script_path = tmp_dir / script_name
+        script_path.write_bytes(script_bytes)
+        if gh_exe:
+            att = runner_fn([
+                gh_exe,
+                "attestation",
+                "verify",
+                str(script_path),
+                "--repo",
+                repo,
+                "--signer-workflow",
+                f"{repo}/.github/workflows/release.yml",
+            ])
+            if att.returncode != 0:
+                raise ValueError(f"Attestation de {script_name} reprovada pelo gh; nada foi alterado")
+
+        if platform_name == "win32":
+            ps = str(POWERSHELL_WIN if POWERSHELL_WIN.is_file() else "powershell.exe")
+            argv = [ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path),
+                    "-Version", target_version, "-Root", str(managed)]
+            if yes:
+                argv.append("-Yes")
+        else:
+            argv = ["sh", str(script_path), "--version", target_version, "--root", str(managed)]
+            if yes:
+                argv.append("--yes")
+
+        proc = runner_fn(argv)
+        if proc.returncode != 0:
+            detail = (getattr(proc, "stderr", "") or getattr(proc, "stdout", "") or "").strip()
+            raise ValueError(f"Falha ao executar {script_name} para v{target_version}: {detail}")
+
+    return {"status": "updated", "version": target_version, "root": str(managed)}
