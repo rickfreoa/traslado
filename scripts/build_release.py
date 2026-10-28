@@ -14,6 +14,7 @@ artefatos fixados em ocr-assets.lock.json e confere tamanho e SHA-256 antes de u
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import io
 import json
@@ -22,6 +23,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
@@ -31,6 +33,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from install_windows import PRODUCT, VERSION  # noqa: E402  mesma versão que o instalador exige
 
 DATA_FIXA = (1980, 1, 1, 0, 0, 0)
+EPOCA_FIXA = 315532800  # 1980-01-01T00:00:00Z
 # Nomes de membro que denunciam PyMuPDF/MuPDF (qualquer componente do caminho, sem diferenciar caixa).
 NOME_MUPDF = re.compile(r"(?:^|[/\\._-])(?:fitz|pymupdf|mupdf|_mupdf)(?:$|[/\\._-])", re.I)
 CONTEUDO_MUPDF = re.compile(rb"mupdf", re.I)
@@ -39,7 +42,7 @@ ASSINATURAS = (b"MZ", b"\x7fELF", b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\x
 
 
 # Exigência declarada: todo membro com estas extensões (ou sem extensão, como LICENCE) é texto UTF-8, com ou sem BOM.
-TEXTUAIS = {".py", ".ps1", ".bat", ".md", ".txt", ".json", ".toml", ".lock", ".yml", ".yaml", ".cfg", ".ini", ""}
+TEXTUAIS = {".py", ".ps1", ".bat", ".sh", ".command", ".in", ".md", ".txt", ".json", ".toml", ".lock", ".yml", ".yaml", ".cfg", ".ini", ""}
 
 
 def utf8_valido(dados: bytes) -> bool:
@@ -111,8 +114,40 @@ def construir_wheel(destino: Path, nomes: list[str]) -> Path:
     return wheels[0]
 
 
+def construir_sdist(destino: Path, nomes: list[str], wheel: Path) -> Path:
+    """Gera o sdist determinístico traslado-<VERSION>.tar.gz com código, testes, scripts e LICENCE."""
+    rastreados = set(git("ls-files", "-z").split("\0"))
+    testes = sorted(n for n in rastreados if n.startswith("tests/") and (ROOT / n).is_file())
+    com_release_files = ["release-files.txt"] if "release-files.txt" in rastreados else []
+    arquivos = sorted(set(nomes) | set(testes) | set(com_release_files))
+    with zipfile.ZipFile(wheel) as z:
+        pkg_info = z.read(next(n for n in z.namelist() if n.endswith(".dist-info/METADATA")))
+
+    prefixo = f"traslado-{VERSION}"
+    sdist = destino / f"{prefixo}.tar.gz"
+    entradas: list[tuple[str, bytes, int]] = [(f"{prefixo}/PKG-INFO", pkg_info, 0o644)]
+    for rel in arquivos:
+        modo = 0o755 if Path(rel).suffix.lower() in {".sh", ".command"} else 0o644
+        entradas.append((f"{prefixo}/{rel}", (ROOT / rel).read_bytes(), modo))
+
+    with sdist.open("wb") as raw:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as gz:
+            with tarfile.open(mode="w", fileobj=gz, format=tarfile.PAX_FORMAT) as tf:
+                for arcname, dados, modo in sorted(entradas, key=lambda item: item[0]):
+                    info = tarfile.TarInfo(name=arcname)
+                    info.size = len(dados)
+                    info.mtime = EPOCA_FIXA
+                    info.mode = modo
+                    info.uid = 0
+                    info.gid = 0
+                    info.uname = ""
+                    info.gname = ""
+                    tf.addfile(info, io.BytesIO(dados))
+    return sdist
+
+
 def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
-    """Motivos pelos quais um membro (e, recursivamente, um zip/wheel aninhado) contém PyMuPDF/MuPDF."""
+    """Motivos pelos quais um membro (e, recursivamente, um zip/wheel/tar.gz aninhado) contém PyMuPDF/MuPDF."""
     achados = []
     if NOME_MUPDF.search(nome):
         achados.append(f"{caminho}{nome}: nome")
@@ -120,6 +155,13 @@ def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
         with zipfile.ZipFile(io.BytesIO(dados)) as z:
             for info in z.infolist():
                 achados += membros_proibidos(info.filename, z.read(info), f"{caminho}{nome}!")
+    elif nome.lower().endswith((".tar.gz", ".tgz", ".tar")) and tarfile.is_tarfile(io.BytesIO(dados)):
+        with tarfile.open(fileobj=io.BytesIO(dados), mode="r:*") as tf:
+            for info in tf.getmembers():
+                if info.isfile():
+                    extraido = tf.extractfile(info)
+                    if extraido is not None:
+                        achados += membros_proibidos(info.name, extraido.read(), f"{caminho}{nome}!")
     elif Path(nome).suffix.lower() in TEXTUAIS and not utf8_valido(dados):
         achados.append(f"{caminho}{nome}: não UTF-8 (membro textual do pacote deve ser UTF-8, com ou sem BOM)")
     elif e_binario(dados) and CONTEUDO_MUPDF.search(dados):  # texto UTF-8 válido pode citar MuPDF (ex.: THIRD-PARTY.md)
@@ -134,15 +176,39 @@ def verificar(arquivos: list[Path]) -> int:
     return 1 if achados else 0
 
 
+def _emitir_artefatos_bootstrap_e_locks(dist: Path) -> list[Path]:
+    """Emite install.ps1 e install.sh (com versão embutida) e os locks universais em dist/."""
+    ps1_src = (ROOT / "install.ps1").read_text(encoding="utf-8")
+    ps1_out = re.sub(r'(\$DefaultVersion\s*=\s*)"[^"]+"', rf'\1"{VERSION}"', ps1_src)
+    ps1_dest = dist / "install.ps1"
+    ps1_dest.write_text(ps1_out, encoding="utf-8", newline="\n")
+
+    sh_src = (ROOT / "install.sh").read_text(encoding="utf-8")
+    sh_out = re.sub(r'(DEFAULT_VERSION=)"[^"]+"', rf'\1"{VERSION}"', sh_src)
+    sh_dest = dist / "install.sh"
+    sh_dest.write_text(sh_out, encoding="utf-8", newline="\n")
+
+    gerados = [ps1_dest, sh_dest]
+    for perfil in ("core", "full", "legacy"):
+        nome_lock = f"requirements-{perfil}.hashes.lock"
+        origem = ROOT / "locks" / nome_lock
+        destino = dist / nome_lock
+        shutil.copyfile(origem, destino)
+        gerados.append(destino)
+    return gerados
+
+
 def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
     nomes = listados()
     limpo = checkout_limpo(nomes)
     if not limpo and not permitir_sujo:
         raise SystemExit("Checkout sujo ou arquivo listado difere de HEAD: recusado (--permitir-sujo só para teste local).")
     dist.mkdir(parents=True, exist_ok=True)
-    for velho in dist.glob("*.whl"):
+    for velho in [*dist.glob("*.whl"), *dist.glob("*.tar.gz")]:
         velho.unlink()
     wheel = construir_wheel(dist, nomes)
+    sdist = construir_sdist(dist, nomes, wheel)
+    extras_dist = _emitir_artefatos_bootstrap_e_locks(dist)
     itens = {n: (ROOT / n).read_bytes() for n in nomes}
     itens[f"dist/{wheel.name}"] = wheel.read_bytes()  # o instalador exige o wheel próprio no payload
     payload = {"schema_version": 1, "product": PRODUCT, "version": VERSION, "checkout_limpo": limpo,
@@ -158,11 +224,16 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
             info = zipfile.ZipInfo(f"{nome}/{caminho}", DATA_FIXA)
             info.compress_type, info.create_system, info.external_attr = zipfile.ZIP_DEFLATED, 3, 0o100644 << 16
             z.writestr(info, dados)
-    if verificar([zipado, wheel]):
-        zipado.unlink()
+    todos_artefatos = [zipado, wheel, sdist, *extras_dist]
+    if verificar(todos_artefatos):
+        for arq in todos_artefatos:
+            arq.unlink(missing_ok=True)
         raise SystemExit("Artefato contém PyMuPDF/MuPDF: removido.")
-    (dist / "SHA256SUMS").write_text("".join(f"{sha(p)}  {p.name}\n" for p in (zipado, wheel)),
-                                     encoding="utf-8", newline="\n")
+    (dist / "SHA256SUMS").write_text(
+        "".join(f"{sha(p)}  {p.name}\n" for p in todos_artefatos),
+        encoding="utf-8",
+        newline="\n",
+    )
     return zipado, wheel
 
 

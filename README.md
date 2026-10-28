@@ -6,6 +6,51 @@ Traslado é a primeira versão pública do antigo Freoa Markdown Converter v6 (6
 
 Candidata com limitações explícitas: testes sintéticos não homologam fidelidade jurídica, e todo texto convertido sai marcado `fidelity: unverified`.
 
+## Instalação
+
+### Controle primário: download verificado com GitHub Attestations
+
+Para verificação criptográfica de proveniência antes de executar qualquer script ou instalar o pacote, baixe os artefatos da [página de releases](https://github.com/rickfreoa/traslado/releases), confira o `SHA256SUMS` e valide a attestation oficial:
+
+```bash
+gh attestation verify traslado-2.0.0-py3-none-any.whl \
+  --repo rickfreoa/traslado \
+  --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+
+gh attestation verify install.ps1 \
+  --repo rickfreoa/traslado \
+  --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+
+gh attestation verify install.sh \
+  --repo rickfreoa/traslado \
+  --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+```
+
+### Atalho de conveniência (one-liner)
+
+**Windows (PowerShell 5.1+):**
+
+```powershell
+irm https://github.com/rickfreoa/traslado/releases/download/v2.0.0/install.ps1 | iex
+```
+
+**Linux e macOS (`/bin/sh` POSIX):**
+
+```sh
+curl -fsSL https://github.com/rickfreoa/traslado/releases/download/v2.0.0/install.sh | sh
+```
+
+> **Aviso de segurança e assinatura:** O comando one-liner (`irm ... | iex` ou `curl ... | sh`) é **apenas um atalho de conveniência** e não substitui a verificação prévia com `gh attestation verify` e `SHA256SUMS`. Os scripts e pacotes do Traslado **não são assinados por certificado de assinatura de código** (Authenticode no Windows ou Developer ID / notarização Apple no macOS); por isso, alertas de segurança do sistema operacional (como Windows SmartScreen ou macOS Gatekeeper) podem aparecer ao baixar ou executar os instaladores clicáveis (`INSTALAR.bat`, `instalar.command`, `instalar.sh`).
+
+### Ciclo de vida pelo CLI
+
+Após a instalação, o comando `traslado` gerencia o ciclo de vida local sem exigir administrador:
+
+- `traslado where [--json]` — exibe caminhos da instalação ativa, Python gerenciado, OCR e diretórios do usuário;
+- `traslado update [--version V] [--yes]` — verifica revogação em dois canais, confere `SHA256SUMS` e promove a nova release de forma atômica;
+- `traslado rollback` — restaura a release imediatamente anterior preservada em `releases/<previous_release_id>`;
+- `traslado uninstall [--yes] [--keep-data]` — remove atalhos e a raiz de instalação gerenciada, preservando sempre os documentos do usuário (`data_root`).
+
 ## Novidades da 1.1.0
 
 A 1.1 acrescenta geometria e classificação aos artefatos estruturados, notas no DOCX e OCR concorrente, sem mudar o texto. Na amostra de qualificação (80 obras), o Markdown dos PDFs nativos saiu idêntico ao da 1.0.0; nas páginas com OCR, as palavras são as mesmas e só muda o espaçamento, porque cada parágrafo reconhecido vira uma linha (quebras internas passam a espaço). Histórico completo em [CHANGELOG.md](CHANGELOG.md).
