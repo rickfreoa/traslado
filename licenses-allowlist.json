@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "project_license": "AGPL-3.0-or-later",
+  "allowed_spdx": [
+    "AGPL-3.0-only",
+    "AGPL-3.0-or-later",
+    "GPL-3.0-or-later",
+    "LGPL-2.1-or-later",
+    "LGPL-3.0-or-later",
+    "MIT",
+    "MIT-CMU",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Apache-2.0",
+    "PSF-2.0",
+    "ISC"
+  ],
+  "nominal_exceptions": [
+    {
+      "id": "ocr-windows-dlls-sem-spdx-individual",
+      "component": "tesseract-ocr-w64-setup-5.5.3.20260724.exe (54 DLLs MinGW/vcpkg)",
+      "count": 54,
+      "motivo": "Programa separado; hash e origem conferidos, mas licenças individuais e fontes correspondentes das 54 DLLs ainda não verificadas. A exceção registra a lacuna e não concede licença.",
+      "revisao_ate": "2027-12-31"
+    }
+  ]
+}

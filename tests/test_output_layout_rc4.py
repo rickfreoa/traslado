@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Output UX contracts exercised through actual conversion and publication."""
 from __future__ import annotations
 

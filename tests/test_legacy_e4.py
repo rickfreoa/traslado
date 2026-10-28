@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Independent structural oracles for CC0 fixtures; native parser stays contained."""
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor

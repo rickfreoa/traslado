@@ -1,0 +1,15 @@
+# Allowlist de bibliotecas dinâmicas permitidas em execução Full no macOS
+# <ROOT> é expandido para a raiz gerenciada da instalação do Traslado.
+# Linhas iniciadas por '!' são prefixos explicitamente proibidos.
+
+!/opt/homebrew/
+!/usr/local/
+!/Library/Frameworks/Python.framework/
+!/Users/runner/hostedtoolcache/
+
+<ROOT>/
+/System/Library/
+/usr/lib/
+@rpath/
+@loader_path/
+@executable_path/

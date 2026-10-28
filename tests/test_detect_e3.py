@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Content signatures and end-to-end dispatch, using synthetic public fixtures."""
 import json
 import importlib.util

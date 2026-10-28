@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import base64
 import hashlib
 import importlib.util
 import json
@@ -457,6 +458,7 @@ def run_fixture_gate(
         targets: list[Path] = []
         if profile == "Full":
             if not docx_fixture.is_file() or not pdf_fixture.is_file():
+                print("FIXTURE_GATE_FAILED: fixture DOCX/PDF ausente no pacote instalado", file=sys.stderr)
                 return False
             targets = [docx_fixture, pdf_fixture]
         else:
@@ -471,9 +473,11 @@ def run_fixture_gate(
         for fixture in targets:
             try:
                 res = exec_call(fixture, out_dir, opts)
-            except Exception:
+            except Exception as exc:
+                print(f"FIXTURE_GATE_FAILED {fixture.name}: {type(exc).__name__}: {exc}", file=sys.stderr)
                 return False
             if not isinstance(res, dict) or res.get("status") not in {"complete", "partial", "ok"}:
+                print(f"FIXTURE_GATE_FAILED {fixture.name}: {res!r}", file=sys.stderr)
                 return False
             output_folder = res.get("output")
             if output_folder:
@@ -737,6 +741,27 @@ def setup_release(
     return candidate_data
 
 
+def _defer_self_removal(managed: Path) -> None:
+    """Windows cannot delete the interpreter while it is executing this command."""
+    target = managed.resolve()
+    if not Path(sys.executable).resolve().is_relative_to(target) or unsafe_link(target):
+        raise ValueError("Remoção diferida exige o interpretador dentro da raiz validada")
+    code = (
+        "$ErrorActionPreference='Stop'; "
+        "$target=[IO.Path]::GetFullPath($env:TRASLADO_REMOVE_ROOT); "
+        "if ($target -eq [IO.Path]::GetPathRoot($target)) { exit 2 }; "
+        "Wait-Process -Id ([int]$env:TRASLADO_REMOVE_PID) -ErrorAction SilentlyContinue; "
+        "for ($attempt=0; $attempt -lt 30; $attempt++) { "
+        "try { Remove-Item -LiteralPath $target -Recurse -Force; exit 0 } "
+        "catch { Start-Sleep -Milliseconds 500 } }; exit 1"
+    )
+    child_env = {**os.environ, "TRASLADO_REMOVE_ROOT": str(target), "TRASLADO_REMOVE_PID": str(os.getpid())}
+    subprocess.Popen([str(POWERSHELL_WIN), "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
+                      "-EncodedCommand", base64.b64encode(code.encode("utf-16le")).decode("ascii")],
+                     env=child_env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     creationflags=subprocess.CREATE_NO_WINDOW)
+
+
 def uninstall_managed(
     *,
     root: Path | None = None,
@@ -778,8 +803,13 @@ def uninstall_managed(
         **shortcut_dirs,
     )
 
+    deferred = False
     if managed.exists():
-        if keep_data:
+        if (platform_name == "win32" and os.name == "nt" and not keep_data
+                and Path(sys.executable).resolve().is_relative_to(managed.resolve())):
+            _defer_self_removal(managed)
+            deferred = True
+        elif keep_data:
             for sub in ("current.json", "candidate.json", "releases", "python", "tools"):
                 target = managed / sub
                 if target.is_dir() and not target.is_symlink():
@@ -790,8 +820,9 @@ def uninstall_managed(
             shutil.rmtree(managed)
 
     return {
-        "status": "uninstalled",
+        "status": "uninstall_scheduled" if deferred else "uninstalled",
         "root": str(managed),
+        "deferred_until_process_exit": deferred,
         "removed_shortcuts": [str(p) for p in removed_shortcuts],
         "data_root_preserved": data_root,
         "keep_data": bool(keep_data),
@@ -803,6 +834,7 @@ def update_release(
     version: str | None = None,
     yes: bool = False,
     root: Path | None = None,
+    from_dir: Path | None = None,
     repo: str = revocation.DEFAULT_REPO,
     platform_name: str | None = None,
     env: dict[str, str] | None = None,
@@ -814,6 +846,80 @@ def update_release(
     platform_name = platform_name or sys.platform
     env = os.environ if env is None else env
     managed = Path(root) if root is not None else plat.managed_root(platform=platform_name, env=env)
+    script_name = "install.ps1" if platform_name == "win32" else "install.sh"
+    runner_fn = run_cmd or (lambda argv: subprocess.run(argv, capture_output=True, text=True, timeout=600, env=dict(env)))
+
+    local_dir_val = from_dir
+    if local_dir_val is not None:
+        src_dir = Path(local_dir_val).resolve()
+        sums_path = src_dir / "SHA256SUMS"
+        script_path = src_dir / script_name
+        if not sums_path.is_file() or not script_path.is_file():
+            raise ValueError(f"Artefatos obrigatórios (SHA256SUMS, {script_name}) ausentes em {src_dir}; nada foi alterado")
+        sums_map_local: dict[str, str] = {}
+        for line in sums_path.read_text(encoding="utf-8-sig").splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2 and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
+                sums_map_local[parts[-1].lstrip("*")] = parts[0].lower()
+        expected_script_sha = sums_map_local.get(script_name)
+        actual_script_sha = hashlib.sha256(script_path.read_bytes()).hexdigest()
+        if not expected_script_sha or actual_script_sha != expected_script_sha:
+            raise ValueError(f"Hash de {script_name} não confere com SHA256SUMS em {src_dir}; nada foi alterado")
+
+        target_version = version.removeprefix("v") if version else ""
+        candidates = [m.group(1) for k in sums_map_local
+                      if (m := re.fullmatch(r"traslado-([0-9][0-9A-Za-z.+-]*)-py3-none-any\.whl", k))]
+        if not target_version:
+            if len(candidates) != 1:
+                raise ValueError(f"Diretório local deve ter um único wheel: {candidates}; nada foi alterado")
+            target_version = candidates[0]
+        if target_version not in candidates:
+            raise ValueError(f"Wheel da versão solicitada ausente: {target_version}; nada foi alterado")
+
+        current_manifest = plat.read_current(managed)
+        active_profile = (current_manifest.get("profile") if isinstance(current_manifest, dict) else None) or "Full"
+        active_extras = (current_manifest.get("extras") if isinstance(current_manifest, dict) else None) or []
+        active_langs = (current_manifest.get("languages") if isinstance(current_manifest, dict) else None) or list(DEFAULT_LANGUAGES)
+        had_shortcuts = bool(current_manifest.get("shortcuts")) if isinstance(current_manifest, dict) else False
+
+        if platform_name == "win32":
+            ps = str(POWERSHELL_WIN if POWERSHELL_WIN.is_file() else "powershell.exe")
+            argv = [
+                ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path),
+                "-FromDir", str(src_dir),
+                "-Version", target_version,
+                "-Profile", active_profile,
+                "-Languages", ",".join(active_langs),
+                "-Root", str(managed),
+            ]
+            if active_extras:
+                argv.extend(["-Extras", ",".join(active_extras)])
+            if not had_shortcuts:
+                argv.append("-NoShortcut")
+            if yes:
+                argv.append("-Yes")
+        else:
+            argv = [
+                "sh", str(script_path),
+                "--from-dir", str(src_dir),
+                "--version", target_version,
+                "--profile", active_profile.lower(),
+                "--languages", ",".join(active_langs),
+                "--root", str(managed),
+            ]
+            if active_extras:
+                argv.extend(["--extras", ",".join(active_extras)])
+            if not had_shortcuts:
+                argv.append("--no-shortcut")
+            if yes:
+                argv.append("--yes")
+
+        proc = runner_fn(argv)
+        if proc.returncode != 0:
+            detail = (getattr(proc, "stderr", "") or getattr(proc, "stdout", "") or "").strip()
+            raise ValueError(f"Falha ao executar {script_name} para v{target_version}: {detail}")
+        return {"status": "updated", "version": target_version, "root": str(managed)}
+
     json_fetcher = fetch_json or revocation.default_fetch_json
     bytes_fetcher = fetch_bytes or revocation.default_fetch_bytes
 

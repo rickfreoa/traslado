@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Source-fidelity regressions reproduced against the frozen rc1 package."""
 from __future__ import annotations
 

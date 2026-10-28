@@ -8,10 +8,14 @@ ocr-assets.lock.json
 pyproject.toml
 README.md
 CHANGELOG.md
+ci/libs-permitidas-linux.txt
+ci/libs-permitidas-macos.txt
+ci/libs-permitidas-windows.txt
 install.ps1
 install.sh
 instalar.command
 instalar.sh
+licenses-allowlist.json
 locks/core.in
 locks/full.in
 locks/legacy.in
@@ -25,6 +29,7 @@ revocation/revoked-list.json
 THIRD-PARTY.md
 THIRD-PARTY-INVENTORY.json
 scripts/bootstrap_ocr.ps1
+scripts/auditar_libs.py
 scripts/build_release.py
 scripts/ci_gate.py
 scripts/gerar_fixtures.py
@@ -34,6 +39,7 @@ scripts/install_windows.py
 scripts/installation_processes.ps1
 scripts/inventario.py
 scripts/shortcut_windows.ps1
+scripts/versao.py
 src/freoa_v6/__init__.py
 src/traslado/__init__.py
 src/traslado/__main__.py
@@ -66,3 +72,7 @@ src/traslado/runtime.py
 src/traslado/safety.py
 src/traslado/windows_job.py
 src/traslado/worker.py
+skills/traslado/SKILL.md
+scripts/e2e_runner.py
+scripts/fuzz_atheris.py
+scripts/resumir_contencao.py

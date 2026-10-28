@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Generate the original Traslado document/arrow icon using only stdlib."""
 from pathlib import Path
 import struct

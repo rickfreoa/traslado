@@ -1,19 +1,19 @@
 {
   "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]",
   "platform": "win32",
-  "scope": "Historical Python validation profile retained from verified rc1/rc2 environment; rc3 own package/runtime verification is separate. Adds authenticated rc3 Windows OCR download/member/model inventory, not a complete native source/license SBOM or redistribution clearance. MinerU and advanced vision weights are not bundled.",
+  "scope": "Traslado 2.0.0 inventory of resolved Python dependencies (Full and legacy locks) and authenticated Windows OCR download/member/model assets, under AGPL-3.0-or-later for own code. MinerU and advanced vision weights are not bundled.",
   "dependencies": [
     {
       "name": "et-xmlfile",
       "version": "2.0.0",
-      "license_expression": null,
+      "license_expression": "MIT",
       "license_metadata": "MIT",
       "license_files": []
     },
     {
       "name": "lxml",
       "version": "6.1.3",
-      "license_expression": null,
+      "license_expression": "BSD-3-Clause",
       "license_metadata": "BSD-3-Clause",
       "license_files": [
         {
@@ -29,7 +29,7 @@
     {
       "name": "openpyxl",
       "version": "3.1.5",
-      "license_expression": null,
+      "license_expression": "MIT",
       "license_metadata": "MIT",
       "license_files": []
     },
@@ -48,7 +48,7 @@
     {
       "name": "PyMuPDF",
       "version": "1.28.2",
-      "license_expression": null,
+      "license_expression": "AGPL-3.0-only",
       "license_metadata": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License",
       "license_files": [
         {
@@ -60,7 +60,7 @@
     {
       "name": "python-docx",
       "version": "1.2.0",
-      "license_expression": null,
+      "license_expression": "MIT",
       "license_metadata": "MIT",
       "license_files": [
         {
@@ -72,7 +72,7 @@
     {
       "name": "python-pptx",
       "version": "1.0.2",
-      "license_expression": null,
+      "license_expression": "MIT",
       "license_metadata": "MIT",
       "license_files": [
         {
@@ -96,7 +96,7 @@
     {
       "name": "XlsxWriter",
       "version": "3.2.9",
-      "license_expression": null,
+      "license_expression": "BSD-2-Clause",
       "license_metadata": "BSD-2-Clause",
       "license_files": [
         {
@@ -106,22 +106,27 @@
       ]
     },
     {
-      "name": "freoa-md-converter",
-      "version": "6.0.0rc2",
-      "license_expression": "MIT",
-      "license_metadata": null,
-      "license_files": []
-    },
+      "name": "traslado",
+      "version": "2.0.0",
+      "license_expression": "AGPL-3.0-or-later",
+      "license_metadata": "GNU Affero General Public License v3 (or later)",
+      "license_files": [
+        {
+          "file": "LICENCE",
+          "sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+        }
+      ]
+    },
     {
       "name": "firecrawl-anydoc",
       "version": "0.2.4",
       "license_expression": "MIT",
       "wheel_hashes": [],
-      "note": "Optional legacy extra. No wheel hashes in current locks. Embedded Rust crates are inventoried in the wheel's own CycloneDX SBOM: firecrawl_anydoc-0.2.4.dist-info/sboms/anydoc-python.cyclonedx.json"
+      "note": "Optional legacy extra pinned in locks/requirements-legacy.hashes.lock. Embedded Rust crates are inventoried in the wheel's own CycloneDX SBOM: firecrawl_anydoc-0.2.4.dist-info/sboms/anydoc-python.cyclonedx.json"
     }
   ],
-  "candidate_version": "1.1.0",
-  "python_dependencies_snapshot_note": "The freoa-md-converter 6.0.0rc2 entry below is inherited observed metadata, not a claim that candidate rc3 has been installed in this environment.",
+  "candidate_version": "2.0.0",
+  "python_dependencies_snapshot_note": "The traslado 2.0.0 entry reflects the own package licensed under AGPL-3.0-or-later.",
   "ocr_assets_lock_sha256": "4c3c319711bc8b03459252c832ea64891ff2abc810580377a24346d6ac1084d1",
   "ocr_downloads": [
     {
@@ -1225,11 +1230,17 @@
     "docvortex_and_model_license_review": "PENDING_NOT_BUNDLED"
   },
   "lacunas": [
-    {"id": "sem-recibos-de-instalacao", "escopo": "instalação no computador do usuário", "descricao": "O inventário é conferido contra os locks e declarações do repositório, não contra os bytes instalados; recibos com hash por membro e leitura dos textos de licença instalados não existem."},
+    {
+      "id": "sem-recibos-de-instalacao",
+      "escopo": "instalação no computador do usuário",
+      "descricao": "O inventário é conferido contra os locks e declarações do repositório, não contra os bytes instalados; recibos com hash por membro e leitura dos textos de licença instalados não existem."
+    },
     {
       "id": "dlls-nativas-licenca-nao-auditada",
       "escopo": "54 das 55 DLLs de ocr_native_dlls (todas exceto libtesseract-5.dll)",
-      "descricao": "Hash e origem verificados contra o instalador oficial; licença e fontes correspondentes de cada DLL não auditadas (license_expression nulo, exact_native_license_verification NOT_RUN)."
+      "descricao": "Hash e origem verificados contra o instalador oficial; licença e fontes correspondentes de cada DLL não auditadas (license_expression nulo, exact_native_license_verification NOT_RUN).",
+      "motivo": "Programa separado; hash e origem conferidos, mas licenças individuais e fontes correspondentes das 54 DLLs ainda não verificadas. A exceção registra a lacuna e não concede licença.",
+      "revisao_ate": "2027-12-31"
     },
     {
       "id": "plataforma-ocr-so-windows-x64",

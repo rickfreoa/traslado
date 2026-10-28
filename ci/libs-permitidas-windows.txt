@@ -1,0 +1,14 @@
+# Allowlist de módulos/DLLs permitidos em execução Full no Windows
+# <ROOT> é expandido para a raiz gerenciada da instalação do Traslado.
+# Linhas iniciadas por '!' são prefixos/trechos explicitamente proibidos.
+
+!C:\hostedtoolcache\
+!C:\Program Files\Python
+!C:\Program Files (x86)\Python
+!\AppData\Local\Programs\Python\
+!\AppData\Local\Python\
+
+<ROOT>\
+C:\Windows\System32\
+C:\Windows\SysWOW64\
+C:\Windows\WinSxS\

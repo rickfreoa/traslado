@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """P6-7: em prosa extraída de PDF/OCR (pymupdf, tesseract) a cerca só pareia dentro do próprio bloco.
 
 Caso real: ruído de OCR iniciado em `~~~` abria uma cerca fechada centenas de páginas adiante e gerava

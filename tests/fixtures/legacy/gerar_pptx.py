@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 from pptx import Presentation
 p = Presentation(); s = p.slides.add_slide(p.slide_layouts[1])
 s.shapes.title.text = 'Relato publico'

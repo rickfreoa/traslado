@@ -1,0 +1,18 @@
+# Allowlist de bibliotecas compartilhadas permitidas em execução Full no Linux
+# <ROOT> é expandido para a raiz gerenciada da instalação do Traslado.
+# Linhas iniciadas por '!' são prefixos explicitamente proibidos.
+
+!/usr/local/
+!/opt/hostedtoolcache/
+!/home/linuxbrew/
+!/usr/lib/python
+!/usr/lib64/python
+
+<ROOT>/
+/lib/
+/lib64/
+/usr/lib/
+/usr/lib64/
+/etc/ld.so.cache
+linux-vdso.so
+ld-linux

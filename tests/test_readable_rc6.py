@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Readable Markdown is a presentation of raw extraction, with exact RAG spans."""
 from __future__ import annotations
 

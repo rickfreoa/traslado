@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Synthetic public-domain fixtures. The author dedicates these texts to CC0."""
 from pathlib import Path
 import zipfile

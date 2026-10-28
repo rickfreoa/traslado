@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Contrato E1: imports sem cópia, execução isolada e entry points do wheel real."""
 import importlib
 import json

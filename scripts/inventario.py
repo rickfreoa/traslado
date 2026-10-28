@@ -12,6 +12,7 @@ sempre listadas; nunca silenciadas.
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import hashlib
 import json
 import re
@@ -53,19 +54,53 @@ def verificar(raiz: Path) -> tuple[list[str], list[str]]:
     inv = json.loads(ler("THIRD-PARTY-INVENTORY.json"))
     lock = json.loads(ler("ocr-assets.lock.json"))
 
-    # 1. Dependências Python resolvidas
+    # 1. Dependências Python resolvidas e allowlist SPDX (LICENSE-POLICY.md §5.2)
+    allowlist_path = raiz / "licenses-allowlist.json"
+    allowlist = json.loads(allowlist_path.read_text(encoding="utf-8-sig")) if allowlist_path.is_file() else {}
+    allowed_spdx = set(allowlist.get("allowed_spdx", []))
+    if not allowed_spdx:
+        div.append("licenses-allowlist.json ausente ou allowlist vazia")
+    hoje = date.today().isoformat()
+    for exc in allowlist.get("nominal_exceptions", []):
+        motivo = str(exc.get("motivo") or "").strip()
+        revisao = str(exc.get("revisao_ate") or "").strip()
+        if not motivo or not revisao:
+            div.append(f"exceção nominal sem justificativa ou data de revisão: {exc.get('id')}")
+        elif revisao < hoje:
+            div.append(f"exceção nominal vencida ({revisao} < {hoje}): {exc.get('id')}")
+
+    raw_inv = ler("THIRD-PARTY-INVENTORY.json")
+    raw_md = ler("THIRD-PARTY.md")
+    if "6.0.0rc" in raw_inv or "6.0.0rc" in raw_md:
+        div.append("menção proibida a 6.0.0rc em THIRD-PARTY-INVENTORY.json ou THIRD-PARTY.md")
+    if inv.get("candidate_version") != "2.0.0":
+        div.append(f"candidate_version no inventário deve ser 2.0.0 (atual: {inv.get('candidate_version')})")
+
     fixas = lock_python(ler("requirements-full.lock"))
     com_hash = hashes_por_pacote(ler("requirements-full.hashes.lock"))
     inventariadas = {norm(d["name"]): d for d in inv["dependencies"]}
-    for nome, versao in sorted(fixas.items()):
+    proprio = inventariadas.get("traslado")
+    if proprio is None or proprio.get("version") != "2.0.0" or proprio.get("license_expression") != "AGPL-3.0-or-later":
+        div.append("pacote próprio traslado 2.0.0 (AGPL-3.0-or-later) ausente ou divergente em THIRD-PARTY-INVENTORY.json")
+    if "traslado-md-converter" in inventariadas or "freoa-md-converter" in inventariadas:
+        div.append("entrada legada freoa-md-converter não permitida em THIRD-PARTY-INVENTORY.json")
+
+    legacy_lock_path = raiz / "locks/requirements-legacy.hashes.lock"
+    if not legacy_lock_path.is_file():
+        div.append("locks/requirements-legacy.hashes.lock ausente")
+    legacy_lock = lock_python(legacy_lock_path.read_text(encoding="utf-8-sig")) if legacy_lock_path.is_file() else {}
+    for nome, versao in sorted({**fixas, **legacy_lock}.items()):
         d = inventariadas.get(nome)
         if d is None:
             div.append(f"dependência sem entrada no inventário: {nome}=={versao}")
             continue
         if d["version"] != versao:
             div.append(f"versão divergente no inventário: {nome} lock={versao} inventário={d['version']}")
-        if not (d.get("license_expression") or d.get("license_metadata")):
+        lic = d.get("license_expression") or d.get("license_metadata")
+        if not lic:
             div.append(f"dependência sem licença no inventário: {nome}")
+        elif allowed_spdx and d.get("license_expression") not in allowed_spdx:
+            div.append(f"dependência com licença fora de licenses-allowlist.json: {nome} ({d.get('license_expression')})")
     # O lock com hashes é o efetivamente instalado (INSTALAR.ps1 e CI): confronta nome->versão com o outro lock e com o inventário.
     fixas_hash = lock_python(ler("requirements-full.hashes.lock"))
     for nome in sorted(fixas.keys() | fixas_hash.keys()):
@@ -108,6 +143,14 @@ def verificar(raiz: Path) -> tuple[list[str], list[str]]:
     comparar("seven_zip_members", lock["seven_zip_members"], inv["bootstrap_extractor"]["members"])
     lacunas = list(inv.get("lacunas", []))
     declaradas = {x.get("id") for x in lacunas if isinstance(x, dict)}
+    for x in lacunas:
+        if isinstance(x, dict) and x.get("id") == "dlls-nativas-licenca-nao-auditada":
+            motivo = str(x.get("motivo") or "").strip()
+            revisao = str(x.get("revisao_ate") or "").strip()
+            if not motivo or not revisao:
+                div.append("exceção nominal dlls-nativas-licenca-nao-auditada sem motivo ou revisao_ate")
+            elif revisao < hoje:
+                div.append(f"exceção nominal dlls-nativas-licenca-nao-auditada vencida ({revisao} < {hoje})")
     dlls = {d["path"]: d for d in inv["ocr_native_dlls"]}
     for m in lock["tesseract_members"]:
         if m["path"].lower().endswith(".dll"):

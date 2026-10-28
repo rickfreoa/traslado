@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Etapa 1 do Traslado 1.1: versão única, seleção explícita, build limpo e determinístico, ausência de PyMuPDF/MuPDF e A8.
 
 Os testes de build exigem um checkout git (pulam no pacote extraído). Em CI a suíte roda contra o wheel instalado e
@@ -196,7 +197,8 @@ class DeteccaoMuPDF(unittest.TestCase):
 
 class Inventario(unittest.TestCase):
     ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "ocr-assets.lock.json", "requirements-full.lock",
-                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1"]
+                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1", "licenses-allowlist.json",
+                "locks/requirements-legacy.hashes.lock"]
 
     def setUp(self):
         self.inv = carregar("inventario")
@@ -374,7 +376,7 @@ class Workflows(unittest.TestCase):
         return (ROOT / ".github/workflows" / nome).read_text(encoding="utf-8")
 
     def test_todas_as_actions_fixadas_por_sha_completo(self):
-        usos = [l for n in ("ci.yml", "release.yml", "revocation.yml") for l in self.texto(n).splitlines() if re.match(r"\s*(- )?uses:", l)]
+        usos = [l for n in ("ci.yml", "release.yml", "revocation.yml", "fuzz.yml", "pypi.yml") if (ROOT / ".github/workflows" / n).is_file() for l in self.texto(n).splitlines() if re.match(r"\s*(- )?uses:", l)]
         self.assertGreaterEqual(len(usos), 8)
         for linha in usos:
             self.assertRegex(linha, r"uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d", linha)

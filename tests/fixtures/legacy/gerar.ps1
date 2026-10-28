@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Textos e fixtures gerados dedicados ao domínio público (CC0).
 # Gera publico.doc e publico.ppt por COM abrindo fontes existentes (doc-fonte.rtf; ppt-fonte.pptx gerado por
 # gerar_pptx.py com python-pptx), como a Biblioteca faz: Documents.Add/SaveAs de documento novo pode travar em

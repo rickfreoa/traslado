@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """A5a: notes are content, resolved through document relationships."""
 from __future__ import annotations
 

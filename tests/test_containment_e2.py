@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Real child/grandchild probes; machine-readable evidence outside the package."""
 import ctypes
 import json

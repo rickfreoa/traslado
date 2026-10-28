@@ -67,14 +67,14 @@ def git(*args: str) -> str:
                           encoding="utf-8").stdout
 
 
-def listados() -> list[str]:
+def listados(permitir_nao_rastreados: bool = False) -> list[str]:
     linhas = [n.strip() for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines()
               if n.strip() and not n.startswith("#")]
     nomes = [n for n in linhas if not n.startswith("!")]
     excecoes = [n[1:] for n in linhas if n.startswith("!")]  # "!caminho" = módulo rastreado fora do pacote, por decisão revisável
     rastreados = set(git("ls-files", "-z").split("\0"))
     ausentes = [n for n in nomes + excecoes if n not in rastreados]
-    if ausentes or len(set(nomes)) != len(nomes) or set(nomes) & set(excecoes):
+    if (ausentes and not permitir_nao_rastreados) or len(set(nomes)) != len(nomes) or set(nomes) & set(excecoes):
         raise SystemExit(f"release-files.txt: caminho não rastreado pelo git, repetido ou ao mesmo tempo listado e excluído: {ausentes}")
     esquecidos = sorted(n for n in rastreados if n.startswith("src/") and n.endswith(".py") and n not in nomes and n not in excecoes)
     if esquecidos:
@@ -169,10 +169,94 @@ def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
     return achados
 
 
+LICENCE_SHA256 = "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+SPDX_TAG = "SPDX-License-Identifier: AGPL-3.0-or-later"
+
+
+def conferir_licenca_e_spdx(p: Path) -> list[str]:
+    erros: list[str] = []
+    nome = p.name
+    low = nome.lower()
+    if Path(low).suffix in (".py", ".ps1", ".sh"):
+        texto = p.read_bytes().decode("utf-8-sig", errors="replace")
+        if SPDX_TAG not in texto:
+            erros.append(f"{nome}: cabeçalho SPDX ausente")
+        return erros
+    if not low.startswith("traslado-"):
+        return erros
+    if low.endswith((".zip", ".whl")):
+        with zipfile.ZipFile(p) as z:
+            lics = [n for n in z.namelist() if n == "LICENCE" or n.endswith("/LICENCE")]
+            if not lics:
+                erros.append(f"{nome}: LICENCE ausente")
+            for n in lics:
+                if sha(z.read(n)) != LICENCE_SHA256:
+                    erros.append(f"{nome}!{n}: SHA-256 de LICENCE diverge de {LICENCE_SHA256}")
+            for n in z.namelist():
+                partes = n.split("/")
+                if any(parte in ("tests", ".github", "release-files.txt") for parte in partes):
+                    erros.append(f"{nome}!{n}: caminho proibido no artefato")
+                if Path(n).suffix.lower() in (".py", ".ps1", ".sh"):
+                    texto = z.read(n).decode("utf-8-sig", errors="replace")
+                    if SPDX_TAG not in texto:
+                        erros.append(f"{nome}!{n}: cabeçalho SPDX ausente")
+    elif low.endswith(".tar.gz"):
+        with tarfile.open(p, "r:gz") as tf:
+            membros = [m for m in tf.getmembers() if m.isfile()]
+            lics = [m for m in membros if m.name == "LICENCE" or m.name.endswith("/LICENCE")]
+            if not lics:
+                erros.append(f"{nome}: LICENCE ausente")
+            for m in lics:
+                ext = tf.extractfile(m)
+                if ext is None or sha(ext.read()) != LICENCE_SHA256:
+                    erros.append(f"{nome}!{m.name}: SHA-256 de LICENCE diverge de {LICENCE_SHA256}")
+            for m in membros:
+                partes = m.name.split("/")
+                if ".github" in partes:
+                    erros.append(f"{nome}!{m.name}: caminho proibido no artefato")
+                if Path(m.name).suffix.lower() in (".py", ".ps1", ".sh"):
+                    ext = tf.extractfile(m)
+                    texto = ext.read().decode("utf-8-sig", errors="replace") if ext is not None else ""
+                    if SPDX_TAG not in texto:
+                        erros.append(f"{nome}!{m.name}: cabeçalho SPDX ausente")
+    return erros
+
+
+def conferir_composicao(p: Path) -> list[str]:
+    """Compare membros contra a seleção pública, inclusive dist-info gerado."""
+    nomes = {n.strip() for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines()
+             if n.strip() and not n.startswith(("#", "!"))}
+    prefix = f"traslado-{VERSION}"
+    if p.name == prefix + "-py3-none-any.whl":
+        info = prefix + ".dist-info/"
+        expected = {n.removeprefix("src/") for n in nomes if n.startswith("src/")}
+        expected |= {info + n for n in ("METADATA", "WHEEL", "entry_points.txt", "top_level.txt", "RECORD", "licenses/LICENCE")}
+        with zipfile.ZipFile(p) as z:
+            actual = z.namelist()
+    elif p.name == prefix + "-windows.zip":
+        expected = {prefix + "-windows/" + n for n in nomes | {"INSTALL-PAYLOAD.json", f"dist/{prefix}-py3-none-any.whl"}}
+        with zipfile.ZipFile(p) as z:
+            actual = z.namelist()
+    elif p.name == prefix + ".tar.gz":
+        tracked = set(git("ls-files", "-z").split("\0"))
+        expected = {prefix + "/" + n for n in nomes | {"PKG-INFO", "release-files.txt"} |
+                    {n for n in tracked if n.startswith("tests/") and (ROOT/n).is_file()}}
+        with tarfile.open(p) as tf:
+            actual = [m.name for m in tf.getmembers() if m.isfile()]
+    else:
+        return []
+    errors = []
+    if len(actual) != len(set(actual)):
+        errors.append(f"{p.name}: membros duplicados")
+    if set(actual) != expected:
+        errors.append(f"{p.name}: composição diverge: a mais {sorted(set(actual)-expected)}; a menos {sorted(expected-set(actual))}")
+    return errors
+
+
 def verificar(arquivos: list[Path]) -> int:
-    achados = [a for p in arquivos for a in membros_proibidos(p.name, p.read_bytes())]
+    achados = [a for p in arquivos for a in [*membros_proibidos(p.name, p.read_bytes()), *conferir_licenca_e_spdx(p), *conferir_composicao(p)]]
     for a in achados:
-        print("PyMuPDF/MuPDF presente:", a, file=sys.stderr)
+        print("Falha de verificação de artefato:", a, file=sys.stderr)
     return 1 if achados else 0
 
 
@@ -199,7 +283,7 @@ def _emitir_artefatos_bootstrap_e_locks(dist: Path) -> list[Path]:
 
 
 def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
-    nomes = listados()
+    nomes = listados(permitir_nao_rastreados=permitir_sujo)
     limpo = checkout_limpo(nomes)
     if not limpo and not permitir_sujo:
         raise SystemExit("Checkout sujo ou arquivo listado difere de HEAD: recusado (--permitir-sujo só para teste local).")
@@ -224,11 +308,13 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
             info = zipfile.ZipInfo(f"{nome}/{caminho}", DATA_FIXA)
             info.compress_type, info.create_system, info.external_attr = zipfile.ZIP_DEFLATED, 3, 0o100644 << 16
             z.writestr(info, dados)
-    todos_artefatos = [zipado, wheel, sdist, *extras_dist]
+    inventario_dist = dist / "THIRD-PARTY-INVENTORY.json"
+    shutil.copyfile(ROOT / "THIRD-PARTY-INVENTORY.json", inventario_dist)
+    todos_artefatos = [zipado, wheel, sdist, *extras_dist, inventario_dist]
     if verificar(todos_artefatos):
         for arq in todos_artefatos:
             arq.unlink(missing_ok=True)
-        raise SystemExit("Artefato contém PyMuPDF/MuPDF: removido.")
+        raise SystemExit("Composição ou licença reprovada: artefatos removidos.")
     (dist / "SHA256SUMS").write_text(
         "".join(f"{sha(p)}  {p.name}\n" for p in todos_artefatos),
         encoding="utf-8",

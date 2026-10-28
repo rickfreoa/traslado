@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Physical-window/DPI simulations and complete-path result accessibility."""
 from pathlib import Path
 import tkinter as tk

@@ -4,6 +4,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -31,6 +32,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Tag igual a v + versão
+        if: github.event_name == 'push'
         run: |
           VERSAO=$(python -c "import re,pathlib; print(re.search(r'^__version__ = \"([^\"]+)\"', pathlib.Path('src/traslado/__init__.py').read_text(encoding='utf-8'), re.M)[1])")
           echo "VERSAO=$VERSAO" >> "$GITHUB_ENV"
@@ -38,6 +40,7 @@ jobs:
             echo "Tag $GITHUB_REF_NAME diverge da versão v$VERSAO" >&2
             exit 1
           fi
+      - run: python scripts/versao.py --conferir
       - name: Inventário de terceiros (A8)
         run: python scripts/inventario.py
       - name: Testes de release e de inventário
@@ -47,11 +50,13 @@ jobs:
       - name: Build em checkout limpo (sem --permitir-sujo)
         run: python scripts/build_release.py
       - name: Nenhum byte de PyMuPDF/MuPDF no ZIP nem no wheel
-        run: python scripts/build_release.py --verificar dist/*.zip dist/*.whl
+        run: |
+          python scripts/build_release.py --verificar dist/*.zip dist/*.whl dist/*.tar.gz dist/install.*
+          python scripts/versao.py --conferir --dist dist
       - name: SHA256SUMS confere e o payload registra checkout limpo
         run: |
           (cd dist && sha256sum -c SHA256SUMS)
-          python -c "import json,zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; assert json.loads(z.read(n))['checkout_limpo'] is True" dist/traslado-"$VERSAO"-windows.zip
+          python -c "import json,zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; assert json.loads(z.read(n))['checkout_limpo'] is True" dist/traslado-$(python scripts/versao.py --imprimir)-windows.zip
       - name: Aguardar a matriz de ci.yml deste mesmo commit e exigir sucesso
         timeout-minutes: 65
         env:
@@ -73,20 +78,21 @@ jobs:
             fi
             sleep 30
           done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-dry-run-ou-tag
+          path: dist/
+          if-no-files-found: error
       - name: Attestation de proveniência dos bytes distribuídos
+        if: github.event_name == 'push'
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: |
-            dist/traslado-${{ env.VERSAO }}-windows.zip
-            dist/traslado-${{ env.VERSAO }}-py3-none-any.whl
-            dist/SHA256SUMS
+          subject-path: dist/*
       - name: Criar release em rascunho (nunca publicar)
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "dist/traslado-$VERSAO-windows.zip" \
-            "dist/traslado-$VERSAO-py3-none-any.whl" \
-            dist/SHA256SUMS \
+          gh release create "$GITHUB_REF_NAME" dist/* \
             --draft --verify-tag --title "Traslado $VERSAO" \
-            --notes "Rascunho gerado por workflow. Revisar SHA256SUMS e a attestation antes de publicar manualmente."
+            --notes "Fonte correspondente: https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_REF_NAME . Revisar SHA256SUMS e attestation antes de publicar manualmente."

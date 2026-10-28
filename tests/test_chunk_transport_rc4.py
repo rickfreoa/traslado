@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Independent published-byte and image derivative contracts for rc4."""
 from __future__ import annotations
 import hashlib

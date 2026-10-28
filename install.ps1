@@ -103,6 +103,7 @@ try {
         $Root = Join-Path $localAppData "Traslado"
     }
     $RootFull = [IO.Path]::GetFullPath($Root)
+    $env:UV_CACHE_DIR = Join-Path $RootFull "state\uv-cache"
     New-Item -ItemType Directory -Path $RootFull -Force | Out-Null
 
     $PayloadKey = "$CleanVersion|$NormProfile|$($ExtrasList -join ',')|$($LangsList -join ',')|"

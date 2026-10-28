@@ -10,3 +10,7 @@ ocr-cache/
 dist/*
 !dist/.gitignore
 INSTALL-PAYLOAD.json
+
+pytest-cache-files-*/
+
+.t11-logs/

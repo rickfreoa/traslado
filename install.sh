@@ -77,21 +77,21 @@ ROOT="$(CDPATH= cd -- "$ROOT" && pwd)"
 
 sha256_file() {
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$1" | awk '{print tolower($1)}'
+        sha256sum "$1" | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
     elif command -v shasum >/dev/null 2>&1; then
-        shasum -a 256 "$1" | awk '{print tolower($1)}'
+        shasum -a 256 "$1" | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
     else
-        openssl dgst -sha256 "$1" | awk '{print tolower($NF)}'
+        openssl dgst -sha256 "$1" | sed 's/^.*= *//' | tr '[:upper:]' '[:lower:]'
     fi
 }
 
 sha256_string() {
     if command -v sha256sum >/dev/null 2>&1; then
-        printf "%s" "$1" | sha256sum | awk '{print tolower($1)}'
+        printf "%s" "$1" | sha256sum | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
     elif command -v shasum >/dev/null 2>&1; then
-        printf "%s" "$1" | shasum -a 256 | awk '{print tolower($1)}'
+        printf "%s" "$1" | shasum -a 256 | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
     else
-        printf "%s" "$1" | openssl dgst -sha256 | awk '{print tolower($NF)}'
+        printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.*= *//' | tr '[:upper:]' '[:lower:]'
     fi
 }
 
@@ -199,7 +199,14 @@ check_sum_entry() {
     sums_file="$1"
     entry_name="$2"
     file_path="$3"
-    expected="$(awk -v n="$entry_name" '$NF == n || $NF == ("*" n) {print tolower($1)}' "$sums_file" | head -n 1)"
+    expected=""
+    while read -r sum name _; do
+        clean_name="${name#\*}"
+        if [ "$clean_name" = "$entry_name" ]; then
+            expected="$(printf "%s" "$sum" | tr '[:upper:]' '[:lower:]')"
+            break
+        fi
+    done < "$sums_file"
     if [ -z "$expected" ]; then
         echo "Entrada $entry_name ausente em SHA256SUMS" >&2
         exit 1
@@ -273,6 +280,7 @@ if [ -n "$FROM_DIR" ]; then
 fi
 
 export UV_PYTHON_INSTALL_DIR="$ROOT/python"
+export UV_CACHE_DIR="$ROOT/state/uv-cache"
 mkdir -p "$UV_PYTHON_INSTALL_DIR"
 
 VENV_DIR="$RELEASE_DIR/.venv"

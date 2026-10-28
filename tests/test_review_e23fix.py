@@ -1,4 +1,5 @@
-﻿"""Regressions for all ten findings in the independent E2/E3 review."""
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Regressions for all ten findings in the independent E2/E3 review."""
 import io
 import json
 import os

@@ -85,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     update.add_argument("--version")
     update.add_argument("--yes", action="store_true")
     update.add_argument("--root", type=Path)
+    update.add_argument("--from-dir", type=Path)
 
     uninstall = sub.add_parser("uninstall", help="Remover atalhos e raiz gerenciada")
     uninstall.add_argument("--yes", action="store_true")
@@ -131,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(info, ensure_ascii=False, indent=2))
             return 0 if info.get("current") is not None else 1
         if args.command == "update":
-            res = lifecycle.update_release(version=args.version, yes=args.yes, root=args.root)
+            res = lifecycle.update_release(version=args.version, yes=args.yes, root=args.root, from_dir=args.from_dir)
             print(json.dumps(res, ensure_ascii=False, indent=2))
             return 0
         if args.command == "uninstall":
@@ -171,6 +172,13 @@ def main(argv: list[str] | None = None) -> int:
         results = []
         for file in files:
             result = execute(file, args.output, options)
+            if result.get("error_code") == "needs_ocr":
+                if sys.platform == "darwin":
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract no macOS, execute: brew install tesseract"
+                elif sys.platform != "win32":
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract no Linux, execute: sudo apt install tesseract-ocr (ou sudo dnf install tesseract)"
+                else:
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Configure o Tesseract local ou reinstale o perfil Full."
             results.append(result)
             print(json.dumps(result, ensure_ascii=False), flush=True)
         statuses = {r["status"] for r in results}

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Independent synthetic acceptance oracles; no customer documents or downloads."""
 from __future__ import annotations
 
