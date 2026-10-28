@@ -1,11 +1,9 @@
-"""Contrato E1: wheel real, imports sem cópia e execução isolada dos dois nomes."""
-import contextlib
+"""Contrato E1: imports sem cópia, execução isolada e entry points do wheel real."""
 import importlib
-import io
 import json
 import os
 from pathlib import Path
-import pkgutil
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -22,22 +20,21 @@ class CompatE1(unittest.TestCase):
         cls.temp = tempfile.TemporaryDirectory(prefix="traslado-e1-")
         cls.addClassCleanup(cls.temp.cleanup)
         cls.root = Path(cls.temp.name)
-        dist = cls.root / "dist"
-        cls.wheel = ROOT / "dist/traslado-2.0.0-py3-none-any.whl"
-        if (ROOT / ".git").exists() or not cls.wheel.is_file():
-            result = subprocess.run([sys.executable, "-m", "pip", "wheel", str(ROOT),
-                                     "--no-deps", "--no-index", "--no-build-isolation", "-w", str(dist)],
-                                    capture_output=True, text=True, encoding="utf-8", timeout=180)
-            if result.returncode:
-                raise AssertionError(result.stdout + result.stderr)
-            cls.wheel = dist / "traslado-2.0.0-py3-none-any.whl"
         target = cls.root / "venv"
         venv.EnvBuilder(system_site_packages=True, with_pip=False).create(target)
         cls.python = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
         site = target / ("Lib/site-packages" if os.name == "nt" else
                          f"lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")
-        with zipfile.ZipFile(cls.wheel) as wheel:
-            wheel.extractall(site)
+        (site / "e1-source.pth").write_text(str(ROOT / "src") + "\n", encoding="utf-8")
+        # -I ignores PYTHONSTARTUP; this site hook exercises prior package
+        # imports in each order without preloading the executable submodule.
+        (site / "e1_prior_imports.py").write_text(
+            "import importlib, os\n"
+            "for name in filter(None, os.environ.get('E1_PRIOR_IMPORTS', '').split(',')):\n"
+            "    importlib.import_module(name)\n", encoding="utf-8")
+        # Process source.pth first: site reports hook import errors on stderr
+        # and continues startup, which would otherwise leave this case untested.
+        (site / "e1-startup.pth").write_text("import e1_prior_imports\n", encoding="utf-8")
         # Full dependencies may live in a separate test environment. -I still
         # loads site directories, while ignoring PYTHONPATH and the checkout.
         paths = [p for p in sys.path if p.endswith("site-packages")]
@@ -56,32 +53,71 @@ class CompatE1(unittest.TestCase):
         (site / "e1-clock.pth").write_text("import e1_clock\n", encoding="utf-8")
 
 
+    def run_module_bytes(self, module, *args, env=None):
+        return subprocess.run([str(self.python), "-I", "-m", module, *map(str, args)],
+                              capture_output=True, env=env, timeout=120)
+
     def run_module(self, module, *args):
-        return subprocess.run([str(self.python), "-I", "-X", "utf8", "-m", module, *map(str, args)],
-                              capture_output=True, text=True, encoding="utf-8", timeout=120)
+        result = self.run_module_bytes(module, *args)
+        result.stdout = result.stdout.decode("utf-8", errors="strict")
+        result.stderr = result.stderr.decode("utf-8", errors="strict")
+        return result
 
     def test_all_module_objects(self):
-        import traslado
-        out, err = io.StringIO(), io.StringIO()
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            self.assertIs(importlib.import_module("freoa_v6"), traslado)
-            for module in pkgutil.walk_packages(traslado.__path__, "traslado."):
-                with self.subTest(module=module.name):
-                    canonical = importlib.import_module(module.name)
-                    alias = importlib.import_module(module.name.replace("traslado", "freoa_v6", 1))
-                    self.assertIs(alias, canonical)
-                    self.assertEqual(canonical.__spec__.name, module.name)
-        self.assertEqual(out.getvalue(), "")
-        self.assertEqual(err.getvalue(), "")
+        self.check_import_order("traslado", "freoa_v6")
 
     def test_reverse_import_order(self):
-        result = subprocess.run([str(self.python), "-I", "-c",
-            "import importlib,pkgutil,traslado; "
-            "names=[m.name for m in pkgutil.walk_packages(traslado.__path__,'traslado.')]; "
-            "assert all(importlib.import_module(n.replace('traslado','freoa_v6',1)) "
-            "is importlib.import_module(n) for n in names)"], capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout + result.stderr, b"")
+        self.check_import_order("freoa_v6", "traslado")
+
+    def check_import_order(self, first, second):
+        # Discover names without importing either package, then give every
+        # module/order pair its own process so transitive imports cannot mask it.
+        suffixes = [""] + ["." + p.stem for p in sorted((ROOT / "src/traslado").glob("*.py"))
+                           if p.stem != "__init__"]
+        for suffix in suffixes:
+            with self.subTest(first=first, module=suffix):
+                code = (
+                    "import importlib, sys\n"
+                    "assert 'traslado' not in sys.modules\n"
+                    "assert 'freoa_v6' not in sys.modules\n"
+                    f"a = importlib.import_module({first + suffix!r})\n"
+                    "assert 'traslado' in sys.modules\n"
+                    f"b = importlib.import_module({second + suffix!r})\n"
+                    "assert a is b\n"
+                    "assert sys.modules['freoa_v6'] is sys.modules['traslado']\n"
+                    f"assert a.__spec__.name == {'traslado' + suffix!r}\n"
+                )
+                result = subprocess.run([str(self.python), "-I", "-c", code],
+                                        capture_output=True, timeout=120)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout + result.stderr, b"")
+
+    def test_fresh_module_with_prior_package_imports(self):
+        request = self.root / "requisição-ausente.json"
+        for order in ("freoa_v6,traslado", "traslado,freoa_v6"):
+            env = dict(os.environ, E1_PRIOR_IMPORTS=order,
+                       PYTHONSTARTUP=str(self.root / "startup-must-not-run.py"))
+            Path(env["PYTHONSTARTUP"]).write_text("raise RuntimeError('PYTHONSTARTUP ran')\n", encoding="utf-8")
+            for module in ("freoa_v6", "freoa_v6.cli", "freoa_v6.worker"):
+                with self.subTest(order=order, module=module):
+                    args = (request,) if module.endswith("worker") else ("--version",)
+                    result = self.run_module_bytes(module, *args, env=env)
+                    canonical = self.run_module_bytes(module.replace("freoa_v6", "traslado", 1), *args, env=env)
+                    stderr = result.stderr.decode("utf-8", errors="strict")
+                    canonical_stderr = canonical.stderr.decode("utf-8", errors="strict")
+                    self.assertEqual(result.returncode, canonical.returncode, stderr)
+                    if module.endswith("worker"):
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn(request.name, stderr)
+                        self.assertEqual(stderr.splitlines()[-1], canonical_stderr.splitlines()[-1])
+                    else:
+                        self.assertEqual(result.returncode, 0, stderr)
+                        self.assertEqual(result.stdout.strip(), b"2.0.0")
+                        self.assertEqual(result.stderr.split(b"\n", 1)[1], canonical.stderr)
+                    self.assertEqual(result.stdout, canonical.stdout)
+                    self.assertNotIn(b"Deprecia", result.stdout)
+                    self.assertEqual(stderr.splitlines().count(
+                        "Depreciação: use python -m traslado em vez de freoa_v6."), 1)
 
     def test_runpy_origins(self):
         result = subprocess.run([str(self.python), "-I", "-c",
@@ -104,13 +140,23 @@ class CompatE1(unittest.TestCase):
                     self.assertIn("deprecia", result.stderr.lower())
 
     def test_worker_runpy(self):
-        request = self.root / "missing-request.json"
+        request = self.root / "requisição-ausente.json"
         old = self.run_module("freoa_v6.worker", request)
         new = self.run_module("traslado.worker", request)
         self.assertEqual(old.returncode, new.returncode)
         self.assertNotEqual(old.returncode, 0)
         self.assertIn("Deprecia", old.stderr)
         self.assertNotIn("Deprecia", old.stdout)
+        self.assertIn("requisição-ausente.json", new.stderr)
+
+    def test_warning_and_cli_error_utf8(self):
+        result = self.run_module("freoa_v6", "convert", self.root, "-o", self.root / "out",
+                                 "--mode", "native", "--language", "")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(result.stdout, "")
+        warning, error = result.stderr.splitlines()
+        self.assertEqual(warning, "Depreciação: use python -m traslado em vez de freoa_v6.")
+        self.assertEqual(json.loads(error)["status"], "failed")
 
     def test_doctor_module(self):
         for module in ("freoa_v6", "traslado"):
@@ -141,7 +187,27 @@ class CompatE1(unittest.TestCase):
 
     def test_entry_points(self):
         import configparser
-        with zipfile.ZipFile(self.wheel) as wheel:
+        # Only packaging needs the backend; conversion/import tests use src.
+        backend = subprocess.run([sys.executable, "-c", "import setuptools, wheel"],
+                                 capture_output=True, timeout=30)
+        if backend.returncode:
+            self.skipTest("build backend ausente; a CI constrói o wheel e roda este teste")
+        source = self.root / "release-source"
+        source.mkdir()
+        for name in (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines():
+            name = name.strip()
+            if not name or name.startswith(("#", "!")):
+                continue
+            target = source / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / name, target)
+        dist = self.root / "dist"
+        result = subprocess.run([sys.executable, "-m", "pip", "wheel", str(source),
+                                 "--no-deps", "--no-index", "--no-build-isolation", "--no-cache-dir",
+                                 "-w", str(dist)],
+                                cwd=self.root, capture_output=True, text=True, encoding="utf-8", timeout=180)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        with zipfile.ZipFile(dist / "traslado-2.0.0-py3-none-any.whl") as wheel:
             parser = configparser.ConfigParser()
             parser.read_string(wheel.read("traslado-2.0.0.dist-info/entry_points.txt").decode())
         for name in ("traslado", "freoa-md"):
@@ -189,10 +255,12 @@ class CompatE1(unittest.TestCase):
         for member in left.rglob("*"):
             if not member.is_file(): continue
             other = right / member.relative_to(left)
-            if member.name in ("document.json", "manifest.json"):
+            if member.relative_to(left).as_posix() in ("document.json", "manifest.json"):
                 a, b = json.loads(member.read_bytes()), json.loads(other.read_bytes())
                 for obj in (a, b):
-                    obj.pop("converter_version", None); obj.pop("converter", None)
+                    field = "converter_version" if member.name == "document.json" else "converter"
+                    self.assertEqual(obj[field], "2.0.0", member.name)
+                    obj.pop(field)
                 self.assertEqual(a, b, member.name)
             else:
                 self.assertEqual(member.read_bytes(), other.read_bytes(), str(member.relative_to(left)))

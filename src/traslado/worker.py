@@ -15,6 +15,9 @@ from .safety import is_link, sha256
 
 
 def main() -> int:
+    # Tracebacks must also remain UTF-8 under -I with Windows pipes.
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
     request = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     workspace = Path(request["workspace"])
     options = Options(**request["options"])

@@ -29,9 +29,11 @@ class _AliasLoader(importlib.abc.Loader):
         # canonical module as __main__, keeping its relative imports canonical.
         return compile(
             "import sys, runpy\n"
+            "if hasattr(sys.stderr, 'reconfigure'):\n"
+            "    sys.stderr.reconfigure(encoding='utf-8', errors='backslashreplace')\n"
             "print('Depreciação: use python -m traslado em vez de freoa_v6.', file=sys.stderr)\n"
-            f"runpy.run_module({self.target!r}, run_name='__main__')\n",
-            f"<alias {fullname}>", "exec")
+            f"runpy.run_module({self.target!r}, run_name='__main__', alter_sys=True)\n",
+            self.get_filename(fullname), "exec", dont_inherit=True)
 
 
 class _AliasFinder(importlib.abc.MetaPathFinder):
