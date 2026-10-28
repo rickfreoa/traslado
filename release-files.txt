@@ -38,8 +38,10 @@ src/freoa_v6/__init__.py
 src/traslado/__init__.py
 src/traslado/__main__.py
 src/traslado/advanced.py
+src/traslado/assets/bootstrap_ocr.ps1
 src/traslado/assets/fixture.docx
 src/traslado/assets/fixture.pdf
+src/traslado/assets/ocr-assets.lock.json
 src/traslado/assets/traslado.png
 src/traslado/chunks.py
 src/traslado/cli.py

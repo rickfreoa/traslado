@@ -179,12 +179,12 @@ def verificar(arquivos: list[Path]) -> int:
 def _emitir_artefatos_bootstrap_e_locks(dist: Path) -> list[Path]:
     """Emite install.ps1 e install.sh (com versão embutida) e os locks universais em dist/."""
     ps1_src = (ROOT / "install.ps1").read_text(encoding="utf-8")
-    ps1_out = re.sub(r'(\$DefaultVersion\s*=\s*)"[^"]+"', rf'\1"{VERSION}"', ps1_src)
+    ps1_out = re.sub(r'(\[string\]\$Version\s*=\s*)"[^"]+"', rf'\1"{VERSION}"', ps1_src, count=1)
     ps1_dest = dist / "install.ps1"
     ps1_dest.write_text(ps1_out, encoding="utf-8", newline="\n")
 
     sh_src = (ROOT / "install.sh").read_text(encoding="utf-8")
-    sh_out = re.sub(r'(DEFAULT_VERSION=)"[^"]+"', rf'\1"{VERSION}"', sh_src)
+    sh_out = re.sub(r'(^VERSION=)"[^"]+"', rf'\1"{VERSION}"', sh_src, count=1, flags=re.M)
     sh_dest = dist / "install.sh"
     sh_dest.write_text(sh_out, encoding="utf-8", newline="\n")
 

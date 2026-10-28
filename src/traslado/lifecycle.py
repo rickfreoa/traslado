@@ -582,11 +582,17 @@ def setup_release(
     expected_py = plat.release_python(managed, release_id, platform=platform_name)
     python_exe = str(expected_py.resolve()) if expected_py.is_file() else str(Path(sys.executable).resolve())
 
+    default_managed = plat.managed_root(platform=platform_name, env=env)
+    is_custom_root = root is not None and Path(root).resolve() != default_managed.resolve()
     resolved_data_root = (
         Path(data_root)
         if data_root
+        else Path(env["TRASLADO_DATA_ROOT"])
+        if env.get("TRASLADO_DATA_ROOT")
         else Path(current["data_root"])
         if (isinstance(current, dict) and current.get("data_root"))
+        else (managed / "data")
+        if is_custom_root
         else (home_path / "Documents" / "Traslado")
     )
     resolved_data_root.mkdir(parents=True, exist_ok=True)
