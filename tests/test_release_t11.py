@@ -77,6 +77,7 @@ class Build(unittest.TestCase):
                 raise AssertionError(r.stdout + r.stderr)
         cls.zip = cls.a / f"traslado-{versao_fonte()}-windows.zip"
         cls.wheel = cls.a / f"traslado-{versao_fonte()}-py3-none-any.whl"
+        cls.sdist = cls.a / f"traslado-{versao_fonte()}.tar.gz"
 
     @classmethod
     def tearDownClass(cls):
@@ -129,15 +130,26 @@ class Build(unittest.TestCase):
     def test_zip_deterministico(self):
         self.assertEqual((self.a / "SHA256SUMS").read_bytes(), (self.b / "SHA256SUMS").read_bytes())
         self.assertEqual(self.zip.read_bytes(), (self.b / self.zip.name).read_bytes())
+        self.assertEqual(self.sdist.read_bytes(), (self.b / self.sdist.name).read_bytes())
         linhas = (self.a / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
-        self.assertEqual(sorted(l.split("  ")[1] for l in linhas), sorted([self.zip.name, self.wheel.name]))
+        esperados = [
+            self.zip.name,
+            self.wheel.name,
+            self.sdist.name,
+            "install.ps1",
+            "install.sh",
+            "requirements-core.hashes.lock",
+            "requirements-full.hashes.lock",
+            "requirements-legacy.hashes.lock",
+        ]
+        self.assertEqual(sorted(l.split("  ")[1] for l in linhas), sorted(esperados))
         with zipfile.ZipFile(self.zip) as z:
             self.assertTrue(all(i.date_time == (1980, 1, 1, 0, 0, 0) and i.external_attr >> 16 == 0o100644 for i in z.infolist()))
             self.assertEqual(z.namelist(), sorted(z.namelist()))
 
     def test_sem_mupdf_no_zip_e_no_wheel(self):
         construcao = carregar("build_release")
-        self.assertEqual(construcao.verificar([self.zip, self.wheel]), 0)
+        self.assertEqual(construcao.verificar([self.zip, self.wheel, self.sdist]), 0)
 
 
 class DeteccaoMuPDF(unittest.TestCase):
@@ -362,7 +374,7 @@ class Workflows(unittest.TestCase):
         return (ROOT / ".github/workflows" / nome).read_text(encoding="utf-8")
 
     def test_todas_as_actions_fixadas_por_sha_completo(self):
-        usos = [l for n in ("ci.yml", "release.yml") for l in self.texto(n).splitlines() if re.match(r"\s*(- )?uses:", l)]
+        usos = [l for n in ("ci.yml", "release.yml", "revocation.yml") for l in self.texto(n).splitlines() if re.match(r"\s*(- )?uses:", l)]
         self.assertGreaterEqual(len(usos), 8)
         for linha in usos:
             self.assertRegex(linha, r"uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d", linha)
@@ -630,7 +642,7 @@ class CiGate(unittest.TestCase):
 
 
 class Nucleo(unittest.TestCase):
-    MODULOS = ["cli", "runner", "formats", "registry", "doctor", "model", "render", "chunks", "safety", "worker", "runtime"]
+    MODULOS = ["cli", "runner", "formats", "registry", "doctor", "model", "render", "chunks", "safety", "worker", "runtime", "lifecycle", "revocation"]
 
     def test_nucleo_importa_sem_extras(self):
         """Processo limpo com os extras bloqueados: import pesado indevido no núcleo não pode virar skip no Core."""

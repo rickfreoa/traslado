@@ -12,7 +12,9 @@ from .errors import ConversionError, classify
 
 from . import __version__
 from .doctor import inspect
+from . import lifecycle
 from .model import Options
+from . import platform as plat
 from .runner import discover, execute
 
 
@@ -60,6 +62,38 @@ def main(argv: list[str] | None = None) -> int:
     convert.add_argument("--chunk-overlap-chars", type=int)
     convert.add_argument("--no-tables", action="store_true", help="Desativar detecção geométrica de tabelas PDF; células Office/CSV são preservadas")
     sub.add_parser("gui", help="Abrir interface")
+
+    setup = sub.add_parser("setup", help="Configurar release candidata, gates e promoção")
+    setup.add_argument("--release-id")
+    setup.add_argument("--profile", choices=["Full", "Core", "full", "core"], default="Full")
+    setup.add_argument("--extras")
+    setup.add_argument("--languages", default=",".join(lifecycle.DEFAULT_LANGUAGES))
+    setup.add_argument("--no-shortcut", action="store_true")
+    setup.add_argument("--root", type=Path)
+    setup.add_argument("--promote", action=argparse.BooleanOptionalAction, default=False)
+    setup.add_argument("--allow-offline-promotion", action="store_true")
+    setup.add_argument("--from-dir", type=Path)
+    setup.add_argument("--skip-ocr", action="store_true")
+    setup.add_argument("--ocr-cache", type=Path)
+    setup.add_argument("--data-root", type=Path)
+
+    where = sub.add_parser("where", help="Localizar instalação ativa e candidata")
+    where.add_argument("--json", action="store_true")
+    where.add_argument("--root", type=Path)
+
+    update = sub.add_parser("update", help="Atualizar instalação pelo GitHub Releases")
+    update.add_argument("--version")
+    update.add_argument("--yes", action="store_true")
+    update.add_argument("--root", type=Path)
+
+    uninstall = sub.add_parser("uninstall", help="Remover atalhos e raiz gerenciada")
+    uninstall.add_argument("--yes", action="store_true")
+    uninstall.add_argument("--keep-data", action="store_true")
+    uninstall.add_argument("--root", type=Path)
+
+    rollback = sub.add_parser("rollback", help="Reverter para a release anterior")
+    rollback.add_argument("--root", type=Path)
+
     args = parser.parse_args(argv)
     try:
         if args.command == "doctor":
@@ -68,6 +102,46 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "gui":
             from .gui import main as gui
             gui()
+            return 0
+        if args.command == "setup":
+            manifest = lifecycle.setup_release(
+                root=args.root,
+                release_id=args.release_id,
+                profile="Core" if args.profile.lower() == "core" else "Full",
+                extras=args.extras,
+                languages=args.languages,
+                no_shortcut=args.no_shortcut,
+                promote=bool(args.promote),
+                allow_offline_promotion=args.allow_offline_promotion,
+                skip_ocr=args.skip_ocr,
+                from_dir=args.from_dir,
+                ocr_cache=args.ocr_cache,
+                data_root=args.data_root,
+            )
+            print(json.dumps(manifest, ensure_ascii=False, indent=2))
+            gates = manifest.get("gates", {})
+            if gates.get("doctor") is not True or gates.get("fixture") is not True:
+                return 2
+            return 0
+        if args.command == "where":
+            info = plat.where(args.root)
+            if args.json:
+                print(json.dumps(info, ensure_ascii=False))
+            else:
+                print(json.dumps(info, ensure_ascii=False, indent=2))
+            return 0 if info.get("current") is not None else 1
+        if args.command == "update":
+            res = lifecycle.update_release(version=args.version, yes=args.yes, root=args.root)
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "uninstall":
+            res = lifecycle.uninstall_managed(root=args.root, yes=args.yes, keep_data=args.keep_data)
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "rollback":
+            target_root = args.root if args.root is not None else plat.managed_root()
+            restored = plat.rollback(target_root)
+            print(json.dumps(restored, ensure_ascii=False, indent=2))
             return 0
         values = {}
         if args.config:

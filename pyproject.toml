@@ -39,4 +39,4 @@ version = {attr = "traslado.__version__"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-traslado = ["assets/*.png"]
+traslado = ["assets/*.png", "assets/*.docx", "assets/*.pdf", "assets/*.json", "assets/*.ps1"]
