@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Ricardo Peres Freoa
 # Fonte correspondente: https://github.com/rickfreoa/traslado/tree/v2.0.0
 # Códigos de saída: 0 = instalado/ativo; 1 = erro de download, hash ou attestation; 2 = falha nos gates ou parâmetros.
+ $InstallMain = {
 [CmdletBinding()]
 param(
     [string]$Version = "2.0.0",
@@ -106,7 +107,7 @@ try {
     New-Item -ItemType Directory -Path $RootFull -Force | Out-Null
 
     $PayloadKey = "$CleanVersion|$NormProfile|$($ExtrasList -join ',')|$($LangsList -join ',')|"
-    $ReleaseId = "${CleanVersion}_" + (Get-StringSha256Hex $PayloadKey).Substring(0, 32)
+    $ReleaseId = "${CleanVersion}_" + [Guid]::NewGuid().ToString("N")
 
     $CurrentPath = Join-Path $RootFull "current.json"
     if (Test-Path -LiteralPath $CurrentPath -PathType Leaf) {
@@ -115,10 +116,14 @@ try {
             $activeDir = Join-Path (Join-Path $RootFull "releases") $currentObj.release_id
             $activePy = Join-Path $activeDir ".venv\Scripts\python.exe"
             if ($currentObj.product -eq "traslado" -and
-                $currentObj.release_id -eq $ReleaseId -and
                 $currentObj.version -eq $CleanVersion -and
                 $currentObj.profile -eq $NormProfile -and
                 (Test-Path -LiteralPath $activePy -PathType Leaf)) {
+                $ActiveArgs = @("-I", "-m", "traslado", "setup", "--check-active", "--expected-version", $CleanVersion,
+                                "--root", $RootFull, "--profile", $NormProfile, "--languages", $Languages)
+                if ($Extras) { $ActiveArgs += @("--extras", $Extras) }
+                & $activePy @ActiveArgs
+                if ($LASTEXITCODE -ne 0) { throw "Release ativa sem integridade" }
                 Write-Host "Traslado $CleanVersion ($NormProfile) já está ativo em $RootFull ($ReleaseId)."
                 Write-Host "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v$CleanVersion"
                 exit 0
@@ -178,7 +183,7 @@ try {
 
     if ($FromDir) {
         $EffectiveFromDir = (Resolve-Path -LiteralPath $FromDir).Path
-        $SumsPath = Find-LocalArtifact $EffectiveFromDir @("SHA256SUMS", "..\SHA256SUMS")
+        $SumsPath = Find-LocalArtifact $EffectiveFromDir @("SHA256SUMS", "..\SHA256SUMS", "PAYLOAD-SHA256SUMS")
         $WheelPath = Find-LocalArtifact $EffectiveFromDir @($WheelName, "dist\$WheelName")
         $ProfileLockPath = Find-LocalArtifact $EffectiveFromDir @($ProfileLockName, "locks\$ProfileLockName")
         if ("legacy" -in $ExtrasList) {
@@ -206,14 +211,6 @@ try {
                 if (-not $SumsMap.ContainsKey($LegacyLockName) -or (Get-FileSha256Hex $LegacyLockPath) -ne $SumsMap[$LegacyLockName]) {
                     throw "SHA-256 divergente ou ausente em SHA256SUMS para $LegacyLockName"
                 }
-            }
-        } elseif (Test-Path -LiteralPath (Join-Path $EffectiveFromDir "INSTALL-PAYLOAD.json") -PathType Leaf) {
-            $payload = Get-Content -LiteralPath (Join-Path $EffectiveFromDir "INSTALL-PAYLOAD.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-            $payloadMap = @{}
-            foreach ($f in $payload.files) { $payloadMap[$f.path] = $f.sha256.ToLowerInvariant() }
-            $wheelRel = "dist/$WheelName"
-            if (-not $payloadMap.ContainsKey($wheelRel) -or (Get-FileSha256Hex $WheelPath) -ne $payloadMap[$wheelRel]) {
-                throw "SHA-256 do wheel diverge de INSTALL-PAYLOAD.json"
             }
         } else {
             throw "SHA256SUMS ausente em FromDir: $EffectiveFromDir"
@@ -245,13 +242,23 @@ try {
         }
     }
 
+    $VerifiedDigests = @{}
+    $VerifiedDigests[$WheelName] = Get-FileSha256Hex $WheelPath
+    $VerifiedDigests[$ProfileLockName] = Get-FileSha256Hex $ProfileLockPath
+    if ($LegacyLockPath) { $VerifiedDigests[$LegacyLockName] = Get-FileSha256Hex $LegacyLockPath }
+    # SHA256SUMS itself is authenticated by attestation/API digest, without self-reference.
+    if ((Split-Path -Leaf $SumsPath) -eq "SHA256SUMS") { $VerifiedDigests["SHA256SUMS"] = Get-FileSha256Hex $SumsPath }
+    $DigestsPath = Join-Path $StageDownloads ("verified-" + $ReleaseId + ".json")
+    $VerifiedDigests | ConvertTo-Json | Set-Content -LiteralPath $DigestsPath -Encoding UTF8
+
     # 3. Verificação de attestation (gh)
     $GhCmd = Get-Command gh -ErrorAction SilentlyContinue
-    if ($GhCmd -and (-not $FromDir -or $env:TRASLADO_VERIFY_ATTESTATION -eq "1")) {
+    if ($GhCmd) {
         Write-Host "Verificando attestation criptográfica com gh..."
-        & $GhCmd.Source attestation verify $WheelPath --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
-        if ($LASTEXITCODE -ne 0) {
-            throw "Attestation reprovada para $WheelPath"
+        foreach ($artifact in @($WheelPath, $ProfileLockPath, $LegacyLockPath, $SumsPath)) {
+            if (-not $artifact) { continue }
+            & $GhCmd.Source attestation verify $artifact --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+            if ($LASTEXITCODE -ne 0) { throw "Attestation reprovada para $artifact" }
         }
     } else {
         Write-Host "Aviso: verificação automática via GitHub CLI (gh) não executada neste modo."
@@ -263,10 +270,8 @@ try {
     $ReleasesDir = Join-Path $RootFull "releases"
     New-Item -ItemType Directory -Path $ReleasesDir -Force | Out-Null
     $ReleaseDir = Join-Path $ReleasesDir $ReleaseId
-    if (Test-Path -LiteralPath $ReleaseDir) {
-        Remove-Item -LiteralPath $ReleaseDir -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
+    if (Test-Path -LiteralPath $ReleaseDir) { throw "Release ja existe: $ReleaseDir" }
+    New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
 
     if ($EffectiveFromDir) {
         $localOcrLock = Find-LocalArtifact $EffectiveFromDir @("ocr-assets.lock.json", "..\ocr-assets.lock.json")
@@ -317,6 +322,7 @@ try {
         "--profile", $NormProfile,
         "--languages", ($LangsList -join ","),
         "--root", $RootFull,
+        "--expected-digests", $DigestsPath,
         "--promote"
     )
     if ($ExtrasList.Count -gt 0) {
@@ -328,7 +334,7 @@ try {
     if ($EffectiveFromDir) {
         $SetupArgs += @("--from-dir", $EffectiveFromDir)
     }
-    if ($AllowOfflinePromotion -or ($FromDir -and $env:TRASLADO_FORCE_ONLINE_REVOCATION -ne "1")) {
+    if ($AllowOfflinePromotion) {
         $SetupArgs += "--allow-offline-promotion"
     }
     if ($SkipOCR) {
@@ -354,3 +360,6 @@ try {
     }
     exit 2
 }
+
+}
+& $InstallMain @args

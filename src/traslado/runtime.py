@@ -2,8 +2,8 @@
 # Copyright (C) 2026 Ricardo Peres Freoa
 """Small, validated settings for the locally managed installation.
 
-No environment-variable config discovery. Engine paths are derived from the
-virtual environment's parent; manifest fields cannot choose an executable.
+No environment-variable config discovery. Private models are derived from the
+release directory; current.json may record the external OCR executable.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from .pathguard import unsafe_link
 from pathlib import Path
 import re
 import sys
+import shutil
 
 DEFAULT_LANGUAGES = ("por", "eng", "spa", "ita", "fra", "deu")
 MAX_CONFIG_BYTES = 16 * 1024
@@ -79,9 +80,20 @@ def managed_tesseract() -> str | None:
         return None
     folder = root / "ocr"
     executable = folder / "tesseract.exe"
-    if _is_link(folder) or _is_link(executable) or not executable.is_file():
-        return None
-    return str(executable)
+    # In the release layout root is <managed>/releases/<id>.
+    try:
+        current_path = root.parent.parent / "current.json"
+        current = json.loads(current_path.read_text(encoding="utf-8-sig"))
+        configured = current.get("ocr", {}).get("tesseract") if current.get("release_id") == root.name else None
+        if isinstance(configured, str) and Path(configured).is_absolute() and Path(configured).is_file():
+            return configured
+    except (OSError, ValueError, AttributeError):
+        pass
+    # Compatibility with the previous managed layout without current.json.
+    if not _is_link(folder) and not _is_link(executable) and executable.is_file():
+        return str(executable)
+    return shutil.which("tesseract") if (folder / "tessdata").is_dir() else None
+
 
 
 def managed_tessdata_for(executable: str, explicit: str | None = None) -> str | None:
@@ -93,7 +105,8 @@ def managed_tessdata_for(executable: str, explicit: str | None = None) -> str | 
     managed = managed_tesseract()
     if managed is None or os.path.normcase(os.path.abspath(executable)) != os.path.normcase(os.path.abspath(managed)):
         return None
-    data = Path(managed).parent / "tessdata"
+    root = managed_root()
+    data = root / "ocr/tessdata" if root else Path(managed).parent / "tessdata"
     if _is_link(data) or not data.is_dir():
         raise ValueError("Diretório tessdata do OCR local ausente ou inválido; reinstale em pasta nova")
     return str(data)

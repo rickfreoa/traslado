@@ -150,46 +150,31 @@ def _bundle_matches_identity(entry: dict, repo: str, workflow: str = REVOCATION_
                              ref: str = REVOCATION_REF) -> bool:
     if not isinstance(entry, dict):
         return False
-    expected_wf = f"{repo}/{workflow.lstrip('/')}"
+    # Presence/declared identity only: OpenSSL parses the certificate's SAN URI.
+    # No trust chain, signature or transparency verification is claimed here.
+    import ssl
+    expected_uri = f"https://github.com/{repo}/{workflow.lstrip('/')}@{ref}"
     bundle = entry.get("bundle") if isinstance(entry.get("bundle"), dict) else entry
-    # 1. Explicit fields in bundle or entry (structured representation)
-    for container in (entry, bundle):
-        wf = container.get("signer_workflow") or container.get("workflow")
-        r = container.get("ref") or container.get("source_ref")
-        if isinstance(wf, str) and isinstance(r, str):
-            if (wf == expected_wf or wf.endswith(f"/{expected_wf}")) and r == ref:
-                return True
-    # 2. X.509 certificate rawBytes in verificationMaterial
     vm = bundle.get("verificationMaterial")
-    if isinstance(vm, dict):
-        certs = []
-        if isinstance(vm.get("certificate"), dict) and isinstance(vm["certificate"].get("rawBytes"), str):
-            certs.append(vm["certificate"]["rawBytes"])
-        chain = vm.get("x509CertificateChain")
-        if isinstance(chain, dict) and isinstance(chain.get("certificates"), list):
-            for c in chain["certificates"]:
-                if isinstance(c, dict) and isinstance(c.get("rawBytes"), str):
-                    certs.append(c["rawBytes"])
-        for raw_b64 in certs:
-            try:
-                der = base64.b64decode(raw_b64)
-            except Exception:
-                continue
-            text = der.decode("latin-1")
-            if expected_wf in text and ref in text:
-                return True
-    # 3. DSSE payload (in-toto statement)
-    dsse = bundle.get("dsseEnvelope")
-    if isinstance(dsse, dict) and isinstance(dsse.get("payload"), str):
-        try:
-            payload_raw = base64.b64decode(dsse["payload"]).decode("utf-8")
-            payload = json.loads(payload_raw)
-            serialized = json.dumps(payload)
-            if expected_wf in serialized and ref in serialized:
-                return True
-        except Exception:
-            pass
-    return False
+    if not isinstance(vm, dict):
+        return False
+    certificate = vm.get("certificate")
+    if not isinstance(certificate, dict):
+        chain = vm.get("x509CertificateChain", {})
+        certs = chain.get("certificates", []) if isinstance(chain, dict) else []
+        certificate = certs[0] if isinstance(certs, list) and certs else None  # leaf only
+    if not isinstance(certificate, dict):
+        return False
+    try:
+        der = base64.b64decode(certificate["rawBytes"], validate=True)
+        with tempfile.TemporaryDirectory(prefix="traslado-cert-") as tmp:
+            path = Path(tmp) / "certificate.pem"
+            path.write_text(ssl.DER_cert_to_PEM_cert(der), encoding="ascii")
+            decoded = ssl._ssl._test_decode_cert(str(path))
+        return ("URI", expected_uri) in decoded.get("subjectAltName", ())
+    except (KeyError, ValueError, TypeError, OSError, ssl.SSLError):
+        return False
+
 
 
 def verify_revoked_attestation(
@@ -274,8 +259,12 @@ def verify_release_channel(release_data: dict, version: str,
     if not isinstance(assets_list, list):
         raise RevocationError("Lista de assets ausente na API de releases")
     by_name = {a.get("name"): a for a in assets_list if isinstance(a, dict) and isinstance(a.get("name"), str)}
+    if not expected_digests:
+        raise RevocationError("Mapa de digests vazio; segundo canal incompleto")
     if expected_digests:
         for name, expected_sha in expected_digests.items():
+            if not isinstance(expected_sha, str) or not re.fullmatch(r"(?:sha256:)?[0-9a-fA-F]{64}", expected_sha):
+                raise RevocationError(f"Digest invalido para {name!r}")
             norm_expected = expected_sha.lower().removeprefix("sha256:")
             asset = by_name.get(name)
             if asset is None:

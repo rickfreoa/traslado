@@ -3,6 +3,7 @@
 # Copyright (C) 2026 Ricardo Peres Freoa
 # Fonte correspondente: https://github.com/rickfreoa/traslado/tree/v2.0.0
 # Códigos de saída: 0 = instalado/ativo; 1 = erro de download, hash ou attestation; 2 = falha nos gates ou parâmetros.
+main() {
 set -eu
 
 VERSION="2.0.0"
@@ -125,17 +126,20 @@ find_local() {
     return 1
 }
 
-PAYLOAD_KEY="${CLEAN_VERSION}|${NORM_PROFILE}|${EXTRAS}|${LANGUAGES}|"
-HASH_PREFIX="$(sha256_string "$PAYLOAD_KEY" | cut -c1-32)"
-RELEASE_ID="${CLEAN_VERSION}_${HASH_PREFIX}"
-
-if [ -f "$ROOT/current.json" ] && [ -x "$ROOT/releases/$RELEASE_ID/.venv/bin/python" ]; then
-    if grep -q "\"release_id\": \"$RELEASE_ID\"" "$ROOT/current.json" 2>/dev/null; then
-        echo "Traslado $CLEAN_VERSION ($NORM_PROFILE) já está ativo em $ROOT ($RELEASE_ID)."
-        echo "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v$CLEAN_VERSION"
-        exit 0
-    fi
+# Read only the active interpreter path; the installed CLI validates profile and integrity.
+if [ -f "$ROOT/current.json" ]; then
+    ACTIVE_ID="$(sed -n 's/.*"release_id": "\([^"]*\)".*/\1/p' "$ROOT/current.json")"
+    case "$ACTIVE_ID" in
+        *[!a-zA-Z0-9_.-]*|'') ;;
+        *) ACTIVE_PY="$ROOT/releases/$ACTIVE_ID/.venv/bin/python"
+           if [ -x "$ACTIVE_PY" ] && "$ACTIVE_PY" -I -m traslado setup --check-active --expected-version "$CLEAN_VERSION" --root "$ROOT" --profile "$NORM_PROFILE" --extras "$EXTRAS" --languages "$LANGUAGES"; then
+               echo "Traslado $CLEAN_VERSION ($NORM_PROFILE) ja esta ativo e integro."
+               return 0
+           fi ;;
+    esac
 fi
+# Fresh candidate every time; mkdir below refuses collisions.
+RELEASE_ID="${CLEAN_VERSION}_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
 
 # 1. Obter uv fixado por versão e SHA-256
 if [ -n "${TRASLADO_TEST_UV:-}" ] && [ -x "${TRASLADO_TEST_UV}" ]; then
@@ -214,7 +218,7 @@ check_sum_entry() {
 LEGACY_LOCK_PATH=""
 if [ -n "$FROM_DIR" ]; then
     FROM_DIR="$(CDPATH= cd -- "$FROM_DIR" && pwd)"
-    SUMS_PATH="$(find_local "$FROM_DIR" "SHA256SUMS" "../SHA256SUMS" || true)"
+    SUMS_PATH="$(find_local "$FROM_DIR" "SHA256SUMS" "../SHA256SUMS" "PAYLOAD-SHA256SUMS" || true)"
     WHEEL_PATH="$(find_local "$FROM_DIR" "$WHEEL_NAME" "dist/$WHEEL_NAME" || true)"
     PROFILE_LOCK_PATH="$(find_local "$FROM_DIR" "$PROFILE_LOCK_NAME" "locks/$PROFILE_LOCK_NAME" || true)"
     if [ -z "$WHEEL_PATH" ] || [ -z "$PROFILE_LOCK_PATH" ] || [ -z "$SUMS_PATH" ]; then
@@ -250,10 +254,25 @@ else
     esac
 fi
 
+DIGESTS_PATH="$STAGE_DOWNLOADS/verified-$RELEASE_ID.json"
+{
+    printf '{"%s":"%s","%s":"%s"' "$WHEEL_NAME" "$(sha256_file "$WHEEL_PATH")" "$PROFILE_LOCK_NAME" "$(sha256_file "$PROFILE_LOCK_PATH")"
+    if [ -n "$LEGACY_LOCK_PATH" ]; then
+        printf ',"%s":"%s"' "$LEGACY_LOCK_NAME" "$(sha256_file "$LEGACY_LOCK_PATH")"
+    fi
+    if [ "$(basename "$SUMS_PATH")" = "SHA256SUMS" ]; then
+        printf ',"SHA256SUMS":"%s"' "$(sha256_file "$SUMS_PATH")"
+    fi
+    printf '}\n'
+} > "$DIGESTS_PATH"
+
 # 3. Verificação de attestation (gh)
-if command -v gh >/dev/null 2>&1 && { [ -z "$FROM_DIR" ] || [ "${TRASLADO_VERIFY_ATTESTATION:-0}" = "1" ]; }; then
+if command -v gh >/dev/null 2>&1; then
     echo "Verificando attestation criptográfica com gh..."
-    gh attestation verify "$WHEEL_PATH" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml || exit 1
+    for artifact in "$WHEEL_PATH" "$PROFILE_LOCK_PATH" "$LEGACY_LOCK_PATH" "$SUMS_PATH"; do
+        [ -n "$artifact" ] || continue
+        gh attestation verify "$artifact" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml || exit 1
+    done
 else
     echo "Aviso: verificação automática via GitHub CLI (gh) não executada neste modo."
     echo "O controle principal de autenticidade é manual:"
@@ -262,8 +281,8 @@ fi
 
 # 4. Criar .venv com Python 3.13 gerenciado
 RELEASE_DIR="$ROOT/releases/$RELEASE_ID"
-rm -rf "$RELEASE_DIR"
-mkdir -p "$RELEASE_DIR"
+mkdir -p "$ROOT/releases"
+mkdir "$RELEASE_DIR" || exit 2
 
 if [ -n "$FROM_DIR" ]; then
     LOCAL_OCR_LOCK="$(find_local "$FROM_DIR" "ocr-assets.lock.json" "../ocr-assets.lock.json" || true)"
@@ -298,6 +317,7 @@ set -- -I -m traslado setup \
     --profile "$NORM_PROFILE" \
     --languages "$LANGUAGES" \
     --root "$ROOT" \
+    --expected-digests "$DIGESTS_PATH" \
     --promote
 
 if [ -n "$EXTRAS" ]; then
@@ -309,7 +329,7 @@ fi
 if [ -n "$FROM_DIR" ]; then
     set -- "$@" --from-dir "$FROM_DIR"
 fi
-if [ "$ALLOW_OFFLINE_PROMOTION" -eq 1 ] || { [ -n "$FROM_DIR" ] && [ "${TRASLADO_FORCE_ONLINE_REVOCATION:-0}" != "1" ]; }; then
+if [ "$ALLOW_OFFLINE_PROMOTION" -eq 1 ]; then
     set -- "$@" --allow-offline-promotion
 fi
 if [ "$SKIP_OCR" -eq 1 ]; then
@@ -327,3 +347,5 @@ fi
 
 echo "Instalação do Traslado $CLEAN_VERSION concluída e ativa em $ROOT."
 exit 0
+}
+main "$@"
