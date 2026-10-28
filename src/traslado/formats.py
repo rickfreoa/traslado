@@ -11,6 +11,8 @@ from pathlib import Path
 import re
 import warnings
 
+from .errors import ConversionError, exception_name, localized
+
 from .model import Block, Document, Options, Page, text_metrics
 from .ocr import recognize
 from .safety import check_archive
@@ -50,8 +52,22 @@ def image_to_png(data: bytes | Path, output: Path, options: Options) -> None:
         warnings.simplefilter("error", Image.DecompressionBombWarning)
         with Image.open(source) as im:
             if im.width * im.height > options.max_pixels:
-                raise ValueError("Imagem excede limite de pixels")
+                raise ConversionError('resource_limit', "Imagem excede limite de pixels")
+            _load_image(im)
             im.convert("RGB").save(output, "PNG")
+
+
+def _load_image(image) -> None:
+    try:
+        image.load()
+    except OSError as exc:
+        # Pillow reports truncated/invalid raster data as OSError without errno.
+        # Real filesystem failures retain their errno and their I/O code.
+        if exc.errno is None:
+            error = ConversionError("malformed", str(exc))
+            error._warning_name = type(exc).__name__
+            raise error from exc
+        raise
 
 
 def _docx_paragraph_text(paragraph, note_reference=None) -> str:
@@ -112,7 +128,7 @@ def docx_table(table, options: Options, note_reference=None) -> Block:
         for tc in row.tc_lst:
             count += 1
             if count > options.max_cells:
-                raise ValueError("Tabela excede limite de células")
+                raise ConversionError('resource_limit', "Tabela excede limite de células")
             pr = tc.tcPr
             span = 1
             merge = None
@@ -122,7 +138,7 @@ def docx_table(table, options: Options, note_reference=None) -> Block:
                 span = int(grid.get(qn("w:val"), "1")) if grid is not None else 1
                 merge = vertical.get(qn("w:val"), "continue") if vertical is not None else None
             if not 1 <= span <= options.max_cells:
-                raise ValueError("Mescla de tabela excede limite de células")
+                raise ConversionError('resource_limit', "Mescla de tabela excede limite de células")
             text = "\n".join(_docx_paragraph_text(p, note_reference) for p in tc.iter(qn("w:p")))
             if any(True for _ in tc.iter(qn("w:tbl"))):
                 notes.append("docx_nested_table_structure_flattened")
@@ -130,7 +146,7 @@ def docx_table(table, options: Options, note_reference=None) -> Block:
         before = row.trPr.find(qn("w:gridBefore")) if row.trPr is not None else None
         start = int(before.get(qn("w:val"), "0")) if before is not None else 0
         if not 0 <= start <= options.max_cells:
-            raise ValueError("Deslocamento de tabela inválido")
+            raise ConversionError('malformed', "Deslocamento de tabela inválido")
         rows.append((start, cells))
     active = {}
     for start, row in rows:
@@ -295,7 +311,8 @@ def _extract_docx(path: Path, workspace: Path, options: Options, document: Docum
                             image_to_png(doc.part.related_parts[rid].blob, target, options)
                             page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="python-docx"))
                         except (OSError, ValueError) as exc:
-                            page.warnings.append("docx_image_failed: " + type(exc).__name__)
+                            localized(document, page, exc)
+                            page.warnings.append("docx_image_failed: " + exception_name(exc))
         elif node.tag == qn("w:tbl"):
             block = docx_table(Table(node, doc), options, note_reference)
             page.blocks.append(block)
@@ -334,13 +351,13 @@ def _extract_xlsx(path: Path, workspace: Path, options: Options, document: Docum
     total_cells = 0
     try:
         if len(wb.worksheets) > options.max_pages:
-            raise ValueError("Planilha excede limite de abas")
+            raise ConversionError('resource_limit', "Planilha excede limite de abas")
         for index, sheet in enumerate(wb.worksheets, 1):
             rows = []
             for row in sheet.iter_rows(values_only=True):
                 total_cells += len(row)
                 if total_cells > options.max_cells:
-                    raise ValueError("Planilha excede limite de células")
+                    raise ConversionError('resource_limit', "Planilha excede limite de células")
                 rows.append(["" if c is None else str(c) for c in row])
             document.pages.append(Page(index, "native", [Block("text", f"## {sheet.title}"),
                                   Block("table", rows=rows, engine="openpyxl")],
@@ -359,7 +376,7 @@ def _extract_pptx(path: Path, workspace: Path, options: Options, document: Docum
     from pptx.enum.shapes import MSO_SHAPE_TYPE
     prs = Presentation(path)
     if len(prs.slides) > options.max_pages:
-        raise ValueError("Apresentação excede limite de slides")
+        raise ConversionError('resource_limit', "Apresentação excede limite de slides")
     document.pages.clear()
     for index, slide in enumerate(prs.slides, 1):
         page = Page(index, "native", warnings=["pptx_groups_notes_charts_not_extracted", "pptx_order_geometric_heuristic"])
@@ -375,7 +392,7 @@ def _extract_pptx(path: Path, workspace: Path, options: Options, document: Docum
             if shape.has_table:
                 rows = [[c.text for c in row.cells] for row in shape.table.rows]
                 if sum(len(r) for r in rows) > options.max_cells:
-                    raise ValueError("Tabela excede limite de células")
+                    raise ConversionError('resource_limit', "Tabela excede limite de células")
                 page.blocks.append(Block("table", rows=rows, engine="python-pptx"))
             elif shape.has_text_frame:
                 page.blocks.append(Block("text", shape.text, engine="python-pptx"))
@@ -384,10 +401,11 @@ def _extract_pptx(path: Path, workspace: Path, options: Options, document: Docum
                 try:
                     image_to_png(shape.image.blob, target, options)
                 except (OSError, ValueError) as exc:
+                    localized(document, page, exc)
                     # A failed optional image cannot discard valid slide
                     # text/tables. Never publish an incomplete image asset.
                     target.unlink(missing_ok=True)
-                    page.warnings.append(f"pptx_image_failed: shape={number} {type(exc).__name__}")
+                    page.warnings.append(f"pptx_image_failed: shape={number} {exception_name(exc)}")
                 else:
                     page.blocks.append(Block("image", asset=f"assets/{target.name}", engine="python-pptx"))
 
@@ -402,11 +420,12 @@ def _extract_image(path: Path, workspace: Path, options: Options, document: Docu
     with Image.open(path) as source:
         count = getattr(source, "n_frames", 1)
         if count > options.max_pages:
-            raise ValueError("Imagem excede limite de quadros")
+            raise ConversionError('resource_limit', "Imagem excede limite de quadros")
         for index in range(count):
             source.seek(index)
             if source.width * source.height > options.max_pixels:
-                raise ValueError("Imagem excede limite de pixels")
+                raise ConversionError('resource_limit', "Imagem excede limite de pixels")
+            _load_image(source)
             target = assets / f"image-{index+1}.png"
             source.convert("RGB").save(target, "PNG")
             page = Page(index+1, "image" if options.mode == "native" else "ocr")
@@ -421,6 +440,7 @@ def _extract_image(path: Path, workspace: Path, options: Options, document: Docu
                     page.blocks.append(block)
                     page.warnings.extend(notes)
                 except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                    localized(document, page, exc)
                     page.warnings.append("ocr_failed: " + str(exc))
             page.warnings.append("image_semantics_unverified")
             if not options.images:
@@ -435,13 +455,13 @@ def _extract_csv(path: Path, workspace: Path, options: Options, document: Docume
     try:
         text = path.read_text(encoding="utf-8-sig", errors="strict")
     except UnicodeDecodeError as exc:
-        raise ValueError("Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
+        raise ConversionError('malformed', "Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
     reader = csv.reader(io.StringIO(text, newline=""), delimiter="\t" if suffix == ".tsv" else ",")
     rows, count = [], 0
     for row in reader:
         count += len(row)
         if count > options.max_cells:
-            raise ValueError("CSV excede limite de células")
+            raise ConversionError('resource_limit', "CSV excede limite de células")
         rows.append(row)
     page.blocks.append(Block("table", rows=rows, engine="csv"))
     metrics = text_metrics(text)
@@ -458,7 +478,7 @@ def _extract_html(path: Path, workspace: Path, options: Options, document: Docum
     try:
         text = path.read_text(encoding="utf-8-sig", errors="strict")
     except UnicodeDecodeError as exc:
-        raise ValueError("Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
+        raise ConversionError('malformed', "Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
     parser = HTMLText()
     parser.feed(text)
     page.blocks.append(Block("text", "".join(parser.parts), engine="html.parser"))
@@ -477,7 +497,7 @@ def _extract_text(path: Path, workspace: Path, options: Options, document: Docum
     try:
         text = path.read_text(encoding="utf-8-sig", errors="strict")
     except UnicodeDecodeError as exc:
-        raise ValueError("Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
+        raise ConversionError('malformed', "Texto deve estar em UTF-8; converta a codificação antes de processar") from exc
     if suffix in {".json", ".xml"}:
         fence = "`" * max(3, 1 + max((len(x) for x in __import__('re').findall(r'`+', text)), default=0))
         page.blocks.append(Block("text", f"{fence}{suffix[1:]}\n{text}\n{fence}"))
@@ -499,8 +519,38 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
     assets = workspace / "assets"
     assets.mkdir(exist_ok=True)
     if converter is None:
-        raise ValueError("Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
-    converter.extract(path, workspace, options, document)
+        raise ConversionError('unsupported', "Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
+    try:
+        converter.extract(path, workspace, options, document)
+    except ConversionError:
+        raise
+    except Exception as exc:
+        # Parser-specific failures are classified here, while filesystem errors
+        # retain their I/O meaning. Unknown programming errors stay internal.
+        import zipfile
+        import zlib
+        from xml.etree.ElementTree import ParseError
+        if isinstance(exc, ModuleNotFoundError) and (exc.name or "").split(".")[0] in converter.requires:
+            raise ConversionError("unsupported", str(exc)) from exc
+        if isinstance(exc, ModuleNotFoundError) and (exc.name or "").split(".")[0] in converter.optional:
+            raise ConversionError("missing_part", str(exc)) from exc
+        if isinstance(exc, (zipfile.BadZipFile, zlib.error, ParseError)) or type(exc).__name__ in {
+                "XMLSyntaxError", "FileDataError", "EmptyFileError", "UnidentifiedImageError"}:
+            raise ConversionError("malformed", str(exc)) from exc
+        if converter.id in {"docx", "xlsx", "pptx"}:
+            required = {"docx": "word/document.xml", "xlsx": "xl/workbook.xml", "pptx": "ppt/presentation.xml"}
+            with zipfile.ZipFile(path) as archive:
+                missing = not {"[Content_Types].xml", required[converter.id]} <= set(archive.namelist())
+            if missing or isinstance(exc, KeyError):
+                raise ConversionError("missing_part", str(exc)) from exc
+            if isinstance(exc, ValueError):
+                raise ConversionError("malformed", str(exc)) from exc
+        if converter.id == "image" and isinstance(exc, (EOFError, SyntaxError)):
+            raise ConversionError("malformed", str(exc)) from exc
+        if isinstance(exc, csv.Error):
+            code = "resource_limit" if str(exc).startswith("field larger than field limit") else "malformed"
+            raise ConversionError(code, str(exc)) from exc
+        raise
     # PDF already emits image_semantics_unverified itself, as before.
     if converter.id == "pdf":
         return

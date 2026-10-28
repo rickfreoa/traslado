@@ -2,6 +2,7 @@ from __future__ import annotations
 import importlib.util
 import contextlib
 import io
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -71,6 +72,23 @@ class CloudGuardsRC5(unittest.TestCase):
             self.assertEqual(installer.no_links(file), file.resolve())
 
 class InstallerDiagnosticsRC5(unittest.TestCase):
+    def setUp(self):
+        # Windows run() authenticates its supervisor against the payload before
+        # spawning. Supply that real contract inside the test's private fixture.
+        if os.name == 'nt':
+            temporary = tempfile.TemporaryDirectory()
+            self.addCleanup(temporary.cleanup)
+            package = Path(temporary.name)
+            helper = package / 'src/traslado/windows_job.py'
+            helper.parent.mkdir(parents=True)
+            data = (SOURCE / 'src/traslado/windows_job.py').read_bytes()
+            helper.write_bytes(data)
+            (package / 'INSTALL-PAYLOAD.json').write_text(json.dumps({'files': [
+                {'path': 'src/traslado/windows_job.py', 'sha256': hashlib.sha256(data).hexdigest()}]}))
+            patcher = patch.object(installer, '__file__', str(package / 'scripts/install_windows.py'))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     def test_child_error_is_visible_and_persisted_even_without_capture(self):
         with tempfile.TemporaryDirectory() as raw:
             logs = Path(raw).resolve()

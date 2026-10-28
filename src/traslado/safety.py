@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import codecs
 import os
+from .errors import ConversionError, ConversionTimeout
+
 from .pathguard import unsafe_link
 from pathlib import Path, PurePosixPath
 import stat
@@ -16,8 +18,9 @@ from typing import Callable
 from .model import Options
 
 
-class Cancelled(RuntimeError):
-    pass
+class Cancelled(ConversionError):
+    def __init__(self, message):
+        super().__init__("cancelled", message)
 
 
 class SnapshotLock:
@@ -70,19 +73,19 @@ def check_archive(path: Path, options: Options) -> None:
     with zipfile.ZipFile(path) as archive:
         infos = archive.infolist()
         if len(infos) > 20000 or sum(x.file_size for x in infos) > options.max_archive_bytes:
-            raise ValueError("Arquivo Office excede o limite de descompressão")
+            raise ConversionError('resource_limit', "Arquivo Office excede o limite de descompressão")
         names: set[str] = set()
         for info in infos:
             name = info.filename.replace("\\", "/")
             if name in names:
-                raise ValueError("Membro ZIP duplicado")
+                raise ConversionError('malformed', "Membro ZIP duplicado")
             names.add(name)
             if PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts or ":" in name:
-                raise ValueError("Caminho ZIP inseguro")
+                raise ConversionError('malformed', "Caminho ZIP inseguro")
             if stat.S_ISLNK(info.external_attr >> 16):
-                raise ValueError("Link ZIP não permitido")
+                raise ConversionError('malformed', "Link ZIP não permitido")
             if info.file_size > 10 * 1024 * 1024 and info.file_size / max(info.compress_size, 1) > 500:
-                raise ValueError("Taxa de compressão Office excessiva")
+                raise ConversionError('resource_limit', "Taxa de compressão Office excessiva")
             if name.lower().endswith((".xml", ".rels")):
                 with archive.open(info) as stream:
                     first = stream.read(64 * 1024)
@@ -92,7 +95,7 @@ def check_archive(path: Path, options: Options) -> None:
                     elif first.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
                         encoding = "utf-16"
                     elif b"\0" in first:
-                        raise ValueError("XML sem BOM ou codificação não suportada")
+                        raise ConversionError('malformed', "XML sem BOM ou codificação não suportada")
                     decoder = codecs.getincrementaldecoder(encoding)(errors="strict")
                     tail = ""
                     chunk = first
@@ -100,9 +103,9 @@ def check_archive(path: Path, options: Options) -> None:
                         try:
                             combined = (tail + decoder.decode(chunk)).lower()
                         except UnicodeError as exc:
-                            raise ValueError("Codificação XML não suportada") from exc
+                            raise ConversionError('malformed', "Codificação XML não suportada") from exc
                         if "<!doctype" in combined or "<!entity" in combined:
-                            raise ValueError("DTD ou entidades XML não permitidos")
+                            raise ConversionError('malformed', "DTD ou entidades XML não permitidos")
                         tail = combined[-16:]
                         chunk = stream.read(64 * 1024)
                     decoder.decode(b"", final=True)
@@ -164,9 +167,9 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
                 if cancel and cancel():
                     raise Cancelled("Conversão cancelada")
                 if time.monotonic() - started > timeout:
-                    raise TimeoutError("Tempo limite excedido")
+                    raise ConversionTimeout("Tempo limite excedido")
                 if log.stat().st_size > max_log_bytes:
-                    raise ValueError("Log excede o limite")
+                    raise ConversionError('resource_limit', "Log excede o limite")
                 if budget_root and max_directory_bytes:
                     total = 0
                     for path in budget_root.rglob("*"):
@@ -176,10 +179,10 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
                         except FileNotFoundError:
                             continue
                         if total > max_directory_bytes:
-                            raise ValueError("Arquivos temporários excedem limite de saída")
+                            raise ConversionError('resource_limit', "Arquivos temporários excedem limite de saída")
                 time.sleep(0.05)
             if log.stat().st_size > max_log_bytes:
-                raise ValueError("Log excede o limite")
+                raise ConversionError('resource_limit', "Log excede o limite")
             return proc.returncode
         finally:
             if job:
@@ -191,5 +194,5 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
 def safe_child(root: Path, name: str) -> Path:
     path = root / name
     if path.resolve().parent != root.resolve() or path.is_symlink():
-        raise ValueError("Saída insegura")
+        raise ConversionError('malformed', "Saída insegura")
     return path

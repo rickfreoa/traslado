@@ -8,10 +8,19 @@ from pathlib import Path
 import sys
 import tomllib
 
+from .errors import ConversionError, classify
+
 from . import __version__
 from .doctor import inspect
 from .model import Options
 from .runner import discover, execute
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message):
+        print(json.dumps({"status": "failed", "error": message, "error_code": "malformed"},
+                         ensure_ascii=False), file=sys.stderr)
+        self.exit(2)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if stream is not None and hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="Traslado — conversão local")
+    parser = _Parser(description="Traslado — conversão local")
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="command", required=True)
     doctor = sub.add_parser("doctor", help="Verificar instalação e capacidades")
@@ -62,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         values = {}
         if args.config:
             if args.config.stat().st_size > 64 * 1024:
-                raise ValueError("Configuração excede limite")
+                raise ConversionError('resource_limit', "Configuração excede limite")
             data = tomllib.loads(args.config.read_text(encoding="utf-8"))
             if set(data) != {"conversion"} or not isinstance(data["conversion"], dict):
                 raise ValueError("Use somente a seção [conversion]")
@@ -81,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         options = Options(**values)
         files = discover(args.source, args.output, args.recursive)
         if not files:
-            raise ValueError("Nenhum arquivo suportado encontrado")
+            raise ConversionError("unsupported", "Nenhum arquivo suportado encontrado")
         results = []
         for file in files:
             result = execute(file, args.output, options)
@@ -92,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
-        print(json.dumps({"status": "failed", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        print(json.dumps({"status": "failed", "error": str(exc), "error_code": ("malformed" if isinstance(exc, (ValueError, TypeError)) and not isinstance(exc, ConversionError) else classify(exc).code)}, ensure_ascii=False), file=sys.stderr)
         return 2
 
 

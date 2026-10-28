@@ -4,6 +4,8 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 
 ## 2.0.0 (em andamento)
 
+- Detecção pelo conteúdo para PDF, OOXML, imagens cadastradas e HTML; extensão divergente gera `format_extension_mismatch`, com despacho pelo formato detectado. OLE2, RTF, ODF e EPUB são identificados para diagnóstico e recusados pelo perfil padrão.
+- Erros tipados no worker, no resultado por arquivo e no stderr do CLI, com `error_pages` para OCR indisponível; códigos de saída e mensagens anteriores preservados.
 - Distribuição e módulo `traslado`, com aliases de módulo `freoa_v6` na série 2.x.
 - Comandos `traslado` e `traslado-gui`; aliases `freoa-md` e `freoa-md-gui` mantidos.
 - Artefatos e avisos de conversão preservados; doctor informa o módulo.
