@@ -196,9 +196,13 @@ def _audit_macos(managed_root: Path) -> tuple[list[str], dict]:
             proc = subprocess.run(["otool", "-L", str(bpath)], capture_output=True, text=True, encoding="utf-8", errors="replace")
             lines = [ln.strip() for ln in (proc.stdout or "").splitlines()[1:] if ln.strip()]
             otool_records[str(bpath)] = lines
+            # Numa dylib, otool -L lista também o próprio install name (LC_ID_DYLIB), que não é dependência;
+            # o delocate do Pillow usa o prefixo fictício /DLC/ nesse campo.
+            ident = subprocess.run(["otool", "-D", str(bpath)], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            proprio = {ln.strip() for ln in (ident.stdout or "").splitlines()[1:] if ln.strip()}
             for ln in lines:
                 lib = ln.split(" (compatibility version")[0].strip()
-                if lib:
+                if lib and lib not in proprio:
                     observed_paths.add(lib)
 
     # Captura bibliotecas efetivamente carregadas em runtime via DYLD_PRINT_LIBRARIES

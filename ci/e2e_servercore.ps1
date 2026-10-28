@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 $ErrorActionPreference = 'Stop'
 if (Get-Command python,python3,uv,tesseract -ErrorAction SilentlyContinue) { throw 'Imagem Server Core não está limpa' }
-& C:\dist\install.ps1 -FromDir C:\dist -Root C:\teste\Traslado -Yes -NoShortcut -SkipOCR
+$env:TRASLADO_PROMOCAO_OFFLINE = 'teste'  # artefatos locais de CI; revogacao real so no E2E publicado (E11)
+& C:\dist\install.ps1 -FromDir C:\dist -Root C:\teste\Traslado -Yes -NoShortcut -SkipOCR -AllowOfflinePromotion
 if ($LASTEXITCODE -ne 0) { throw "install.ps1 falhou: $LASTEXITCODE" }
 $current = Get-Content C:\teste\Traslado\current.json -Raw | ConvertFrom-Json
 $python = "C:\teste\Traslado\releases\$($current.release_id)\.venv\Scripts\python.exe"
