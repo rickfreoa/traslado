@@ -234,7 +234,7 @@ def conferir_composicao(p: Path) -> list[str]:
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
     elif p.name == prefix + "-windows.zip":
-        expected = {prefix + "-windows/" + n for n in nomes | {"INSTALL-PAYLOAD.json", f"dist/{prefix}-py3-none-any.whl"}}
+        expected = {prefix + "-windows/" + n for n in nomes | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{prefix}-py3-none-any.whl"}}
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
     elif p.name == prefix + ".tar.gz":
