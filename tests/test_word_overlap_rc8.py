@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """User-requested word boundaries for the repeated chunk prefix."""
 import unittest
 from traslado.chunks import _ranges, _overlap_start, generate_chunks

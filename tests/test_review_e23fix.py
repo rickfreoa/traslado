@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Regressions for all ten findings in the independent E2/E3 review."""
 import io
 import json
@@ -24,7 +26,7 @@ def rewrite_member(path, member, payload):
 
 def candidate(root, release='v1', gates=None):
     (root / 'releases' / release).mkdir(parents=True, exist_ok=True)
-    platform.write_candidate(root, {'release_id': release, 'gates': gates if gates is not None else {'doctor': True, 'fixture': True}})
+    platform.write_candidate(root, {'release_id': release, 'gates': gates if gates is not None else {'doctor': True, 'fixture': True, 'revocation': 'ok'}})
 
 class ReviewE23Fix(unittest.TestCase):
 

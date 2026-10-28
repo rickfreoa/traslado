@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """User-visible contracts: replacement recovery, OCR languages and exact chunk slices."""
 import hashlib
 import json

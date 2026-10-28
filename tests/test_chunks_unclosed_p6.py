@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """P6-3: cerca ou <table> sem fechamento deixa de proteger até o fim do documento; vale até o fim do bloco de origem."""
 from __future__ import annotations
 

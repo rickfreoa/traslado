@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from typing import Callable
 
 from . import __version__
@@ -446,6 +447,7 @@ def run_fixture_gate(
     tesseract: str | None = None,
     tessdata: str | None = None,
     execute_fn: Callable[..., dict] | None = None,
+    chunks: bool = False,
 ) -> bool:
     assets_dir = Path(__file__).resolve().parent / "assets"
     docx_fixture = assets_dir / "fixture.docx"
@@ -469,44 +471,54 @@ def run_fixture_gate(
                 txt_fixture.write_text("Traslado verificacao de instalacao Core OK.\n", encoding="utf-8")
                 targets = [txt_fixture]
 
-        opts = Options(mode="native", chunks=False, tesseract=tesseract, tessdata=tessdata)
+        opts = Options(mode="native", chunks=chunks, tesseract=tesseract, tessdata=tessdata)
         for fixture in targets:
             try:
                 res = exec_call(fixture, out_dir, opts)
             except Exception as exc:
                 print(f"FIXTURE_GATE_FAILED {fixture.name}: {type(exc).__name__}: {exc}", file=sys.stderr)
                 return False
-            if not isinstance(res, dict) or res.get("status") not in {"complete", "partial", "ok"}:
-                print(f"FIXTURE_GATE_FAILED {fixture.name}: {res!r}", file=sys.stderr)
+            if (not isinstance(res, dict) or res.get("status") not in {"complete", "partial"}
+                    or "error_code" in res or not res.get("output")):
                 return False
-            output_folder = res.get("output")
-            if output_folder:
-                out_path = Path(output_folder)
-                if not (out_path / "document.md").is_file() or not (out_path / "manifest.json").is_file():
-                    return False
+            out_path = Path(res["output"])
+            required = ["document.md", "document.json", "manifest.json", "LEIA-AVISOS.txt"]
+            if chunks:
+                required.append("chunks/chunks.jsonl")
+            if not all((out_path / name).is_file() for name in required):
+                return False
     return True
 
 
-def _load_expected_digests(from_dir: Path | None, version: str, profile: str, extras: list[str]) -> dict[str, str]:
-    digests: dict[str, str] = {}
-    if not from_dir:
-        return digests
-    sums_candidates = [from_dir / "SHA256SUMS", from_dir.parent / "SHA256SUMS"]
-    for sums_path in sums_candidates:
-        if sums_path.is_file():
-            for line in sums_path.read_text(encoding="utf-8-sig").splitlines():
-                parts = line.strip().split()
-                if len(parts) >= 2 and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
-                    name = parts[-1].lstrip("*")
-                    digests[name] = parts[0].lower()
-            break
-    wanted = {
-        f"traslado-{version}-py3-none-any.whl",
-        f"requirements-{profile.lower()}.hashes.lock",
-    }
+def release_integrity(release_dir: Path) -> dict[str, str]:
+    return {p.relative_to(release_dir).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(release_dir.rglob("*"))
+            if p.is_file() and "__pycache__" not in p.parts and p.name != "release-integrity.json"}
+
+
+def active_release_matches(root: Path, version: str, profile: str, extras=None, languages=None) -> bool:
+    current = plat.read_current(root)
+    if not current or (current.get("version"), current.get("profile"), current.get("extras"), current.get("languages")) != (
+            version, profile, normalize_extras(extras), normalize_languages(languages)):
+        return False
+    try:
+        release = plat._release(root, current["release_id"])
+        inventory = json.loads((release / "release-integrity.json").read_text(encoding="utf-8"))
+        return bool(inventory) and plat.release_python(root, current["release_id"]).is_file() and inventory == release_integrity(release)
+    except (OSError, ValueError, KeyError):
+        return False
+
+
+def validate_bootstrap_digests(digests: dict | None, version: str, profile: str, extras: list[str]) -> dict:
+    required = {f"traslado-{version}-py3-none-any.whl", f"requirements-{profile.lower()}.hashes.lock"}
     if "legacy" in extras:
-        wanted.add("requirements-legacy.hashes.lock")
-    return {k: v for k, v in digests.items() if k in wanted} if digests else {}
+        required.add("requirements-legacy.hashes.lock")
+    if not isinstance(digests, dict) or not required <= digests.keys():
+        raise ValueError("Mapa de digests vazio ou incompleto do bootstrap")
+    if any(not isinstance(k, str) or not isinstance(v, str) or not re.fullmatch(r"[0-9a-f]{64}", v)
+           for k, v in digests.items()):
+        raise ValueError("Mapa de digests invalido do bootstrap")
+    return digests
 
 
 def setup_release(
@@ -545,8 +557,11 @@ def setup_release(
     norm_langs = normalize_languages(languages)
     shortcut_dirs = _shortcut_dirs_from_env(env, desktop_dir, start_menu_dir, applications_dir, icons_dir)
 
+    if release_id is None and promote and active_release_matches(managed, __version__, norm_profile, norm_extras, norm_langs):
+        return plat.read_current(managed)
+
     if release_id is None:
-        # Derive from current interpreter if inside <root>/releases/<id>/.venv, else deterministic id.
+        # Derive from this candidate interpreter, otherwise allocate a fresh id.
         try:
             rel_parts = Path(sys.prefix).resolve().relative_to(managed.resolve() / "releases").parts
             if rel_parts:
@@ -554,7 +569,7 @@ def setup_release(
         except Exception:
             pass
         if not release_id:
-            release_id = compute_release_id(__version__, norm_profile, norm_extras, norm_langs)
+            release_id = compute_release_id(__version__, norm_profile, norm_extras, norm_langs, uuid.uuid4().hex)
 
     # Idempotency check: if current.json already has the exact same active release, do not mutate current.json.
     current = plat.read_current(managed)
@@ -567,7 +582,7 @@ def setup_release(
         and current.get("profile") == norm_profile
         and sorted(current.get("extras") or []) == norm_extras
         and (current.get("languages") or []) == norm_langs
-        and (managed / "releases" / release_id).is_dir()
+        and active_release_matches(managed, __version__, norm_profile, norm_extras, norm_langs)
     ):
         handle_legacy_windows(
             managed,
@@ -581,7 +596,9 @@ def setup_release(
         print(f"Licença: AGPL-3.0-or-later | Fonte: {REPOSITORY_URL}/tree/v{__version__}")
         return current
 
-    release_dir = managed / "releases" / release_id
+    if isinstance(current, dict) and release_id in {current.get("release_id"), current.get("previous_release_id")}:
+        raise ValueError("Release referenciada nao pode ser reconstruida; use novo release_id")
+    release_dir = plat._release(managed, release_id)
     release_dir.mkdir(parents=True, exist_ok=True)
     expected_py = plat.release_python(managed, release_id, platform=platform_name)
     python_exe = str(expected_py.resolve()) if expected_py.is_file() else str(Path(sys.executable).resolve())
@@ -634,17 +651,6 @@ def setup_release(
         **shortcut_dirs,
     )
 
-    # (b) Atalho "Traslado"
-    if not no_shortcut:
-        shortcut_target = expected_py if expected_py.is_file() else Path(python_exe)
-        plat.create_shortcut(
-            shortcut_target,
-            name="Traslado",
-            platform=platform_name,
-            home=home_path,
-            **shortcut_dirs,
-        )
-
     # (c) Doctor
     inspect_call = doctor_fn or doctor.inspect
     try:
@@ -673,17 +679,19 @@ def setup_release(
         fixture_ok = False
 
     # (e) / (f) Revogação e candidate.json
-    revocation_status = "offline" if allow_offline_promotion else "blocked"
+    offline_reason = env.get("TRASLADO_PROMOCAO_OFFLINE")
+    offline_allowed = allow_offline_promotion and offline_reason in {"rascunho", "teste"}
+    revocation_status = "blocked"
     revocation_error: str | None = None
     if doctor_ok and fixture_ok:
-        if allow_offline_promotion:
+        if offline_allowed:
             revocation_status = "offline"
         elif promote:
-            digests = expected_digests if expected_digests is not None else _load_expected_digests(
-                from_dir, __version__, norm_profile, norm_extras
-            )
             rev_call = revocation_fn or revocation.verify_promotion
             try:
+                if allow_offline_promotion:
+                    raise ValueError("Excecao offline exige TRASLADO_PROMOCAO_OFFLINE=rascunho ou teste")
+                digests = validate_bootstrap_digests(expected_digests, __version__, norm_profile, norm_extras)
                 rev_res = rev_call(managed, __version__, digests, now=now)
                 revocation_status = "ok" if rev_res.get("status") == "ok" else "blocked"
             except Exception as exc:
@@ -717,10 +725,13 @@ def setup_release(
         "ocr": ocr_info["ocr"],
         "source": {"tag": f"v{__version__}", "repository": REPOSITORY_URL},
         "created_at": _utc_now(now),
+        "shortcuts": {"enabled": not no_shortcut, "home": str(home_path),
+                      "dirs": {k: str(v) if v else None for k, v in shortcut_dirs.items()}},
         "gates": {
             "doctor": bool(doctor_ok),
             "fixture": bool(fixture_ok),
             "revocation": revocation_status,
+            **({"offline_reason": offline_reason} if offline_allowed else {}),
         },
     }
     plat.write_candidate(managed, candidate_data)
@@ -736,7 +747,10 @@ def setup_release(
             if revocation_status == "blocked":
                 reasons.append(f"revogação bloqueada ({revocation_error or 'sem confirmação dos dois canais'})")
             raise ValueError("Promoção recusada: " + "; ".join(reasons))
-        return plat.promote(managed, now=now)
+        plat._atomic(release_dir / "release-integrity.json", release_integrity(release_dir))
+        promoted = plat.promote(managed, now=now, allow_offline=offline_allowed, offline_reason=offline_reason)
+        plat.refresh_shortcuts(managed, promoted)
+        return promoted
 
     return candidate_data
 
@@ -794,7 +808,8 @@ def uninstall_managed(
         raise ValueError(f"Raiz gerenciada contém link/reparse point não permitido: {managed}")
 
     current = plat.read_current(managed)
-    data_root = current.get("data_root") if isinstance(current, dict) else None
+    candidate = plat.read_candidate(managed)
+    data_root = current.get("data_root") if isinstance(current, dict) else candidate.get("data_root") if isinstance(candidate, dict) else None
 
     removed_shortcuts = plat.remove_shortcuts(
         ["Traslado"],
@@ -805,19 +820,27 @@ def uninstall_managed(
 
     deferred = False
     if managed.exists():
-        if (platform_name == "win32" and os.name == "nt" and not keep_data
-                and Path(sys.executable).resolve().is_relative_to(managed.resolve())):
-            _defer_self_removal(managed)
-            deferred = True
-        elif keep_data:
+        data_roots = [m.get("data_root") for m in (current, candidate) if isinstance(m, dict) and m.get("data_root")]
+        preserved = [Path(p).resolve() for p in data_roots]
+        # Selective deletion preserves even a deeply nested data_root at its original path.
+        def remove_except_data(path: Path) -> None:
+            resolved = path.resolve()
+            if any(resolved == data or data in resolved.parents for data in preserved):
+                return
+            if any(resolved in data.parents for data in preserved) and path.is_dir() and not unsafe_link(path):
+                for child in path.iterdir():
+                    remove_except_data(child)
+            elif path.is_dir() and not unsafe_link(path):
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+        if keep_data:
             for sub in ("current.json", "candidate.json", "releases", "python", "tools"):
                 target = managed / sub
-                if target.is_dir() and not target.is_symlink():
-                    shutil.rmtree(target)
-                elif target.exists():
-                    target.unlink()
+                if target.exists():
+                    remove_except_data(target)
         else:
-            shutil.rmtree(managed)
+            remove_except_data(managed)
 
     return {
         "status": "uninstall_scheduled" if deferred else "uninstalled",

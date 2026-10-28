@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Causal Windows bootstrap probes; network is never used by this suite.
 
 Set FREOA_OCR_TEST_CACHE to a verified cache for the native full integration

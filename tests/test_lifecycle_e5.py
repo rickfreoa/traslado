@@ -79,12 +79,37 @@ def _criar_venv_rapido(venv_dir: Path, instalar_traslado: bool = True) -> Path:
     return py_exe
 
 
+def synthetic_certificate_bundle(uri: str) -> dict:
+    """Parseable synthetic X.509 certificate; no signature/trust assertion."""
+    import base64
+    def der(tag, value):
+        n = len(value)
+        length = bytes([n]) if n < 128 else bytes([128 + (n.bit_length()+7)//8]) + n.to_bytes((n.bit_length()+7)//8, 'big')
+        return bytes([tag]) + length + value
+    seq = lambda *values: der(0x30, b''.join(values))
+    integer = lambda value: der(2, value)
+    alg = bytes.fromhex('300d06092a864886f70d01010b0500')
+    name = seq(der(0x31, seq(bytes.fromhex('0603550403'), der(12, b'synthetic'))))
+    validity = seq(der(23, b'260101000000Z'), der(23, b'491231235959Z'))
+    rsa = seq(integer(b'\x00\xb1' + b'\x11'*255), integer(b'\x01\x00\x01'))
+    public = seq(bytes.fromhex('300d06092a864886f70d0101010500'), der(3, b'\x00'+rsa))
+    san = seq(bytes.fromhex('0603551d11'), der(4, seq(der(0x86, uri.encode('ascii')))))
+    tbs = seq(der(0xa0, integer(b'\x02')), integer(b'\x01'), alg, name, validity, name, public, der(0xa3, seq(san)))
+    cert = seq(tbs, alg, der(3, b'\x00'+b'\x11'*256))
+    return {"bundle": {"verificationMaterial": {"certificate": {"rawBytes": base64.b64encode(cert).decode()}}}}
+
+
 class RevocationTests(unittest.TestCase):
     """Testes do item 7: protocolo de revogação em dois canais, sequence monotônica e validade."""
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="e5-rev-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def _verify(self, root, version, expected_digests=None, **kwargs):
+        if expected_digests is None:
+            expected_digests = {"traslado-2.0.0-py3-none-any.whl": "a" * 64}
+        return revocation.verify_promotion(root, version, expected_digests, **kwargs)
 
     def _doc(self, sequence: int = 5, days_valid: int = 14, revoked: list[dict] | None = None) -> dict:
         return {
@@ -125,10 +150,8 @@ class RevocationTests(unittest.TestCase):
                     return {"attestations": []}
                 return {
                     "attestations": [
-                        {
-                            "signer_workflow": f"{revocation.DEFAULT_REPO}/{revocation.REVOCATION_WORKFLOW}",
-                            "ref": revocation.REVOCATION_REF,
-                        }
+                        synthetic_certificate_bundle(
+                            f"https://github.com/{revocation.DEFAULT_REPO}/{revocation.REVOCATION_WORKFLOW}@{revocation.REVOCATION_REF}")
                     ]
                 }
             if "/releases/tags/" in url:
@@ -141,7 +164,7 @@ class RevocationTests(unittest.TestCase):
         # Sem estado prévio e com documento expirado -> falha na primeira instalação
         fb_exp, fj_exp = self._mock_fetchers(self._doc(sequence=1, days_valid=-2), self._release_info())
         with self.assertRaises(RevocationError) as ctx:
-            revocation.verify_promotion(
+            self._verify(
                 self.tmp / "root_exp",
                 "2.0.0",
                 fetch_bytes=fb_exp,
@@ -154,7 +177,7 @@ class RevocationTests(unittest.TestCase):
         # Primeira instalação com documento válido -> aceita e persiste state/revocation.json
         root_ok = self.tmp / "root_ok"
         fb_ok, fj_ok = self._mock_fetchers(self._doc(sequence=10, days_valid=14), self._release_info())
-        res_ok = revocation.verify_promotion(
+        res_ok = self._verify(
             root_ok,
             "2.0.0",
             {"traslado-2.0.0-py3-none-any.whl": "a" * 64},
@@ -172,12 +195,12 @@ class RevocationTests(unittest.TestCase):
     def test_sequence_menor_recusada_contra_rollback_de_revogacao(self) -> None:
         root = self.tmp / "root"
         fb1, fj1 = self._mock_fetchers(self._doc(sequence=12, days_valid=14), self._release_info())
-        revocation.verify_promotion(root, "2.0.0", fetch_bytes=fb1, fetch_json=fj1, gh_cmd=False)
+        self._verify(root, "2.0.0", fetch_bytes=fb1, fetch_json=fj1, gh_cmd=False)
 
         # Replay de documento antigo com sequence 11 (< 12) tem de ser recusado
         fb2, fj2 = self._mock_fetchers(self._doc(sequence=11, days_valid=14), self._release_info())
         with self.assertRaises(RevocationError) as ctx:
-            revocation.verify_promotion(root, "2.0.0", fetch_bytes=fb2, fetch_json=fj2, gh_cmd=False)
+            self._verify(root, "2.0.0", fetch_bytes=fb2, fetch_json=fj2, gh_cmd=False)
         self.assertIn("Sequência regressiva", str(ctx.exception))
         estado = revocation.read_revocation_state(root)
         self.assertEqual(estado["sequence"], 12)
@@ -185,11 +208,11 @@ class RevocationTests(unittest.TestCase):
     def test_documento_expirado_recusado(self) -> None:
         root = self.tmp / "root"
         fb1, fj1 = self._mock_fetchers(self._doc(sequence=3, days_valid=14), self._release_info())
-        revocation.verify_promotion(root, "2.0.0", fetch_bytes=fb1, fetch_json=fj1, gh_cmd=False)
+        self._verify(root, "2.0.0", fetch_bytes=fb1, fetch_json=fj1, gh_cmd=False)
 
         fb2, fj2 = self._mock_fetchers(self._doc(sequence=4, days_valid=-1), self._release_info())
         with self.assertRaises(RevocationError) as ctx:
-            revocation.verify_promotion(root, "2.0.0", fetch_bytes=fb2, fetch_json=fj2, gh_cmd=False)
+            self._verify(root, "2.0.0", fetch_bytes=fb2, fetch_json=fj2, gh_cmd=False)
         self.assertIn("vencido", str(ctx.exception))
 
     def test_divergencia_entre_os_dois_canais_bloqueia(self) -> None:
@@ -197,13 +220,13 @@ class RevocationTests(unittest.TestCase):
         # Caso A: Canal 1 limpo, mas Canal 2 marca release como draft
         fb_draft, fj_draft = self._mock_fetchers(self._doc(sequence=5, days_valid=14), self._release_info(draft=True))
         with self.assertRaises(RevocationError) as ctx:
-            revocation.verify_promotion(root, "2.0.0", fetch_bytes=fb_draft, fetch_json=fj_draft, gh_cmd=False)
+            self._verify(root, "2.0.0", fetch_bytes=fb_draft, fetch_json=fj_draft, gh_cmd=False)
         self.assertIn("rascunho", str(ctx.exception))
 
         # Caso B: Canal 1 limpo, mas Canal 2 diverge no digest do artefato
         fb_dig, fj_dig = self._mock_fetchers(self._doc(sequence=5, days_valid=14), self._release_info())
         with self.assertRaises(RevocationError) as ctx:
-            revocation.verify_promotion(
+            self._verify(
                 root,
                 "2.0.0",
                 {"traslado-2.0.0-py3-none-any.whl": "b" * 64},
@@ -223,7 +246,7 @@ class RevocationTests(unittest.TestCase):
             self._release_info(),
         )
         with self.assertRaises(RevocationError) as ctx:
-            revocation.verify_promotion(root, "2.0.0", fetch_bytes=fb_ver, fetch_json=fj_ver, gh_cmd=False)
+            self._verify(root, "2.0.0", fetch_bytes=fb_ver, fetch_json=fj_ver, gh_cmd=False)
         self.assertIn("CVE-teste", str(ctx.exception))
 
         fb_sha, fj_sha = self._mock_fetchers(
@@ -235,7 +258,7 @@ class RevocationTests(unittest.TestCase):
             self._release_info(),
         )
         with self.assertRaises(RevocationError) as ctx:
-            revocation.verify_promotion(
+            self._verify(
                 root,
                 "2.0.0",
                 {"traslado-2.0.0-py3-none-any.whl": "a" * 64},
@@ -248,7 +271,7 @@ class RevocationTests(unittest.TestCase):
     def test_modo_gh_registra_attestation_quando_gh_presente(self) -> None:
         root = self.tmp / "root"
         fb, fj = self._mock_fetchers(self._doc(sequence=7, days_valid=14), self._release_info())
-        res = revocation.verify_promotion(
+        res = self._verify(
             root,
             "2.0.0",
             fetch_bytes=fb,
@@ -299,6 +322,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
                 "TRASLADO_SHORTCUT_DESKTOP_DIR": str(self.desktop_dir),
                 "TRASLADO_SHORTCUT_START_MENU_DIR": str(self.start_menu_dir),
                 "TRASLADO_LEGACY_ROOT": str(self.legacy_app),
+                "TRASLADO_PROMOCAO_OFFLINE": "teste",
             },
         )
         self._env_patch.start()
@@ -330,7 +354,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         self.assertFalse((self.root / "candidate.json").exists())
         self.assertTrue((self.root / "current.json").is_file())
         self.assertEqual(manifest1["release_id"], rel_id)
-        self.assertEqual(manifest1["gates"], {"doctor": True, "fixture": True, "revocation": "offline"})
+        self.assertEqual(manifest1["gates"], {"doctor": True, "fixture": True, "revocation": "offline", "offline_reason": "teste"})
         self.assertIsNotNone(manifest1["promoted_at"])
 
         current_bytes_1 = (self.root / "current.json").read_bytes()
@@ -403,6 +427,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
                 promote=True,
                 allow_offline_promotion=False,
                 data_root=self.data_root,
+                expected_digests={f"traslado-{__version__}-py3-none-any.whl": "a"*64, "requirements-core.hashes.lock": "b"*64},
                 revocation_fn=lambda *a, **kw: (_ for _ in ()).throw(RevocationError("divergência de canal")),
             )
         self.assertIn("revogação bloqueada", str(ctx_rev.exception))
@@ -630,6 +655,8 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
             "import os, shutil, subprocess, sys, zipfile\n"
             "from pathlib import Path\n"
             "args = sys.argv[1:]\n"
+            "if os.environ.get('E5_UV_LOG'):\n"
+            "    with open(os.environ['E5_UV_LOG'], 'a') as log: log.write(repr(args)+'\\n')\n"
             "if args and args[0] == 'venv':\n"
             "    venv_dir = Path(args[1])\n"
             f"    subprocess.run([r'{sys.executable}', '-m', 'venv', '--without-pip', '--system-site-packages', str(venv_dir)], check=True)\n"
@@ -652,11 +679,16 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+        gh_stub = self.tmp / "gh.cmd"
+        gh_stub.write_text('@echo off\r\necho %~nx3 >> "%E5_GH_LOG%"\r\nif "%~nx3"=="%E5_ATTESTATION_FAIL%" exit /b 1\r\nexit /b 0\r\n', encoding="ascii")
         install_root = self.tmp / "install_root"
         ps_exe = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
         env = {
             **os.environ,
             "TRASLADO_TEST_UV": str(mock_uv_cmd),
+            "PATH": str(self.tmp) + os.pathsep + os.environ.get("PATH", ""),
+            "E5_GH_LOG": str(self.tmp / "gh.log"),
+            "E5_UV_LOG": str(self.tmp / "uv.log"),
             "TRASLADO_SHORTCUT_DESKTOP_DIR": str(self.desktop_dir),
             "TRASLADO_SHORTCUT_START_MENU_DIR": str(self.start_menu_dir),
             "TRASLADO_LEGACY_ROOT": str(self.legacy_app),
@@ -673,6 +705,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
                 "-Profile",
                 "Core",
                 "-NoShortcut",
+                "-AllowOfflinePromotion",
                 "-FromDir",
                 str(from_dir),
                 "-Root",
@@ -689,7 +722,48 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         self.assertTrue((install_root / "current.json").is_file())
         current = json.loads((install_root / "current.json").read_text(encoding="utf-8"))
         self.assertEqual(current["profile"], "Core")
-        self.assertEqual(current["gates"], {"doctor": True, "fixture": True, "revocation": "offline"})
+        self.assertEqual(current["gates"], {"doctor": True, "fixture": True, "revocation": "offline", "offline_reason": "teste"})
+        verified = (self.tmp / "gh.log").read_text().splitlines()
+        self.assertEqual(set(line.strip() for line in verified), {wheel_path.name, "requirements-core.hashes.lock", "SHA256SUMS"})
+        transmitted = list((install_root / "state/downloads").rglob("verified-*.json"))
+        digests = json.loads(transmitted[0].read_text(encoding="utf-8-sig"))
+        self.assertEqual(digests[wheel_path.name], hashlib.sha256(wheel_path.read_bytes()).hexdigest())
+        self.assertIn("requirements-core.hashes.lock", digests)
+        before = (install_root / "current.json").read_bytes()
+        folders = list((install_root / "releases").iterdir())
+        repeat = subprocess.run(proc.args, env=env, capture_output=True, timeout=120)
+        self.assertEqual(repeat.returncode, 0, repeat.stdout+repeat.stderr)
+        self.assertEqual((install_root / "current.json").read_bytes(), before)
+        self.assertEqual(list((install_root / "releases").iterdir()), folders)
+
+        # Each attestation failure aborts before uv creates a venv or installs dependencies.
+        for artifact in (wheel_path.name, "requirements-core.hashes.lock", "requirements-legacy.hashes.lock", "SHA256SUMS"):
+            args = list(proc.args)
+            failed_root = self.tmp / ("failed-" + artifact)
+            args[-1] = str(failed_root)
+            if artifact == "requirements-legacy.hashes.lock":
+                args += ["-Extras", "legacy"]
+            uv_before = (self.tmp / "uv.log").read_bytes()
+            failed = subprocess.run(args, env=dict(env, E5_ATTESTATION_FAIL=artifact), capture_output=True, timeout=120)
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertEqual((self.tmp / "uv.log").read_bytes(), uv_before)
+            self.assertFalse((failed_root / "current.json").exists())
+
+        # Extract only the real build ZIP; no external SHA256SUMS accompanies it.
+        dist = self.tmp / "built"
+        built = subprocess.run([sys.executable, str(ROOT / "scripts/build_release.py"), "--permitir-sujo", "--dist", str(dist)], capture_output=True, timeout=180)
+        self.assertEqual(built.returncode, 0, built.stdout+built.stderr)
+        extracted = self.tmp / "zip-only"
+        with zipfile.ZipFile(dist / f"traslado-{__version__}-windows.zip") as archive:
+            archive.extractall(extracted)
+        payload = extracted / f"traslado-{__version__}-windows"
+        self.assertTrue((payload / "PAYLOAD-SHA256SUMS").is_file())
+        self.assertFalse((payload / "SHA256SUMS").exists())
+        zip_root = self.tmp / "zip-install"
+        wrapper = subprocess.run(["cmd.exe", "/c", str(payload / "INSTALAR.bat"), "-Root", str(zip_root), "-Profile", "Core", "-NoShortcut", "-AllowOfflinePromotion"], input=b"\n", env=env, capture_output=True, timeout=120)
+        self.assertEqual(wrapper.returncode, 0, wrapper.stdout+wrapper.stderr)
+        self.assertEqual(plat.read_current(zip_root)["gates"]["revocation"], "offline")
+
 
 
 class LocksAndWrappersContractTests(unittest.TestCase):

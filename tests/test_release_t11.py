@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Etapa 1 do Traslado 1.1: versão única, seleção explícita, build limpo e determinístico, ausência de PyMuPDF/MuPDF e A8.
 
 Os testes de build exigem um checkout git (pulam no pacote extraído). Em CI a suíte roda contra o wheel instalado e
@@ -97,13 +98,13 @@ class Build(unittest.TestCase):
 
     def test_zip_contem_exatamente_o_listado(self):
         listados = {n for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").split() if n and n[0] not in "#!"}
-        esperado = listados | {"INSTALL-PAYLOAD.json", f"dist/{self.wheel.name}"}
+        esperado = listados | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{self.wheel.name}"}
         self.assertEqual(self.membros(), esperado)
         self.assertFalse(any(n.startswith(("tests/", ".github/")) or n == "release-files.txt" for n in esperado))
         with zipfile.ZipFile(self.zip) as z:
             payload = json.loads(z.read(f"traslado-{versao_fonte()}-windows/INSTALL-PAYLOAD.json"))
         self.assertEqual(payload["checkout_limpo"], not self.flag)
-        self.assertEqual({f["path"] for f in payload["files"]}, esperado - {"INSTALL-PAYLOAD.json"})
+        self.assertEqual({f["path"] for f in payload["files"]}, esperado - {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS"})
 
     def test_arquivo_nao_listado_na_raiz_nao_entra(self):
         extra = ROOT / "ARQUIVO-NAO-LISTADO-T11.txt"
@@ -137,6 +138,7 @@ class Build(unittest.TestCase):
             self.zip.name,
             self.wheel.name,
             self.sdist.name,
+            "PAYLOAD-SHA256SUMS",
             "install.ps1",
             "install.sh",
             "requirements-core.hashes.lock",

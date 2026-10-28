@@ -117,9 +117,14 @@ def kill_tree(proc: subprocess.Popen) -> None:
         if proc.poll() is not None:
             return  # the Windows Job Object owns descendants on normal exit
         taskkill = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32/taskkill.exe"
-        subprocess.run([str(taskkill), "/PID", str(proc.pid), "/T", "/F"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            subprocess.run([str(taskkill), "/PID", str(proc.pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+        except (subprocess.TimeoutExpired, OSError):
+            # taskkill lento (host carregado) não pode mascarar o erro original nem deixar o filho vivo:
+            # segue para proc.kill() abaixo; o Job Object, quando presente, encerra os descendentes ao fechar.
+            pass
     else:
         import signal
         # The session/group may still have descendants after its leader exits.

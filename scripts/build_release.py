@@ -301,6 +301,16 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
     itens["INSTALL-PAYLOAD.json"] = (json.dumps(payload, indent=2) + "\n").encode("utf-8")
     # Cópia na raiz (ignorada pelo git): testes e instalador a usam quando a raiz atua como pacote.
     (ROOT / "INSTALL-PAYLOAD.json").write_bytes(itens["INSTALL-PAYLOAD.json"])
+    # Flat asset names match both bootstrap lookup and GitHub release assets.
+    bootstrap_members = ["install.sh", "install.ps1", "INSTALAR.bat", "instalar.sh", "instalar.command",
+                         "ocr-assets.lock.json", "scripts/bootstrap_ocr.ps1", f"dist/{wheel.name}",
+                         *(f"locks/requirements-{profile}.hashes.lock" for profile in ("core", "full", "legacy"))]
+    payload_sums = {Path(n).name: sha(itens[n]) for n in bootstrap_members}
+    itens["PAYLOAD-SHA256SUMS"] = "".join(
+        f"{digest}  {name}\n" for name, digest in sorted(payload_sums.items())
+    ).encode("utf-8")
+    internal_sums = dist / "PAYLOAD-SHA256SUMS"
+    internal_sums.write_bytes(itens["PAYLOAD-SHA256SUMS"])
     nome = f"traslado-{VERSION}-windows"
     zipado = dist / f"{nome}.zip"
     with zipfile.ZipFile(zipado, "w", zipfile.ZIP_DEFLATED) as z:
@@ -310,7 +320,7 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
             z.writestr(info, dados)
     inventario_dist = dist / "THIRD-PARTY-INVENTORY.json"
     shutil.copyfile(ROOT / "THIRD-PARTY-INVENTORY.json", inventario_dist)
-    todos_artefatos = [zipado, wheel, sdist, *extras_dist, inventario_dist]
+    todos_artefatos = [zipado, wheel, sdist, internal_sums, *extras_dist, inventario_dist]
     if verificar(todos_artefatos):
         for arq in todos_artefatos:
             arq.unlink(missing_ok=True)

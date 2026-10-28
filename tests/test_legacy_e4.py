@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Independent structural oracles for CC0 fixtures; native parser stays contained."""
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor

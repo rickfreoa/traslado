@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Synthetic public-domain fixtures. The author dedicates these texts to CC0."""
 from pathlib import Path
 import zipfile
