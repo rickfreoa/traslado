@@ -144,6 +144,7 @@ class Build(unittest.TestCase):
             "requirements-core.hashes.lock",
             "requirements-full.hashes.lock",
             "requirements-legacy.hashes.lock",
+            "THIRD-PARTY-INVENTORY.json",
         ]
         self.assertEqual(sorted(l.split("  ")[1] for l in linhas), sorted(esperados))
         with zipfile.ZipFile(self.zip) as z:
