@@ -1,34 +1,17 @@
-# Texts and generated fixtures dedicated to the public domain (CC0).
+# Textos e fixtures gerados dedicados ao domínio público (CC0).
+# Gera publico.doc e publico.ppt por COM abrindo fontes existentes (doc-fonte.rtf; ppt-fonte.pptx gerado por
+# gerar_pptx.py com python-pptx), como a Biblioteca faz: Documents.Add/SaveAs de documento novo pode travar em
+# diálogo invisível (rótulos de confidencialidade do Office corporativo).
 $ErrorActionPreference = 'Stop'
-$fixtureRoot = $PSScriptRoot
-$word = $null
-$doc = $null
-$powerpoint = $null
-$presentation = $null
+$d = $PSScriptRoot
+$w = New-Object -ComObject Word.Application
 try {
-    $word = New-Object -ComObject Word.Application
-    $word.Visible = $false
-    $word.DisplayAlerts = 0
-    $doc = $word.Documents.Add()
-    $doc.Content.Text = "Acao inicial continua.`rSegundo trecho termina.`rFim do relato.`r"
-    $range = $doc.Range(12, 12)
-    $doc.Footnotes.Add($range, [Type]::Missing, 'Nota primeira.') | Out-Null
-    $position = $doc.Content.Text.IndexOf(' termina.')
-    $doc.Footnotes.Add($doc.Range($position, $position), [Type]::Missing, 'Nota segunda.') | Out-Null
-    $doc.SaveAs2((Join-Path $fixtureRoot 'publico.doc'), 0)
-    $doc.Close(0)
-    $doc = $null
-    $word.Quit()
-    $word = $null
-    $powerpoint = New-Object -ComObject PowerPoint.Application
-    $presentation = $powerpoint.Presentations.Add(0)
-    $slide = $presentation.Slides.Add(1, 2)
-    $slide.Shapes.Title.TextFrame.TextRange.Text = 'Relato publico'
-    $slide.Shapes.Item(2).TextFrame.TextRange.Text = "Acao inicial.`rFim do relato."
-    $presentation.SaveAs((Join-Path $fixtureRoot 'publico.ppt'), 1)
-} finally {
-    if ($doc) { $doc.Close(0) }
-    if ($word) { $word.Quit() }
-    if ($presentation) { $presentation.Close() }
-    if ($powerpoint) { $powerpoint.Quit() }
-}
+    $w.Visible = $false; $w.DisplayAlerts = 0; $w.AutomationSecurity = 3
+    $doc = $w.Documents.Open((Join-Path $d 'doc-fonte.rtf'), $false, $true, $false)
+    $doc.SaveAs2((Join-Path $d 'publico.doc'), 0); $doc.Close($false)
+} finally { $w.Quit() }
+$p = New-Object -ComObject PowerPoint.Application
+try {
+    $pr = $p.Presentations.Open((Join-Path $d 'ppt-fonte.pptx'), -1, 0, 0)
+    $pr.SaveAs((Join-Path $d 'publico.ppt'), 1); $pr.Close()
+} finally { $p.Quit() }
