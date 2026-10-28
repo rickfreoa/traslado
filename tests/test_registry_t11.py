@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """T11: registry contract and published-byte parity with the frozen 1.0.0 tree."""
 from __future__ import annotations
 

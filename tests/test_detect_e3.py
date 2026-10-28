@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Content signatures and end-to-end dispatch, using synthetic public fixtures."""
 import json
 import importlib.util

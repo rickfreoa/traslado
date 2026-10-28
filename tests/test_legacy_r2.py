@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Revisão E4, rodada 2: ZIP com cabeçalho local divergente é malformed no adaptador legado."""
 import importlib.util
 from pathlib import Path

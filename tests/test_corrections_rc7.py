@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Regression contracts: overlap, atom boundaries, quota and process cleanup."""
 import json
 import hashlib
