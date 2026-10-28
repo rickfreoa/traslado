@@ -152,12 +152,19 @@ def group_processes(pgid: int) -> list[tuple[int, int]]:
                 if int(fields[2]) == pgid and fields[0] != 'Z':
                     rss = int((folder / 'statm').read_text().split()[1]) * os.sysconf('SC_PAGE_SIZE')
                     members.append((int(folder.name), rss))
-            except (FileNotFoundError, ProcessLookupError):
+            except (OSError, ValueError, IndexError):
                 continue
         return members
     output = subprocess.check_output(['ps', '-A', '-o', 'pid=,pgid=,rss=,stat='], text=True)
-    return [(int(p), int(r) * 1024) for p, g, r, state in (line.split() for line in output.splitlines())
-            if int(g) == pgid and not state.startswith('Z')]
+    members = []
+    for line in output.splitlines():
+        try:
+            p, g, r, state = line.split(None, 3)
+            if int(g) == pgid and not state.startswith('Z'):
+                members.append((int(p), int(r) * 1024))
+        except (OSError, ValueError, IndexError):
+            continue
+    return members
 
 
 def _directory_bytes(root):
@@ -195,7 +202,8 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
     last_memory_poll = -float('inf')
     peak = 0
     if measurements is not None:
-        measurements.update(limit_bytes=max_memory_bytes, peak_bytes=0, detected_after_s=None)
+        measurements.update(limit_bytes=max_memory_bytes, peak_bytes=0, detected_after_s=None,
+                            rlimit_applied=sys.platform == 'linux')
     with log.open("wb") as stream:
         proc = None
         try:

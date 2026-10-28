@@ -70,7 +70,7 @@ Saída em stdout, UTF-8, um objeto:
 
 ## 3. Erros tipados
 
-Cada resultado de arquivo em stdout (`convert`) com `status` em `failed | partial | cancelled | timeout` traz `error_code`, além do campo `error` (texto livre, já existente). Valores estáveis:
+Cada resultado de arquivo em stdout (`convert`) com `status` em `failed | cancelled | timeout` traz `error_code`, além do campo `error` (texto livre, já existente). Valores estáveis:
 
 | `error_code` | Quando |
 |---|---|
@@ -84,6 +84,8 @@ Cada resultado de arquivo em stdout (`convert`) com `status` em `failed | partia
 | `timeout` | prazo do trabalho ou do OCR excedido |
 | `cancelled` | cancelamento pelo usuário |
 | `internal` | qualquer outra exceção (sempre um defeito a corrigir; a suíte exige que nenhuma fixture caia aqui) |
+
+`partial` só traz `error_code` quando há problema localizado; avisos de fidelidade não geram código.
 
 `partial` pode trazer `error_code` do primeiro problema localizado. Erro antes de qualquer arquivo (uso, configuração) sai em stderr como `{"status": "failed", "error": "...", "error_code": "..."}`. `manifest.json` e `document.json` não ganham campo por causa disto quando a conversão é `ok`.
 

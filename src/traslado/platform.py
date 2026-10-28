@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
+import time
+import unicodedata
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import platform as host
@@ -88,26 +93,95 @@ def write_candidate(root, data):
     _atomic(Path(root) / 'candidate.json', data)
 
 
+@contextmanager
+def _promotion_lock(root):
+    lock = root / 'state/promote.lock'
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    while True:
+        try:
+            stream = lock.open('x', encoding='utf-8')
+            break
+        except FileExistsError:
+            try:
+                age = time.time() - lock.stat().st_mtime
+            except FileNotFoundError:
+                continue
+            if age < 600:
+                raise ValueError('Promoção/rollback em andamento: state/promote.lock')
+            # Serialize stale takeovers too: a second contender must recheck
+            # the new lock, rather than unlink one just acquired by its peer.
+            guard = lock.with_name('promote.lock.takeover')
+            try:
+                takeover = guard.open('x')
+            except FileExistsError:
+                raise ValueError('Tomada do lock de promoção em andamento')
+            try:
+                takeover.close()
+                try:
+                    age = time.time() - lock.stat().st_mtime
+                except FileNotFoundError:
+                    continue
+                if age < 600:
+                    raise ValueError('Promoção/rollback em andamento: state/promote.lock')
+                logging.getLogger(__name__).warning('Tomando lock de promoção obsoleto: %s (%.0f s)', lock, age)
+                lock.unlink(missing_ok=True)
+                try:
+                    stream = lock.open('x', encoding='utf-8')
+                except FileExistsError:
+                    raise ValueError('Promoção/rollback em andamento: state/promote.lock')
+                break
+            finally:
+                guard.unlink(missing_ok=True)
+    try:
+        with stream:
+            stream.write(str(os.getpid()) + '\n')
+        yield
+    finally:
+        lock.unlink(missing_ok=True)
+
+
 def promote(root, now=None):
+    root = Path(root)
+    with _promotion_lock(root):
+        return _promote(root, now)
+
+
+def _promote(root, now=None):
     root = Path(root)
     data = _read(root / 'candidate.json')
     gates = data.get('gates', {})
-    if gates.get('doctor') is not True or gates.get('fixture') is not True or gates.get('revocation') == 'blocked':
+    if (not isinstance(gates, dict) or gates.get('doctor') is not True or gates.get('fixture') is not True
+            or gates.get('revocation', 'ok') not in ('ok', 'offline')):
         raise ValueError('Gates de promoção não satisfeitos')
     if not _release(root, data.get('release_id')).is_dir():
         raise ValueError('Release ausente')
-    previous = read_current(root)
+    try:
+        previous = _read(root / 'current.json')
+        _release(root, previous.get('release_id'))
+    except FileNotFoundError:
+        if (root / 'current.json').is_symlink():
+            raise ValueError('current.json existente e ilegível; promoção recusada')
+        previous = None
+    except (OSError, ValueError) as exc:
+        raise ValueError('current.json existente e ilegível; promoção recusada: ' + str(exc)) from exc
     if previous:
         _atomic(root / 'state' / 'history' / (_release(root, previous.get('release_id')).name + '.json'), previous)
-    data['previous_release_id'] = previous.get('release_id') if previous else None
+    data['previous_release_id'] = (previous.get('previous_release_id') if previous.get('release_id') == data['release_id']
+                                   else previous.get('release_id')) if previous else None
     instant = now or datetime.now(timezone.utc)
     data['promoted_at'] = instant.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z') if isinstance(instant, datetime) else str(instant)
     _atomic(root / 'current.json', data)
-    (root / 'candidate.json').unlink()
+    (root / 'candidate.json').unlink(missing_ok=True)
     return data
 
 
 def rollback(root):
+    root = Path(root)
+    with _promotion_lock(root):
+        return _rollback(root)
+
+
+def _rollback(root):
     root = Path(root)
     data = _read(root / 'current.json')
     previous = data.get('previous_release_id')
@@ -131,7 +205,13 @@ def where(root=None, *, platform=None, env=None) -> dict:
     errors = []
     def read(path):
         try:
-            return _read(path)
+            data = _read(path)
+            _release(root, data.get('release_id'))
+            return data
+        except FileNotFoundError as exc:
+            if path.is_symlink():
+                errors.append(f'{path}: {exc}')
+            return None
         except (OSError, ValueError) as exc:
             errors.append(f'{path}: {exc}')
             return None
@@ -149,8 +229,8 @@ def where(root=None, *, platform=None, env=None) -> dict:
                 platform=platform, arch=host.machine(), errors=errors)
 
 
-def _desktop(home):
-    if sys.platform == 'win32':
+def _desktop(home, platform=None, injected=False):
+    if (platform or sys.platform) == 'win32' and not injected:
         import ctypes
         import uuid
         folder = (ctypes.c_byte * 16).from_buffer_copy(uuid.UUID('B4BFCC3A-DB2C-424C-B029-7FE99A87C641').bytes_le)
@@ -166,19 +246,36 @@ def _desktop(home):
     return home / 'Desktop'
 
 
-def _locations(platform, home, desktop_dir, start_menu_dir, applications_dir, icons_dir):
-    return (Path(desktop_dir) if desktop_dir else _desktop(home),
-            Path(start_menu_dir) if start_menu_dir else Path(os.environ.get('APPDATA', home / 'AppData/Roaming')) / 'Microsoft/Windows/Start Menu/Programs',
+def _locations(platform, home, desktop_dir, start_menu_dir, applications_dir, icons_dir, injected=False):
+    return (Path(desktop_dir) if desktop_dir else _desktop(home, platform, injected),
+            Path(start_menu_dir) if start_menu_dir else Path(os.environ.get('APPDATA', home / 'AppData/Roaming') if platform == 'win32' and not injected else home / 'AppData/Roaming') / 'Microsoft/Windows/Start Menu/Programs',
             Path(applications_dir) if applications_dir else home / ('Applications' if platform == 'darwin' else '.local/share/applications'),
             Path(icons_dir) if icons_dir else home / '.local/share/icons/hicolor/256x256/apps')
+
+
+def _shortcut_stem(name):
+    normalized = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().lower()
+    stem = re.sub(r'[^a-z0-9_-]+', '-', normalized).strip('-')
+    if not stem:
+        raise ValueError('Nome de atalho inválido')
+    return stem
+
+
+def _desktop_exec(value):
+    # Exec argument quoting, followed by the general Desktop Entry string escape.
+    value = str(value).replace('%', '%%')
+    for char in ('\\', '"', '`', '$'):
+        value = value.replace(char, '\\' + char)
+    return value.replace('\\', '\\\\')
 
 
 def create_shortcut(target_python, name='Traslado', desktop=True, start_menu=True, *,
                     platform=None, home=None, desktop_dir=None, start_menu_dir=None,
                     applications_dir=None, icons_dir=None) -> list[Path]:
-    platform, home = platform or sys.platform, Path(home) if home else Path.home()
+    injected = home is not None
+    platform, home = platform or sys.platform, Path(home) if injected else Path.home()
     _release('.', name)  # disallow path components in shortcut names
-    desk, menu, apps, icons = _locations(platform, home, desktop_dir, start_menu_dir, applications_dir, icons_dir)
+    desk, menu, apps, icons = _locations(platform, home, desktop_dir, start_menu_dir, applications_dir, icons_dir, injected)
     target = Path(target_python).absolute()
     icon = Path(__file__).parent / 'assets/traslado.png'
     result = []
@@ -208,11 +305,11 @@ def create_shortcut(target_python, name='Traslado', desktop=True, start_menu=Tru
     else:
         apps.mkdir(parents=True, exist_ok=True)
         icons.mkdir(parents=True, exist_ok=True)
-        installed_icon = icons / 'traslado.png'
+        stem = _shortcut_stem(name)
+        installed_icon = icons / (stem + '.png')
         shutil.copyfile(icon, installed_icon)
-        # Desktop Entry escaping differs from shell quoting.
-        escaped = str(target).replace('\\', '\\\\').replace('"', '\\"').replace('`', '\\`').replace('$', '\\$').replace('%', '%%')
-        path = apps / 'traslado.desktop'
+        escaped = _desktop_exec(target)
+        path = apps / (stem + '.desktop')
         path.write_text(f'[Desktop Entry]\nType=Application\nName={name}\nExec="{escaped}" -I -m traslado.gui\nIcon={installed_icon}\nTerminal=false\nCategories=Office;\n', encoding='utf-8')
         result.extend([path, installed_icon])
         if platform == sys.platform and shutil.which('update-desktop-database'):
@@ -222,15 +319,16 @@ def create_shortcut(target_python, name='Traslado', desktop=True, start_menu=Tru
 
 def remove_shortcuts(names, *, platform=None, home=None, desktop_dir=None, start_menu_dir=None,
                      applications_dir=None, icons_dir=None) -> list[Path]:
-    platform, home = platform or sys.platform, Path(home) if home else Path.home()
-    desk, menu, apps, icons = _locations(platform, home, desktop_dir, start_menu_dir, applications_dir, icons_dir)
+    injected = home is not None
+    platform, home = platform or sys.platform, Path(home) if injected else Path.home()
+    desk, menu, apps, icons = _locations(platform, home, desktop_dir, start_menu_dir, applications_dir, icons_dir, injected)
     paths = []
     for name in names:
         _release('.', name)
         paths.extend([desk / (name + '.lnk'), menu / (name + '.lnk')] if platform == 'win32' else
-                     [apps / (name + '.app')] if platform == 'darwin' else [apps / 'traslado.desktop', icons / 'traslado.png'])
+                     [apps / (name + '.app')] if platform == 'darwin' else [apps / (_shortcut_stem(name) + '.desktop'), icons / (_shortcut_stem(name) + '.png')])
     removed = []
-    for path in paths:
+    for path in dict.fromkeys(paths):
         if path.exists():
             if path.is_dir() and not path.is_symlink():
                 shutil.rmtree(path)

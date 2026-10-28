@@ -175,7 +175,7 @@ class ErrorsE3(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             pdf_code = 'malformed' if importlib.util.find_spec('fitz') else 'unsupported'
-            cases = [('a.txt', b'text', 0, None), ('a.html', b'<html>text</html>', 3, 'unsupported'),
+            cases = [('a.txt', b'text', 0, None), ('a.html', b'<html>text</html>', 3, None),
                      ('a.pdf', b'%PDF-broken', 2, pdf_code)]
             for name, payload, exit_code, error_code in cases:
                 p = root / name

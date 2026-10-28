@@ -299,7 +299,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                 page.blocks.extend(ocr_blocks)
                 page.warnings.extend(warnings)
             except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
-                localized(document, page, exc)
+                localized(document, page, ConversionError("malformed", str(exc)) if type(exc) is RuntimeError else exc)
                 page.warnings.append("ocr_failed: " + str(exc))
                 page.blocks.extend(fallback)
             finally:
@@ -393,7 +393,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                     future = pool.submit(run)
                     pending.append((future, page, blocks, image, size, extras, notes))
                 except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
-                    localized(document, page, exc)
+                    localized(document, page, ConversionError("malformed", str(exc)) if type(exc) is RuntimeError else exc)
                     image.unlink(missing_ok=True)
                     page.warnings.append("ocr_failed: " + str(exc))
                     page.blocks.extend(blocks)
@@ -406,7 +406,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                                                  details={"lossy_preview": True, "long_edge_pixels": 1200}))
                         page.metrics["scan_previews_exported"] = True
                     except (ValueError, OSError, RuntimeError) as exc:
-                        localized(document, page, exc)
+                        localized(document, page, ConversionError("malformed", str(exc)) if type(exc) is RuntimeError else exc)
                         preview.unlink(missing_ok=True)
                         notes.append("scan_preview_failed: " + str(exc))
                 if metrics["suspect"]:
@@ -452,7 +452,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         if any(cell is None for row in table.rows for cell in row.cells):
                             page.warnings.append("pdf_table_merged_cells_need_review")
                 except Exception as exc:
-                    localized(document, page, exc)
+                    localized(document, page, ConversionError("malformed", str(exc)) if type(exc) is RuntimeError else exc)
                     page.warnings.append("table_detection_failed: " + exception_name(exc))
             blocks, columns = reading_order(blocks, rect.width)
             if columns:
@@ -472,7 +472,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                                                      details={"lossy_preview": True, "long_edge_pixels": 1200}))
                             page.metrics["scan_previews_exported"] = True
                         except (ValueError, OSError, RuntimeError) as exc:
-                            localized(document, page, exc)
+                            localized(document, page, ConversionError("malformed", str(exc)) if type(exc) is RuntimeError else exc)
                             preview.unlink(missing_ok=True)
                             page.warnings.append("scan_preview_failed: " + str(exc))
                     continue
@@ -484,7 +484,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         page.blocks.append(Block("image", bbox=finite_box(box),
                                                  asset=f"assets/{image_path.name}", engine="pymupdf"))
                     except (ValueError, OSError, RuntimeError) as exc:
-                        localized(document, page, exc)
+                        localized(document, page, ConversionError("malformed", str(exc)) if type(exc) is RuntimeError else exc)
                         image_path.unlink(missing_ok=True)
                         page.warnings.append("image_render_failed: " + str(exc))
                 region_has_native = any(_within(b, box) for b in blocks if b.kind == "text")
@@ -502,7 +502,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                             page.route = "native+region_ocr"
                         page.warnings.extend(warnings)
                     except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
-                        localized(document, page, exc)
+                        localized(document, page, ConversionError("malformed", str(exc)) if type(exc) is RuntimeError else exc)
                         page.warnings.append("region_ocr_failed: " + str(exc))
                     if not options.images:
                         image_path.unlink(missing_ok=True)

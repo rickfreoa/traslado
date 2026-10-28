@@ -109,7 +109,7 @@ class PlatformE2(unittest.TestCase):
             if system == 'linux':
                 content = paths[0].read_text()
                 self.assertIn('-I -m traslado.gui', content)
-                self.assertIn(str(target).replace('\\', '\\\\'), content)
+                self.assertIn(p._desktop_exec(target), content)
                 self.assertEqual(paths[1].read_bytes()[:8], b'\x89PNG\r\n\x1a\n')
             else:
                 with (paths[0] / 'Contents/Info.plist').open('rb') as stream:

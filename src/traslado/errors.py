@@ -69,11 +69,10 @@ def localized(document, page, exc: Exception) -> None:
     document._conversion_issues = issues
 
 
-def partial_error(document) -> ConversionError:
+def partial_error(document) -> ConversionError | None:
     issues = sorted(getattr(document, "_conversion_issues", []), key=lambda item: item[0])
     if issues:
         first = issues[0][1]
         pages = [number for number, issue in issues if issue.code == "needs_ocr"]
         return ConversionError(first.code, str(first), {"error_pages": sorted(set(pages))} if first.code == "needs_ocr" else first.data)
-    # A declared fidelity/capability loss is an unsupported capability, not a crash.
-    return ConversionError("unsupported", "")
+    return None

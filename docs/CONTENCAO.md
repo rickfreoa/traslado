@@ -164,3 +164,76 @@ integração; a pendência de `release-files.txt` acima continua expressa.
 
 Sugestões de commits para o integrador: `feat: adicionar plataforma e atalhos do
 Traslado` e `fix: conter memória e temporários da árvore de conversão`.
+
+
+## Correção da revisão independente E2/E3
+
+Promoção e rollback usam o mesmo lock exclusivo `state/promote.lock`. Um lock
+com menos de dez minutos recusa a operação; um lock mais antigo é registrado
+no log e retomado, com serialização da disputa entre retomadores. O lock é
+removido ao sair, inclusive em erro. `current.json` existente e ilegível impede
+a promoção, e uma re-promoção preserva a referência anterior de rollback.
+
+O supervisor lê no máximo 257 bytes de `mimetype` e 65.537 bytes de
+`[Content_Types].xml` por stream ZIP; descarta conteúdo acima dos tetos de
+256/65.536 bytes. Deflate inválido, EOF, criptografia e compressão não suportada
+fazem o detector devolver `None`. O worker e `check_archive` decidem o erro.
+
+A contenção registra `limit_bytes`, `peak_bytes`, `detected_after_s` e
+`rlimit_applied`. Sem `error.json`, NTSTATUS de falta de memória ou as mensagens
+`MemoryError`, `out of memory`, `bad_alloc` e `cannot allocate memory` indicam
+`resource_limit`. Em término por SIGKILL, SIGSEGV ou SIGABRT, também se admite
+`resource_limit` se o monitor acionou a contenção ou se o RLIMIT_AS foi aplicado
+e o pico de RSS medido chegou a pelo menos 90% do teto. Sem esses indícios, um
+SIGSEGV continua `internal`. RSS mede memória residente; uma falha precoce por
+espaço virtual sem diagnóstico pode permanecer `internal`. As duas chamadas
+OCR recebem o orçamento `max_memory_mb` configurado. Erros ao ler um PID não
+interrompem a inspeção dos demais processos.
+
+Atalhos com `home` injetado usam somente os diretórios desse `home`, salvo
+diretórios explicitamente fornecidos. No Linux, `Exec` aplica primeiro o escape
+do argumento e depois o escape geral de string da
+[Desktop Entry Specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html).
+O nome normalizado determina os arquivos `.desktop` e `.png`; a remoção elimina
+duplicatas.
+
+A validação desta correção usa `work/venv` com temporários em `work/temp`.
+O hook local `validation_acl.py` substitui somente a criação de diretórios
+0700 por diretórios com ACL herdada no ambiente de testes Windows. Ele não faz
+parte do produto. A suíte integral roda uma vez em `work/final-snapshot`, cópia
+isolada com os mesmos bytes finais de código e testes, para conter os arquivos
+que os próprios testes de release geram. Logs e códigos de saída ficam em
+`work/focused.log`, `work/focused.exit`, `work/full-suite.log` e
+`work/full-suite.exit`.
+
+A comparação com `a50991b` reaproveita as fixtures de `test_registry_t11.py`,
+acrescenta HTML completo ao fragmento HTML (20 casos) e executa as duas pipelines
+reais com `mode=native` e chunks. Somente o relógio de `worker.main` é fixado em
+zero; os relógios de timeout permanecem reais. Todos os arquivos publicados são
+comparados byte a byte, inclusive manifests, com hashes por arquivo em
+`work/parity/result.json`. Resultado: **20 fixtures, 170 arquivos, zero diferenças**.
+
+
+Resultados finais desta correção (Windows, Python 3.14.6):
+
+- Focados E2/E3, registro, OneDrive, segurança e os 42 novos casos da revisão:
+  **101 aprovados, 3 ignorados e 53 subtestes aprovados**, exit 0, 137,08 s.
+- Única execução integral: **442 aprovados, 13 ignorados, 8 falhas, 1 erro de
+  limpeza e 229 subtestes aprovados**, exit 1, 394,78 s. As oito falhas são as
+  conversões de `CompatE1`; o erro de limpeza ocorre no fim dessa mesma classe.
+  Os venvs filhos dessa classe não herdaram o hook de ACL e criaram diretórios
+  temporários 0700 inacessíveis ao token do sandbox. O erro aparente de
+  `Path(None)` decorre de a conversão não ter produzido pasta de saída.
+- Depois de propagar o mesmo hook de ACL aos venvs criados pelos testes,
+  repetiram-se somente as oito conversões e `test_worker_success`:
+  **9 aprovados**, exit 0, 17,50 s (`work/compat-recheck.log` e `.exit`). Não houve
+  alteração no produto ou nos testes entre a execução integral e essa repetição.
+  A execução integral permanece registrada como FAILED; não foi repetida.
+- Paridade contra `a50991b`: **20 fixtures, 170 arquivos, zero diferenças**,
+  exit 0. Código e testes da cópia integral: **66 arquivos Python idênticos**
+  (`work/snapshot-parity.json`). `git diff --check`: exit 0.
+
+Os 13 casos ignorados não são apresentados como executados. A validação real
+ocorreu no Windows; os parsers de `/proc`/`ps` e as condições de sinais POSIX
+foram exercitados por fixtures e injeções controladas, não em um kernel Linux
+ou macOS. O hook de ACL e sua propagação pertencem somente a `work/venv`.

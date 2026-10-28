@@ -242,18 +242,25 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
         env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
         env["PYTHONNOUSERSITE"] = "1"
         env["PYTHONDONTWRITEBYTECODE"] = "1"
+        measurements = {}
         code = run_bounded([sys.executable, "-P", "-m", "traslado.worker", str(request_file)],
                            private, options.job_timeout, private / "worker.log", cancel, env,
                            max_memory_bytes=options.max_memory_mb * 1024 * 1024,
                            budget_root=package, max_directory_bytes=options.max_output_bytes,
-                           on_poll=notify_progress)
+                           on_poll=notify_progress, measurements=measurements)
         if code != 0:
             error = package / "error.json"
             # A process killed at its memory quota may not be able to write JSON.
             exhausted = (code & 0xffffffff) in {0xc0000017, 0xc000009a, 0xc000012d}
             if not error.is_file() and (private / "worker.log").is_file():
                 with (private / "worker.log").open("rb") as log:
-                    exhausted |= b"MemoryError" in log.read(4 * 1024 * 1024)
+                    diagnostics = log.read(4 * 1024 * 1024).lower()
+                    exhausted |= any(token in diagnostics for token in (
+                        b"memoryerror", b"out of memory", b"bad_alloc", b"cannot allocate memory"))
+            if code in {-9, -11, -6}:
+                exhausted |= (measurements.get("detected_after_s") is not None or
+                              (measurements.get("rlimit_applied", False) and
+                               measurements.get("peak_bytes", 0) >= .9 * measurements.get("limit_bytes", float("inf"))))
             info = json.loads(error.read_text(encoding="utf-8")) if error.is_file() else {
                 "error": "Processo de extração falhou", "code": "resource_limit" if exhausted else "internal"}
             raise ConversionError(info.get("code", "internal"), info["error"], info.get("data"))

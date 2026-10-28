@@ -88,8 +88,6 @@ def main() -> int:
         (workspace / "document-layout.json").write_bytes(
             (json.dumps(mapping, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
         review = review_text(document)
-        if request.get("warnings"):
-            review += "\n" + "\n".join(request["warnings"]) + "\n"
         (workspace / "LEIA-AVISOS.txt").write_text(review, encoding="utf-8")
         if options.chunks:
             from . import chunks
@@ -111,8 +109,8 @@ def main() -> int:
         total = sum(p.stat().st_size for p in workspace.rglob("*") if p.is_file())
         if total > options.max_output_bytes:
             raise ConversionError('resource_limit', "Conversão excede limite de saída")
-        if document.status == "partial":
-            issue = partial_error(document)
+        issue = partial_error(document) if document.status == "partial" else None
+        if issue is not None:
             (Path(sys.argv[1]).parent / "partial-error.json").write_text(
                 json.dumps({"code": issue.code, "data": issue.data or {}}), encoding="utf-8")
         return 0

@@ -14,8 +14,8 @@ from traslado.runner import discover, execute
 class DetectionE3(unittest.TestCase):
     def test_signatures_and_conservative_html(self):
         cases = [(b' ' * 100 + b'%PDF-1.7', '.pdf'),
-                 (b'\x89PNG\r\n\x1a\n', '.png'), (b'\xff\xd8\xff', '.jpg'),
-                 (b'II*\0', '.tif'), (b'MM\0*', '.tif'), (b'BM', '.bmp'),
+                 (b'\x89PNG\r\n\x1a\n', '.png'), (b'\xff\xd8\xff\xe0', '.jpg'),
+                 (b'II*\0\x08\0\0\0', '.tif'), (b'MM\0*\0\0\0\x08', '.tif'), (b'BM', None),
                  (b'RIFF1234WEBP', '.webp'), (b'GIF89a', None),
                  (b'\xef\xbb\xbf \r\n<!DOCTYPE HTML>', '.html'),
                  (b' <HTML lang="pt">', '.html'), (b'<htmlish>', None),
@@ -90,7 +90,10 @@ class DetectionE3(unittest.TestCase):
                     data = json.loads((folder / 'document.json').read_text(encoding='utf-8'))
                     warning = f'format_extension_mismatch: extensão {wrong.suffix} com conteúdo {sniff(wrong)}'
                     self.assertIn(warning, data['warnings'])
-                    self.assertIn(warning, (folder / 'LEIA-AVISOS.txt').read_text(encoding='utf-8'))
+                    notice = (folder / 'LEIA-AVISOS.txt').read_text(encoding='utf-8')
+                    self.assertEqual(notice.count('format_extension_mismatch'), 1)
+                    self.assertIn(warning, notice)
+                    self.assertNotIn('error_code', changed)
                     def body(result):
                         lines = (Path(result['output']) / 'document.md').read_text(encoding='utf-8').splitlines()
                         return '\n'.join(line for line in lines[1:] if not line.startswith('> Este resultado requer revisão.')).strip()

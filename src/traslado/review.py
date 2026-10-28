@@ -5,6 +5,7 @@ from collections import defaultdict
 from .model import Document
 
 LABELS = {
+    "format_extension_mismatch": "Extensão divergente do conteúdo — format_extension_mismatch",
     "ocr_failed": "OCR falhou nesta página; revise o original e o texto recuperado",
     "region_ocr_failed": "OCR de uma região falhou; revise a imagem original",
     "ocr_empty": "OCR não encontrou texto; pode ser página ilustrada, vazia ou ilegível",
@@ -18,7 +19,10 @@ LABELS = {
 
 def warning_label(code: str) -> str:
     key = code.split(":", 1)[0]
-    return LABELS.get(key, key.replace("_", " "))
+    label = LABELS.get(key, key.replace("_", " "))
+    if key == "format_extension_mismatch" and ":" in code:
+        label += ":" + code.split(":", 1)[1]
+    return label
 
 
 def review_text(document: Document) -> str:

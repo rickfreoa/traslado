@@ -180,6 +180,13 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
 
             def visit_Call(self, node):
                 self.generic_visit(node)
+                if isinstance(node.func, ast.Name) and node.func.id == '_check_ooxml':
+                    return ast.Call(func=ast.Name(id='check_archive', ctx=ast.Load()), args=node.args[:2], keywords=[])
+                if isinstance(node.func, ast.Name) and node.func.id == '_parser_iter':
+                    return node.args[0]
+                if isinstance(node.func, ast.Name) and node.func.id == '_parser_call':
+                    call = node.args[0]
+                    return call.body if isinstance(call, ast.Lambda) else ast.Call(func=call, args=node.args[1:], keywords=node.keywords)
                 if isinstance(node.func, ast.Name) and node.func.id == 'exception_name':
                     return ast.Attribute(value=ast.Call(func=ast.Name(id='type', ctx=ast.Load()),
                                                        args=node.args, keywords=[]),

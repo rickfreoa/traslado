@@ -6,19 +6,33 @@ from __future__ import annotations
 from pathlib import Path
 import re
 import zipfile
+import zlib
 
-from .errors import ConversionError
 
 
 def sniff(path: Path) -> str | None:
     with Path(path).open("rb") as stream:
         head = stream.read(4096)
-    if b"%PDF-" in head[:1024]:
+    text_extension = Path(path).suffix.lower() in {
+        ".txt", ".md", ".csv", ".tsv", ".json", ".xml", ".html", ".htm"}
+    pdf = re.match(br"%PDF-\d\.\d", head) if text_extension else re.search(br"%PDF-\d\.\d", head[:1032])
+    if pdf and pdf.start() <= 1024:
         return ".pdf"
-    for signature, suffix in ((b"\x89PNG\r\n\x1a\n", ".png"), (b"\xff\xd8\xff", ".jpg"),
-                              (b"II*\x00", ".tif"), (b"MM\x00*", ".tif"), (b"BM", ".bmp")):
-        if head.startswith(signature):
-            return suffix
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    # SOI must be followed by a defined marker (not stuffed data or another SOI).
+    if head.startswith(b"\xff\xd8\xff"):
+        marker = head[3:].lstrip(b"\xff")[:1]
+        if marker and marker[0] in {*range(0xc0, 0xd0), 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf, *range(0xe0, 0xff)}:
+            return ".jpg"
+    if len(head) >= 8 and head[:4] in {b"II*\x00", b"MM\x00*"}:
+        if int.from_bytes(head[4:8], "little" if head[:2] == b"II" else "big") >= 8:
+            return ".tif"
+    if (len(head) >= 26 and head[:2] == b"BM" and head[6:10] == bytes(4)
+            and int.from_bytes(head[2:6], "little") >= 26
+            and int.from_bytes(head[10:14], "little") >= 26
+            and int.from_bytes(head[14:18], "little") in {12, 40, 52, 56, 64, 108, 124}):
+        return ".bmp"
     if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
         return ".webp"
     # GIF is intentionally absent: the built-in registry does not support it.
@@ -36,7 +50,11 @@ def sniff(path: Path) -> str | None:
                 if "mimetype" in names:
                     info = archive.getinfo("mimetype")
                     if info.file_size <= 256:
-                        mime = archive.read(info).strip()
+                        with archive.open(info) as stream:
+                            mime = stream.read(257)
+                        if len(mime) > 256:
+                            return None
+                        mime = mime.strip()
                         if mime == b"application/epub+zip":
                             return ".epub"
                         odf = {b"text": ".odt", b"spreadsheet": ".ods", b"presentation": ".odp"}
@@ -50,12 +68,15 @@ def sniff(path: Path) -> str | None:
                 if "[Content_Types].xml" in names:
                     info = archive.getinfo("[Content_Types].xml")
                     if info.file_size <= 65536:
-                        types = archive.read(info)
+                        with archive.open(info) as stream:
+                            types = stream.read(65537)
+                        if len(types) > 65536:
+                            return None
                         for token, suffix in ((b"wordprocessingml.document.main+xml", ".docx"),
                                               (b"spreadsheetml.sheet.main+xml", ".xlsx"),
                                               (b"presentationml.presentation.main+xml", ".pptx")):
                             if token in types:
                                 return suffix
-        except zipfile.BadZipFile as exc:
-            raise ConversionError("malformed", str(exc)) from exc
+        except (zipfile.BadZipFile, zlib.error, EOFError, RuntimeError, NotImplementedError):
+            return None
     return None
