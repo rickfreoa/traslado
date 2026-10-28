@@ -7,10 +7,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from freoa_v6.chunks import generate_chunks, write_chunks
-from freoa_v6.advanced import sanitize
-from freoa_v6.model import Block, Document, Options, Page
-from freoa_v6.render import layout, render, table_markdown
+from traslado.chunks import generate_chunks, write_chunks
+from traslado.advanced import sanitize
+from traslado.model import Block, Document, Options, Page
+from traslado.render import layout, render, table_markdown
 
 
 class ReadableMarkdownRC6(unittest.TestCase):

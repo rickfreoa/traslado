@@ -9,8 +9,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from freoa_v6 import advanced
-from freoa_v6.model import Block, Document, Options, Page
+from traslado import advanced
+from traslado.model import Block, Document, Options, Page
 
 from markdown_it import MarkdownIt
 

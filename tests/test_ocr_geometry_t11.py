@@ -14,9 +14,9 @@ from unittest.mock import patch
 
 import fitz
 
-from freoa_v6 import ocr, pdf, worker
-from freoa_v6.model import Document, Options
-from freoa_v6.safety import sha256
+from traslado import ocr, pdf, worker
+from traslado.model import Document, Options
+from traslado.safety import sha256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,8 +82,8 @@ class GeometryT11(unittest.TestCase):
                                              stderr=subprocess.DEVNULL)
         except (OSError, subprocess.CalledProcessError):  # installed-wheel CI has no history
             raise unittest.SkipTest("v1.0.0 indisponível fora do repositório")
-        module = types.ModuleType(f"freoa_v6._t11_baseline_{name}")
-        module.__package__ = "freoa_v6"
+        module = types.ModuleType(f"traslado._t11_baseline_{name}")
+        module.__package__ = "traslado"
         exec(compile(source, f"v1.0.0/{name}.py", "exec"), module.__dict__)
         return module
 

@@ -13,9 +13,9 @@ from docx.opc.part import Part
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-from freoa_v6 import formats, registry
-from freoa_v6.model import Block, Document as OutputDocument, Options, Page
-from freoa_v6.render import render
+from traslado import formats, registry
+from traslado.model import Block, Document as OutputDocument, Options, Page
+from traslado.render import render
 
 
 def element(tag, text=None, **attrs):

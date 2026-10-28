@@ -89,7 +89,7 @@ def conferir_wheel(wheel: Path, nomes: list[str]) -> None:
     esperado = {n.removeprefix("src/") for n in nomes if n.startswith("src/")}
     with zipfile.ZipFile(wheel) as z:
         membros = set(z.namelist())
-    info = {m for m in membros if m.split("/")[0] == f"freoa_md_converter-{VERSION}.dist-info"}
+    info = {m for m in membros if m.split("/")[0] == f"traslado-{VERSION}.dist-info"}
     if membros - info != esperado:
         raise SystemExit(f"Wheel diverge da seleção autorizada: a mais {sorted(membros - info - esperado)}, "
                          f"a menos {sorted(esperado - membros)}")
@@ -105,7 +105,7 @@ def construir_wheel(destino: Path, nomes: list[str]) -> Path:
         env = {**os.environ, "SOURCE_DATE_EPOCH": git("log", "-1", "--format=%ct").strip()}
         subprocess.run([sys.executable, "-m", "pip", "wheel", str(fonte), "--no-deps", "-w", str(destino)],
                        check=True, env=env)
-    wheels = list(destino.glob(f"freoa_md_converter-{VERSION}-py3-none-any.whl"))
+    wheels = list(destino.glob(f"traslado-{VERSION}-py3-none-any.whl"))
     assert len(wheels) == 1, wheels
     conferir_wheel(wheels[0], nomes)
     return wheels[0]

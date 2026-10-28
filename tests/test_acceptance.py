@@ -14,10 +14,10 @@ import time
 import unittest
 import zipfile
 
-from freoa_v6.model import Block, Options
-from freoa_v6.pdf import reading_order
-from freoa_v6.safety import check_archive, run_bounded, Cancelled
-from freoa_v6.runner import execute
+from traslado.model import Block, Options
+from traslado.pdf import reading_order
+from traslado.safety import check_archive, run_bounded, Cancelled
+from traslado.runner import execute
 
 
 class Acceptance(unittest.TestCase):
@@ -177,7 +177,7 @@ class Acceptance(unittest.TestCase):
         for asset in assets:self.assertTrue((root/asset).is_file())
 
     def test_clean_scan_real_ocr_recovers_exact_numbers(self):
-        from freoa_v6.ocr import find_tesseract
+        from traslado.ocr import find_tesseract
         exe=find_tesseract()
         if not exe:self.skipTest("Tesseract indisponível: OCR real NOT RUN")
         source,expected=self.scan()

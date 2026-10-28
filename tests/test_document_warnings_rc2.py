@@ -3,8 +3,8 @@ import json
 import tempfile
 import unittest
 
-from freoa_v6.model import Options
-from freoa_v6.runner import execute
+from traslado.model import Options
+from traslado.runner import execute
 
 
 class DocumentWarnings(unittest.TestCase):

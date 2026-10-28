@@ -8,10 +8,10 @@ from unittest.mock import patch
 
 import fitz
 
-from freoa_v6 import pdf
-from freoa_v6.chunks import write_chunks
-from freoa_v6.model import Block, Document, Options
-from freoa_v6.render import layout
+from traslado import pdf
+from traslado.chunks import write_chunks
+from traslado.model import Block, Document, Options
+from traslado.render import layout
 from test_pdf_lines_t11 import baseline_module
 
 

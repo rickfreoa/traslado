@@ -5,10 +5,10 @@ import hashlib
 import unittest
 import unittest.mock
 
-from freoa_v6 import chunks
-from freoa_v6.chunks import generate_chunks
-from freoa_v6.model import Block, Document, Page
-from freoa_v6.render import layout, render
+from traslado import chunks
+from traslado.chunks import generate_chunks
+from traslado.model import Block, Document, Page
+from traslado.render import layout, render
 
 
 class UnclosedTests(unittest.TestCase):

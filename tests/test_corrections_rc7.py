@@ -12,11 +12,11 @@ import time
 import unittest
 from unittest.mock import patch
 
-from freoa_v6 import chunks
-from freoa_v6.model import Block, Document, Options, Page
-from freoa_v6.render import render, table_markdown
-from freoa_v6.runner import execute
-from freoa_v6.safety import run_bounded
+from traslado import chunks
+from traslado.model import Block, Document, Options, Page
+from traslado.render import render, table_markdown
+from traslado.runner import execute
+from traslado.safety import run_bounded
 
 
 class CorrectionsRC7(unittest.TestCase):
@@ -111,7 +111,7 @@ class CorrectionsRC7(unittest.TestCase):
             self.assertEqual(consumed, [1])
 
     def test_worker_passes_only_remaining_output_budget_to_chunks(self):
-        from freoa_v6 import worker
+        from traslado import worker
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / 'input.txt'

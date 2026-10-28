@@ -16,8 +16,8 @@ from unittest.mock import patch
 
 import fitz
 
-from freoa_v6 import cli, ocr, pdf, runner, safety, worker
-from freoa_v6.model import Block, Document, Options
+from traslado import cli, ocr, pdf, runner, safety, worker
+from traslado.model import Block, Document, Options
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = '14bdfa0642e1dc37751cf4b080f586f717061f5b'
@@ -96,8 +96,8 @@ class OCRConcurrencyT11(unittest.TestCase):
         return document.to_dict()
 
     def test_progress_matches_stage7_for_one_worker(self):
-        baseline = types.ModuleType('freoa_v6._stage7_progress')
-        baseline.__package__ = 'freoa_v6'
+        baseline = types.ModuleType('traslado._stage7_progress')
+        baseline.__package__ = 'traslado'
         source = baseline_pdf_source()
         exec(compile(source, BASELINE + '/pdf.py', 'exec'), baseline.__dict__)
         # Blank, native, full OCR, native + regional OCR, then another native page.
@@ -194,8 +194,8 @@ class OCRConcurrencyT11(unittest.TestCase):
 
     def test_shuffled_real_children_equal_serial_and_stage7(self):
         env = {'T11_RECEIPTS': str(self.root)}
-        baseline = types.ModuleType('freoa_v6._stage7')
-        baseline.__package__ = 'freoa_v6'
+        baseline = types.ModuleType('traslado._stage7')
+        baseline.__package__ = 'traslado'
         source = baseline_pdf_source()
         exec(compile(source, BASELINE + '/pdf.py', 'exec'), baseline.__dict__)
         before = os.environ.get('OMP_THREAD_LIMIT')

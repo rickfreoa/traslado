@@ -126,7 +126,7 @@ jobs:
           if [ "${{ matrix.perfil }}" = "full" ]; then
             "$PY" -m pip install --only-binary=:all: --require-hashes -r "$PKG/requirements-full.hashes.lock"
           fi
-          "$PY" -m pip install --no-deps --no-index pacote/freoa_md_converter-*.whl
+          "$PY" -m pip install --no-deps --no-index pacote/traslado-*.whl
           "$PY" -m pip check
           "$PY" -m pip list
 

@@ -5,7 +5,7 @@ from tkinter import ttk
 import unittest
 from unittest.mock import patch
 
-from freoa_v6.gui import App
+from traslado.gui import App
 
 
 class GUIRc6(unittest.TestCase):

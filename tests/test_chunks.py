@@ -6,9 +6,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from freoa_v6.chunks import generate_chunks, write_chunks
-from freoa_v6.model import Block, Document, Page
-from freoa_v6.render import render
+from traslado.chunks import generate_chunks, write_chunks
+from traslado.model import Block, Document, Page
+from traslado.render import render
 
 
 class ChunkTests(unittest.TestCase):

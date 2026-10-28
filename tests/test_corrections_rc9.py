@@ -10,9 +10,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from freoa_v6 import chunks, cli, gui, ocr, runner
-from freoa_v6.model import Block, Document, Options, Page
-from freoa_v6.render import render
+from traslado import chunks, cli, gui, ocr, runner
+from traslado.model import Block, Document, Options, Page
+from traslado.render import render
 
 
 class CorrectionsRC9(unittest.TestCase):

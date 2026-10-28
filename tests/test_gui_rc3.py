@@ -9,7 +9,7 @@ import tkinter as tk
 import unittest
 from unittest.mock import patch
 
-from freoa_v6.gui import App, ACCENT, _read_configuration
+from traslado.gui import App, ACCENT, _read_configuration
 
 
 REPORT = {"capabilities": {name: {"available": True} for name in ("fitz", "PIL", "docx", "openpyxl", "pptx")},
@@ -66,7 +66,7 @@ class GUIRc3(unittest.TestCase):
                 found.extend(labels(child))
             return found
         texts=labels(self.root)
-        for text in ("Freoa Markdown Converter","1. Escolha o que deseja converter","Arquivo individual",
+        for text in ("Traslado","1. Escolha o que deseja converter","Arquivo individual",
                      "Pasta inteira","Pasta de destino","2. Qualidade automática","Converter agora",
                      "Abrir pasta de destino","Configuração TOML (opcional)"):
             self.assertIn(text,texts)
@@ -89,7 +89,7 @@ class GUIRc3(unittest.TestCase):
                              self.root.winfo_rooty()+self.root.winfo_height())
 
     def test_language_default_comes_from_managed_runtime(self):
-        with patch("freoa_v6.gui.default_language",return_value="eng"), patch.object(App,"check_installation",lambda self:None):
+        with patch("traslado.gui.default_language",return_value="eng"), patch.object(App,"check_installation",lambda self:None):
             second_root=tk.Toplevel(self.root)
             second_root.withdraw()
             # App uses the same Tk-compatible root API with a Toplevel.
@@ -103,7 +103,7 @@ class GUIRc3(unittest.TestCase):
     def test_file_folder_picker_and_safe_default_destination(self):
         source=self.source()
         self.app.output.set("")
-        with patch("freoa_v6.gui.filedialog.askopenfilename",return_value=str(source)):
+        with patch("traslado.gui.filedialog.askopenfilename",return_value=str(source)):
             self.app.choose_file()
         self.assertEqual(self.app.input_kind.get(),"file")
         self.assertEqual(Path(self.app.output.get()),source.parent/"Markdown_convertido")
@@ -111,7 +111,7 @@ class GUIRc3(unittest.TestCase):
         folder.mkdir()
         self.app.output.set("")
         self.app.input_kind.set("folder")
-        with patch("freoa_v6.gui.filedialog.askdirectory",return_value=str(folder)), patch("freoa_v6.gui.filedialog.askopenfilename") as file_dialog:
+        with patch("traslado.gui.filedialog.askdirectory",return_value=str(folder)), patch("traslado.gui.filedialog.askopenfilename") as file_dialog:
             self.app.browse_input()
             file_dialog.assert_not_called()
         output=Path(self.app.output.get()).resolve()
@@ -121,7 +121,7 @@ class GUIRc3(unittest.TestCase):
     def test_toml_controls_and_limits_apply_without_yaml_translation(self):
         config=self.folder/"config.toml"
         config.write_text('[conversion]\nmode="native"\nlanguage="eng"\njob_timeout=7\nocr_timeout=3\n',encoding="utf-8")
-        with patch("freoa_v6.gui.filedialog.askopenfilename",return_value=str(config)):
+        with patch("traslado.gui.filedialog.askopenfilename",return_value=str(config)):
             self.app.choose_config()
         options=self.app.conversion_options()
         self.assertEqual((options.mode,options.language,options.job_timeout,options.ocr_timeout),("native","eng",7,3))
@@ -137,7 +137,7 @@ class GUIRc3(unittest.TestCase):
         self.app.source.set('""')
         self.app.output.set(str(self.folder/"out"))
         self.app.input_kind.set("folder")
-        with patch("freoa_v6.gui.messagebox.showerror") as error, patch.object(App,"convert") as convert:
+        with patch("traslado.gui.messagebox.showerror") as error, patch.object(App,"convert") as convert:
             self.app.start()
         error.assert_called_once()
         convert.assert_not_called()
@@ -147,7 +147,7 @@ class GUIRc3(unittest.TestCase):
         source=self.source()
         original=source.read_bytes()
         self.app.mode.set("native")
-        with patch("freoa_v6.gui.inspect",return_value=REPORT):
+        with patch("traslado.gui.inspect",return_value=REPORT):
             self.app.start()
             self.pump(lambda:not self.app.busy and len(self.app.results.get_children())==1)
             self.pump(lambda:"DOCUMENTO_SINTETICO 12345" in self.app.preview.get("1.0","end"))
@@ -167,7 +167,7 @@ class GUIRc3(unittest.TestCase):
             until=time.monotonic()+3
             while not cancel() and time.monotonic()<until:time.sleep(.005)
             return {"source":str(source),"status":"cancelled","output":None,"error":"CANCEL_SENTINEL"}
-        with patch("freoa_v6.gui.inspect",return_value=REPORT),patch("freoa_v6.gui.execute",side_effect=execute):
+        with patch("traslado.gui.inspect",return_value=REPORT),patch("traslado.gui.execute",side_effect=execute):
             self.app.start()
             self.pump(entered.is_set)
             self.assertIn("disabled",self.app.source_entry.state())
@@ -181,7 +181,7 @@ class GUIRc3(unittest.TestCase):
         self.source()
         self.app.chunk_size.set("512")
         self.app.chunk_overlap.set("64")
-        with patch("freoa_v6.gui.inspect",return_value=REPORT):
+        with patch("traslado.gui.inspect",return_value=REPORT):
             self.app.start()
             self.pump(lambda:not self.app.busy and len(self.app.results.get_children())==1)
         import json
@@ -215,7 +215,7 @@ class GUIRc3(unittest.TestCase):
             release.wait(3)
             return REPORT
         try:
-            with patch("freoa_v6.gui.inspect",side_effect=inspect):
+            with patch("traslado.gui.inspect",side_effect=inspect):
                 self.app.check_installation()
                 self.pump(entered.is_set)
                 heartbeat=[]

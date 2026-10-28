@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 try:
     import tkinter as tk
-    from freoa_v6.gui import App
+    from traslado.gui import App
 except ImportError:
     tk = None
     App = None

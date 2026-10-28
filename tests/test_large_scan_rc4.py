@@ -11,8 +11,8 @@ from unittest.mock import patch
 import fitz
 from PIL import Image
 
-from freoa_v6 import pdf
-from freoa_v6.model import Block, Document, Options
+from traslado import pdf
+from traslado.model import Block, Document, Options
 
 
 class LargeScanRC4(unittest.TestCase):

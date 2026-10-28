@@ -7,11 +7,11 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from freoa_v6.advanced import sanitize
-from freoa_v6.chunks import write_chunks
-from freoa_v6.model import Block, Document, Options, Page
-from freoa_v6.render import render
-from freoa_v6.runner import execute
+from traslado.advanced import sanitize
+from traslado.chunks import write_chunks
+from traslado.model import Block, Document, Options, Page
+from traslado.render import render
+from traslado.runner import execute
 
 
 class ChunkTransportRC4(unittest.TestCase):

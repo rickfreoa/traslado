@@ -13,9 +13,9 @@ import time
 import unittest
 from unittest.mock import patch
 
-from freoa_v6.advanced import sanitize
-from freoa_v6.model import Options
-from freoa_v6.ocr import find_tesseract
+from traslado.advanced import sanitize
+from traslado.model import Options
+from traslado.ocr import find_tesseract
 
 SOURCE = Path(__file__).resolve().parents[1]
 PS = Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
@@ -37,7 +37,7 @@ class PathSearchRC3(unittest.TestCase):
         os.chdir(self.cwd)
         self.addCleanup(os.chdir, self.original)
         # Sem motor gerenciado nem locais conhecidos.
-        for target in ('freoa_v6.ocr.managed_tesseract',):
+        for target in ('traslado.ocr.managed_tesseract',):
             patcher = patch(target, return_value=None)
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -57,7 +57,7 @@ class PathSearchRC3(unittest.TestCase):
             return find_tesseract()
 
     def test_candidates_pathext_vazio_ou_ausente_usa_o_padrao_do_shutil(self):
-        from freoa_v6.ocr import _candidates
+        from traslado.ocr import _candidates
         d = Path('D:/ferramentas')
         padrao = [d / ('tesseract' + e) for e in ('.com', '.exe', '.bat', '.cmd')]
         for pathext in ('', None, os.pathsep * 2):
@@ -84,7 +84,7 @@ class PathSearchRC3(unittest.TestCase):
 
     def test_arquivo_sem_permissao_de_execucao_e_ignorado(self):
         engine = self.engine(self.folder / 'bin')
-        with patch('freoa_v6.ocr.os.access', return_value=False):
+        with patch('traslado.ocr.os.access', return_value=False):
             self.assertIsNone(self.search(str(engine.parent)))
         self.assertEqual(self.search(str(engine.parent)), str(engine))
 
@@ -145,7 +145,7 @@ class OCRSelectionRC3(unittest.TestCase):
             self.assertEqual(find_tesseract(), str(engine.resolve()))
 
     def test_explicit_absolute_selection_wins_and_relative_is_refused(self):
-        with patch('freoa_v6.ocr.managed_tesseract', return_value='UNUSED_MANAGED_ENGINE'), \
+        with patch('traslado.ocr.managed_tesseract', return_value='UNUSED_MANAGED_ENGINE'), \
              patch.dict(os.environ, {'PATH': ''}):
             self.assertEqual(find_tesseract(str(self.fake)), str(self.fake))
             with self.assertRaises(ValueError):
@@ -188,7 +188,7 @@ class AdvancedCleanupRC3(unittest.TestCase):
                     destination.write_bytes(b'PARTIAL_IMAGE')
                     raise error
                 with self.subTest(error=type(error).__name__), \
-                     patch('freoa_v6.advanced.image_to_png', side_effect=fail_image):
+                     patch('traslado.advanced.image_to_png', side_effect=fail_image):
                     with self.assertRaises(type(error)) as caught:
                         sanitize('![figure](figure.png)', model, workspace, 7, Options(images=True))
                     self.assertIs(caught.exception, error)
@@ -235,13 +235,13 @@ class InstallerProcessTreeRC3(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='freoa-installer-job-') as raw:
             folder = Path(raw)
             script = folder / 'scripts/install_windows.py'
-            helper = folder / 'src/freoa_v6/windows_job.py'
+            helper = folder / 'src/traslado/windows_job.py'
             script.parent.mkdir(parents=True)
             helper.parent.mkdir(parents=True)
             script.write_bytes((SOURCE / 'scripts/install_windows.py').read_bytes())
-            helper.write_bytes((SOURCE / 'src/freoa_v6/windows_job.py').read_bytes())
+            helper.write_bytes((SOURCE / 'src/traslado/windows_job.py').read_bytes())
             (folder / 'INSTALL-PAYLOAD.json').write_text(json.dumps({'files': [{
-                'path': 'src/freoa_v6/windows_job.py',
+                'path': 'src/traslado/windows_job.py',
                 'sha256': hashlib.sha256(helper.read_bytes()).hexdigest()}]}), encoding='utf-8')
             spec = importlib.util.spec_from_file_location('freoa_security_test_installer', script)
             installer = importlib.util.module_from_spec(spec)
@@ -295,7 +295,7 @@ if sys.argv[2] == 'wait': time.sleep(30)
 
 try:
     import tkinter as tk
-    from freoa_v6.gui import App
+    from traslado.gui import App
 except ImportError:
     tk = None
     App = None

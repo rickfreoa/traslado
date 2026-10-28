@@ -15,10 +15,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 import pymupdf
 
-from freoa_v6.model import Block, Document as OutputDocument, Options
-from freoa_v6.pdf import reading_order, extract as extract_pdf
-from freoa_v6.render import render
-from freoa_v6.runner import execute
+from traslado.model import Block, Document as OutputDocument, Options
+from traslado.pdf import reading_order, extract as extract_pdf
+from traslado.render import render
+from traslado.runner import execute
 
 
 def xml_paragraph(text):

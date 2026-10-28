@@ -3,9 +3,9 @@ requires = ["setuptools==82.0.1", "wheel==0.46.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "freoa-md-converter"
+name = "traslado"
 dynamic = ["version"]
-description = "Conversor local com extração nativa, OCR seletivo e rastreabilidade"
+description = "Traslado — conversão local de documentos para Markdown rastreável"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
 license = "AGPL-3.0-or-later"
@@ -25,12 +25,14 @@ images = ["Pillow==12.3.0"]
 full = ["PyMuPDF==1.28.2", "Pillow==12.3.0", "python-docx==1.2.0", "openpyxl==3.1.5", "python-pptx==1.0.2"]
 
 [project.scripts]
-freoa-md = "freoa_v6.cli:main"
-traslado = "freoa_v6.cli:main"
-freoa-md-gui = "freoa_v6.gui:main"
+freoa-md = "traslado.cli:main"
+traslado = "traslado.cli:main"
+[project.gui-scripts]
+traslado-gui = "traslado.gui:main"
+freoa-md-gui = "traslado.gui:main"
 
 [tool.setuptools.dynamic]
-version = {attr = "freoa_v6.__version__"}
+version = {attr = "traslado.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

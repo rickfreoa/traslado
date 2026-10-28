@@ -25,7 +25,7 @@ from .review import warning_label
 STATUS = {"complete": "Concluído", "partial": "Parcial — revisar avisos", "failed": "Falhou",
           "cancelled": "Cancelado", "timeout": "Tempo esgotado"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
-APP_TITLE = "Freoa Markdown Converter"
+APP_TITLE = "Traslado"
 ACCENT, ACCENT_DARK = "#A70F1B", "#7E0B14"
 BG, CARD, TEXT, MUTED, BORDER = "#F4F4F4", "#FFFFFF", "#1F1F1F", "#666666", "#D9D9D9"
 SUPPORTED_FILETYPES = [

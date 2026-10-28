@@ -2,6 +2,13 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
+## 2.0.0 (em andamento)
+
+- Distribuição e módulo `traslado`, com aliases de módulo `freoa_v6` na série 2.x.
+- Comandos `traslado` e `traslado-gui`; aliases `freoa-md` e `freoa-md-gui` mantidos.
+- Artefatos e avisos de conversão preservados; doctor informa o módulo.
+- Instalação gerenciada e atalhos serão redesenhados na E5.
+
 ## 1.1.0
 
 ### Conversão

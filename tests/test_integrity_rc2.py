@@ -8,8 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from freoa_v6 import runner, worker
-from freoa_v6.model import Options
+from traslado import runner, worker
+from traslado.model import Options
 
 
 class IntegrityRC2(unittest.TestCase):

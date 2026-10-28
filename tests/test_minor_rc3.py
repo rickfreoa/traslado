@@ -8,10 +8,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from freoa_v6.advanced import sanitize
-from freoa_v6 import formats
-from freoa_v6.model import Document, Options
-from freoa_v6.runner import execute
+from traslado.advanced import sanitize
+from traslado import formats
+from traslado.model import Document, Options
+from traslado.runner import execute
 
 try:
     from markdown_it import MarkdownIt

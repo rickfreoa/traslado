@@ -12,9 +12,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from freoa_v6.pathguard import unsafe_link
-from freoa_v6.safety import is_link
-from freoa_v6.runtime import _is_link
+from traslado.pathguard import unsafe_link
+from traslado.safety import is_link
+from traslado.runtime import _is_link
 
 SOURCE = Path(__file__).resolve().parents[1]
 script = SOURCE / "scripts/install_windows.py"

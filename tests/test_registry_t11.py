@@ -17,8 +17,8 @@ from unittest.mock import patch
 import zipfile
 import io
 
-from freoa_v6 import doctor, formats, registry, runner
-from freoa_v6.model import Document, Options
+from traslado import doctor, formats, registry, runner
+from traslado.model import Document, Options
 
 
 EXPECTED = frozenset(".pdf .docx .xlsx .pptx .txt .md .json .xml .csv .tsv .html .htm .png .jpg .jpeg .tif .tiff .bmp .webp".split())
@@ -98,7 +98,7 @@ class RegistryT11(unittest.TestCase):
     def test_status_does_not_import_heavy_libraries(self):
         code = """
 import sys
-from freoa_v6.registry import REGISTRY
+from traslado.registry import REGISTRY
 for converter in REGISTRY:
     converter.status()
 assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
@@ -172,7 +172,7 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
 
     def test_dispatch_uses_registered_callable_and_preserves_image_postprocess(self):
         def extractor(path, workspace, options, document):
-            from freoa_v6.model import Block, Page
+            from traslado.model import Block, Page
             document.pages.append(Page(1, "native", [Block("image", asset="assets/test.png")]))
         converter = replace(registry.lookup(".txt"), extract=extractor)
         with scratch() as folder, patch.object(formats, "lookup", return_value=converter) as lookup:
@@ -244,7 +244,7 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
 import json,sys,hashlib,subprocess
 from dataclasses import asdict
 from pathlib import Path
-from freoa_v6.model import Options
+from traslado.model import Options
 inputs, output = map(Path, sys.argv[1:3])
 results = {}
 for source in sorted(inputs.iterdir()):
@@ -258,7 +258,7 @@ for source in sorted(inputs.iterdir()):
         'options': asdict(Options(mode='native', chunks=True,
                                   **({'furniture': 'off'} if 'furniture' in Options.__dataclass_fields__ else {})))}),
         encoding='utf-8')
-    proc = subprocess.run([sys.executable, '-P', '-m', 'freoa_v6.worker', str(request)],
+    proc = subprocess.run([sys.executable, '-P', '-m', 'traslado.worker', str(request)],
                           capture_output=True, text=True)
     assert proc.returncode == 0, (source, proc.stderr, (workspace/'error.json').read_text() if (workspace/'error.json').exists() else '')
     results[source.suffix] = str(workspace)
@@ -268,7 +268,8 @@ print(json.dumps(results))
             for tree, label in ((baseline, "baseline"), (ROOT, "candidate")):
                 env = os.environ.copy()
                 env["PYTHONPATH"] = str(tree / "src")
-                proc = subprocess.run([sys.executable, "-X", "utf8", "-c", code, str(inputs), str(root / label / "out")],
+                program = code.replace("traslado", "freoa_v6") if label == "baseline" else code
+                proc = subprocess.run([sys.executable, "-X", "utf8", "-c", program, str(inputs), str(root / label / "out")],
                                       env=env, capture_output=True, text=True, encoding="utf-8", timeout=180)
                 self.assertEqual(proc.returncode, 0, proc.stderr)
                 outputs.append(json.loads(proc.stdout))

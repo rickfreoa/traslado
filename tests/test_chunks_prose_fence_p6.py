@@ -8,9 +8,9 @@ from __future__ import annotations
 import time
 import unittest
 
-from freoa_v6.chunks import generate_chunks
-from freoa_v6.model import Block, Document, Page
-from freoa_v6.render import render
+from traslado.chunks import generate_chunks
+from traslado.model import Block, Document, Page
+from traslado.render import render
 
 PROSA = "Texto corrido de doutrina sobre o tema, com palavras suficientes para encher a linha. " * 4
 
@@ -65,8 +65,8 @@ class ProseFenceTests(unittest.TestCase):
     def test_custo_linear_com_muitas_aberturas(self):
         # Cada abertura em prosa sem fechamento no bloco examina só o próprio bloco: 4x blocos, ~4x tempo
         # (quadrático seria 16x). Mesmo critério de test_chunks_unclosed_p6.
-        from freoa_v6 import chunks
-        from freoa_v6.render import layout
+        from traslado import chunks
+        from traslado.render import layout
 
         def medir(blocos):
             d = self.doc(["~~~ x\n" + PROSA for _ in range(blocos)] + ["~~~"])

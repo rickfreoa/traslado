@@ -13,10 +13,10 @@ from unittest.mock import patch
 import fitz
 from docx import Document as WordDocument
 
-from freoa_v6 import cli, formats, pdf, worker
-from freoa_v6.chunks import write_chunks
-from freoa_v6.model import Block, Document, Options, Page
-from freoa_v6.render import layout
+from traslado import cli, formats, pdf, worker
+from traslado.chunks import write_chunks
+from traslado.model import Block, Document, Options, Page
+from traslado.render import layout
 from test_pdf_lines_t11 import baseline_module
 
 
@@ -118,7 +118,7 @@ class FurnitureT11(unittest.TestCase):
         self.assertTrue(all(b.role is None for p in marked.pages for b in p.blocks))
 
     def test_worker_artifacts_only_add_roles(self):
-        from freoa_v6.safety import sha256
+        from traslado.safety import sha256
 
         path = self.source()
         outputs = []

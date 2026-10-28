@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from freoa_v6.model import Options
-from freoa_v6.runner import execute
+from traslado.model import Options
+from traslado.runner import execute
 
 class LayoutPublicationRC6(unittest.TestCase):
     def test_published_readable_pdf_has_exact_map_raw_text_and_chunk_hashes(self):

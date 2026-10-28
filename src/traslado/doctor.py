@@ -18,7 +18,7 @@ from .runtime import managed_tessdata_for, runtime_settings
 
 def inspect(tesseract: str | None = None, tessdata: str | None = None) -> dict:
     settings = runtime_settings()
-    result = {"version": __version__, "python": sys.version.split()[0],
+    result = {"version": __version__, "module": "traslado", "python": sys.version.split()[0],
               "default_conversion_network": "no_network_io_in_builtin_adapters",
               "advanced_adapter_network": "third_party_process_without_os_network_sandbox",
               "capabilities": {}, "tesseract": None, "tessdata": None, "languages": [],

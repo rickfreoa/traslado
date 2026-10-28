@@ -56,7 +56,7 @@ def _verify_previous(target: Path, source: Path, expected_manifest: str | None =
         refuse()
     try:
         manifest = json.loads(payload)
-        if (manifest.get("schema_version") != 1 or not re.fullmatch(r"6\.0\.0rc\d+(?:\+p\d+)?|1\.\d+\.\d+", manifest.get("converter", ""))
+        if (manifest.get("schema_version") != 1 or not re.fullmatch(r"6\.0\.0rc\d+(?:\+p\d+)?|[12]\.\d+\.\d+", manifest.get("converter", ""))
                 or manifest.get("source_name") != source.name
                 or manifest.get("status") not in {"complete", "partial"}
                 or (manifest.get("source_path") is not None and manifest["source_path"] != str(source))):
@@ -222,7 +222,7 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
         env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
         env["PYTHONNOUSERSITE"] = "1"
         env["PYTHONDONTWRITEBYTECODE"] = "1"
-        code = run_bounded([sys.executable, "-P", "-m", "freoa_v6.worker", str(request_file)],
+        code = run_bounded([sys.executable, "-P", "-m", "traslado.worker", str(request_file)],
                            private, options.job_timeout, private / "worker.log", cancel, env,
                            max_memory_bytes=options.max_memory_mb * 1024 * 1024,
                            budget_root=package, max_directory_bytes=options.max_output_bytes,

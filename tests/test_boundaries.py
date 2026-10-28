@@ -8,10 +8,10 @@ import time
 import unittest
 import zipfile
 
-from freoa_v6.advanced import sanitize
-from freoa_v6.model import Options
-from freoa_v6.runner import discover, execute
-from freoa_v6.safety import check_archive, run_bounded
+from traslado.advanced import sanitize
+from traslado.model import Options
+from traslado.runner import discover, execute
+from traslado.safety import check_archive, run_bounded
 
 
 class Boundaries(unittest.TestCase):

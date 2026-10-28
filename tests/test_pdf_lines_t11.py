@@ -12,9 +12,9 @@ from unittest.mock import patch
 
 import fitz
 
-from freoa_v6 import model, pdf, worker
-from freoa_v6.model import Block, Document, Options
-from freoa_v6.safety import sha256
+from traslado import model, pdf, worker
+from traslado.model import Block, Document, Options
+from traslado.safety import sha256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,8 +28,8 @@ def baseline_module(name, revision=BASELINE):
     except (OSError, subprocess.CalledProcessError):
         # Stage-identity checks need the repository history; installed-wheel CI runs skip them.
         raise unittest.SkipTest(f"revisão {revision} indisponível fora do repositório")
-    module = types.ModuleType(f"freoa_v6._p0_{revision.replace('.', '_')}_{name}")
-    module.__package__ = "freoa_v6"
+    module = types.ModuleType(f"traslado._p0_{revision.replace('.', '_')}_{name}")
+    module.__package__ = "traslado"
     # dataclasses resolves annotations through the defining module.
     with patch.dict(sys.modules, {module.__name__: module}):
         exec(compile(source, f"{revision}/{name}.py", "exec"), module.__dict__)

@@ -1,8 +1,8 @@
-# Traslado 1.1.0
+# Traslado 2.0.0
 
 Conversor local de documentos para Markdown rastreável: texto nativo rápido, OCR seletivo (Tesseract) e chunks com offsets exatos, hashes e páginas de origem, prontos para busca e RAG. O nome vem do *traslado* forense: a cópia fiel que remete sempre ao original.
 
-Traslado é a primeira versão pública do antigo Freoa Markdown Converter v6 (6.0.0rc9). O pacote Python continua `freoa-md-converter` e o módulo continua `freoa_v6`, para que instalações e integrações anteriores sigam funcionando; o comando `traslado` foi acrescentado ao lado de `freoa-md`.
+Traslado é a primeira versão pública do antigo Freoa Markdown Converter v6 (6.0.0rc9). O pacote Python e o módulo passam a `traslado`; `freoa_v6`, `freoa-md` e `freoa-md-gui` permanecem compatíveis durante a série 2.x.
 
 Candidata com limitações explícitas: testes sintéticos não homologam fidelidade jurídica, e todo texto convertido sai marcado `fidelity: unverified`.
 
@@ -30,11 +30,11 @@ Fora da 1.1, por decisão medida: a ordem de leitura por calhas (`layout = gutte
 
 ## Obter
 
-Baixe `traslado-1.1.0-windows.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar o pacote a partir do código: `python scripts/build_release.py` (gera o wheel, o `INSTALL-PAYLOAD.json`, o ZIP e as somas em `dist/`).
+Baixe `traslado-2.0.0-windows.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar o pacote a partir do código: `python scripts/build_release.py` (gera o wheel, o `INSTALL-PAYLOAD.json`, o ZIP e as somas em `dist/`).
 
 ## Instalar e abrir no Windows
 
-Requer Windows x64 e Python 3.11–3.14 com Tcl/Tk, pip e venv de origem confiável. O pacote não instala Python. Extraia o ZIP e abra **INSTALAR.bat** na pasta `traslado-1.1.0-windows`. Por padrão instala **Full**, OCR Tesseract 5.5.3 e português, inglês, espanhol, italiano, francês e alemão; cria o atalho **Freoa Markdown Converter** na Área de Trabalho e abre a janela. Não exige administrador. Full inclui PyMuPDF, sujeito a AGPL ou licença comercial; consulte THIRD-PARTY.md antes de redistribuir/integrar.
+Requer Windows x64 e Python 3.11–3.14 com Tcl/Tk, pip e venv de origem confiável. O pacote não instala Python. Extraia o ZIP e abra **INSTALAR.bat** na pasta `traslado-2.0.0-windows`. Por padrão instala **Full**, OCR Tesseract 5.5.3 e português, inglês, espanhol, italiano, francês e alemão; cria o atalho **Freoa Markdown Converter** na Área de Trabalho e abre a janela. Não exige administrador. Full inclui PyMuPDF, sujeito a AGPL ou licença comercial; consulte THIRD-PARTY.md antes de redistribuir/integrar.
 
 Aplicativo: `%LOCALAPPDATA%\Freoa\MarkdownConverter`. Documentos: a pasta `Freoa Markdown Converter` em Documentos; saída inicial em `resultados`. O atalho abre diretamente a interface. `ABRIR.bat` também abre a instalação ativa. Os caminhos reconhecem as pastas especiais do Windows. Pastas com links/junctions/reparse points ou sobreposição entre aplicativo, pacote e dados são recusadas.
 
@@ -77,9 +77,9 @@ Use o Python da versão ativa; não mova ambientes já instalados:
 $app = Join-Path $env:LOCALAPPDATA 'Freoa\MarkdownConverter'
 $current = Get-Content (Join-Path $app 'current.json') -Raw | ConvertFrom-Json
 $python = Join-Path $app ('releases\' + $current.release_id + '\.venv\Scripts\python.exe')
-& $python -I -m freoa_v6 doctor
-& $python -I -m freoa_v6 convert 'C:\documentos\contrato.pdf' -o 'C:\resultados' --mode auto
-& $python -I -m freoa_v6 convert 'C:\documentos\scan.pdf' -o 'C:\resultados' --mode ocr --language por
+& $python -I -m traslado doctor
+& $python -I -m traslado convert 'C:\documentos\contrato.pdf' -o 'C:\resultados' --mode auto
+& $python -I -m traslado convert 'C:\documentos\scan.pdf' -o 'C:\resultados' --mode ocr --language por
 ```
 
 Exit codes: 0 todos concluídos; 3 resultado parcial; 2 falha/cancelamento/timeout; 130 interrupção CLI. Cada arquivo gera JSON de resultado. TOML usa apenas `[conversion]`; CLI `--config` e campo correspondente na UI. Exemplo:
@@ -130,7 +130,7 @@ Os relatórios de auditoria das versões candidatas não integram o repositório
 
 ```powershell
 & $python -I -m pip install --require-hashes -r requirements-full.hashes.lock -r requirements-test.hashes.lock
-& $python -I -m pip install --no-deps .\dist\freoa_md_converter-1.1.0-py3-none-any.whl
+& $python -I -m pip install --no-deps .\dist\traslado-2.0.0-py3-none-any.whl
 & $python -I -m unittest discover -s tests -v
 ```
 
@@ -168,7 +168,7 @@ O progresso mostra a página corrente durante PDFs longos. `LEIA-AVISOS.txt` agr
 **Chunks:** na interface, marque/desmarque Gerar chunks para IA/RAG; padrão 6.000 caracteres, sobreposição solicitada de 600. Os valores são caracteres Unicode, não tokens. O CLI requer `--chunks`; `--no-chunks` substitui configuração TOML. `--chunk-size-chars` e `--chunk-overlap-chars` ajustam os limites. Exemplo:
 
 ```powershell
-& $python -I -m freoa_v6 convert 'C:\documentos\livro.pdf' -o 'C:\resultados' --chunks --chunk-size-chars 6000 --chunk-overlap-chars 600
+& $python -I -m traslado convert 'C:\documentos\livro.pdf' -o 'C:\resultados' --chunks --chunk-size-chars 6000 --chunk-overlap-chars 600
 ```
 
 Na subpasta `chunks/`, `chunks.jsonl` contém texto exato recortado de `document.md`, identificador determinístico, hashes da fonte/Markdown, offsets de início/fim em caracteres (fim exclusivo), títulos, páginas, blocos, motores, confiança, estado parcial e avisos. `manifest.json` registra parâmetros/quantidade; `0001.md` etc. são versões com metadados e links de imagens ajustados para a pasta pai. Tabelas e blocos de código são mantidos inteiros, podendo ultrapassar o tamanho pretendido com aviso. A sobreposição solicitada é um máximo. Se o início ideal cair no meio de uma palavra, o corte avança até o próximo espaço em branco (inclusive tabulação ou quebra de linha), reduzindo apenas o necessário. Na rc9, também avança sobre espaços iniciais até o próximo caractere não branco, sem ultrapassar o intervalo já coberto. Um início no começo de palavra é mantido. Quando a região inteira é uma palavra longa ou espaços, a sobreposição pode chegar a zero; a cobertura tem prioridade e não se pulam caracteres além do fim anterior. Sem espaço antes do fim do chunk anterior, a sobreposição pode ficar zero para não repetir uma palavra truncada; não há lacuna no texto. Quando preservar uma tabela, código, imagem ou aviso inteiro exige reduzir a sobreposição, o JSONL e o frontmatter informam `actual_overlap_chars`, `overlap_adjustment` e o aviso `chunk_overlap_reduced`. O primeiro chunk tem sobreposição 0 (`first_chunk`). O manifesto resume mínimo/máximo entre transições e quantidade de reduções; com apenas um chunk, mínimo/máximo são `null`. Os inícios e fins avançam, sem lacunas ou chunks inteiramente contidos no anterior. Não há garantia de contexto semântico. Chunks não geram embeddings nem indexam banco vetorial.

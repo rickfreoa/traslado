@@ -1,7 +1,7 @@
 """Etapa 1 do Traslado 1.1: versão única, seleção explícita, build limpo e determinístico, ausência de PyMuPDF/MuPDF e A8.
 
 Os testes de build exigem um checkout git (pulam no pacote extraído). Em CI a suíte roda contra o wheel instalado e
-T11_EXIGE_INSTALADO=1 faz `test_importa_do_venv` conferir que freoa_v6 não vem de um checkout.
+T11_EXIGE_INSTALADO=1 faz `test_importa_do_venv` conferir que traslado não vem de um checkout.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def carregar(nome: str):
 
 
 def versao_fonte() -> str:
-    return re.search(r'^__version__ = "([^"]+)"', (ROOT / "src/freoa_v6/__init__.py").read_text(encoding="utf-8"), re.M)[1]
+    return re.search(r'^__version__ = "([^"]+)"', (ROOT / "src/traslado/__init__.py").read_text(encoding="utf-8"), re.M)[1]
 
 
 def sujo() -> bool:
@@ -51,17 +51,17 @@ class VersaoUnica(unittest.TestCase):
         pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertIn("version", pyproject["project"]["dynamic"])
         self.assertNotIn("version", pyproject["project"])
-        self.assertEqual(pyproject["tool"]["setuptools"]["dynamic"]["version"], {"attr": "freoa_v6.__version__"})
+        self.assertEqual(pyproject["tool"]["setuptools"]["dynamic"]["version"], {"attr": "traslado.__version__"})
         spec = importlib.util.spec_from_file_location("install_windows_t11", SCRIPTS / "install_windows.py")
         instalador = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(instalador)
         self.assertEqual(instalador.VERSION, versao)
 
     def test_importa_do_venv(self):
-        import freoa_v6
+        import traslado
         if os.environ.get("T11_EXIGE_INSTALADO"):
-            self.assertTrue(Path(freoa_v6.__file__).resolve().is_relative_to(Path(sys.prefix).resolve()), freoa_v6.__file__)
-            self.assertEqual(freoa_v6.__version__, versao_fonte())
+            self.assertTrue(Path(traslado.__file__).resolve().is_relative_to(Path(sys.prefix).resolve()), traslado.__file__)
+            self.assertEqual(traslado.__version__, versao_fonte())
 
 
 @unittest.skipUnless(GIT, "exige checkout git")
@@ -76,7 +76,7 @@ class Build(unittest.TestCase):
             if r.returncode:
                 raise AssertionError(r.stdout + r.stderr)
         cls.zip = cls.a / f"traslado-{versao_fonte()}-windows.zip"
-        cls.wheel = cls.a / f"freoa_md_converter-{versao_fonte()}-py3-none-any.whl"
+        cls.wheel = cls.a / f"traslado-{versao_fonte()}-py3-none-any.whl"
 
     @classmethod
     def tearDownClass(cls):
@@ -151,7 +151,7 @@ class DeteccaoMuPDF(unittest.TestCase):
         with zipfile.ZipFile(buf, "w") as z:
             z.writestr("pkg/_mupdf.so", b"\x7fELF")
         self.assertTrue(f("dist/x.whl", buf.getvalue()))
-        self.assertEqual(f("src/freoa_v6/pdf.py", b"import fitz  # PyMuPDF opcional"), [])
+        self.assertEqual(f("src/traslado/pdf.py", b"import fitz  # PyMuPDF opcional"), [])
         self.assertEqual(f("THIRD-PARTY.md", b"PyMuPDF AGPL"), [])
 
     def test_membro_textual_nao_utf8_reprova_com_mensagem_propria(self):
@@ -256,11 +256,11 @@ class SelecaoDoWheel(unittest.TestCase):
             if nome:
                 (repo / nome).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / nome, repo / nome)
-        (repo / "src/freoa_v6/extra_nao_listado.py").write_text("SEGREDO_FORA_DA_LISTA = 1\n", encoding="utf-8")
+        (repo / "src/traslado/extra_nao_listado.py").write_text("SEGREDO_FORA_DA_LISTA = 1\n", encoding="utf-8")
         git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
         for comando in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "copia"]):
             subprocess.run([*git, *comando], check=True, capture_output=True)
-        self.assertIn("src/freoa_v6/extra_nao_listado.py",
+        self.assertIn("src/traslado/extra_nao_listado.py",
                       subprocess.run([*git, "ls-files"], capture_output=True, text=True).stdout.split())
         construir_copia = [sys.executable, "-I", "-X", "utf8", str(repo / "scripts/build_release.py"), "--dist", str(tmp / "dist")]
         # sem decisão explícita, módulo rastreado fora da lista reprova o build
@@ -270,7 +270,7 @@ class SelecaoDoWheel(unittest.TestCase):
         self.assertIn("extra_nao_listado.py", r.stderr)
         # com a exclusão declarada (revisável no arquivo), o build passa e o módulo não entra
         with (repo / "release-files.txt").open("a", encoding="utf-8", newline="\n") as f:
-            f.write("!src/freoa_v6/extra_nao_listado.py\n")
+            f.write("!src/traslado/extra_nao_listado.py\n")
         for comando in (["add", "-A"], ["commit", "-q", "-m", "exclui"]):
             subprocess.run([*git, *comando], check=True, capture_output=True)
         r = subprocess.run(construir_copia, capture_output=True, text=True, encoding="utf-8")
@@ -289,14 +289,14 @@ class SelecaoDoWheel(unittest.TestCase):
         linhas = (ROOT / "release-files.txt").read_text(encoding="utf-8").split()
         rastreados = [n for n in subprocess.run(["git", "-C", str(ROOT), "ls-files", "src"], capture_output=True, text=True,
                                                 encoding="utf-8").stdout.split() if n.endswith(".py")]
-        self.assertIn("src/freoa_v6/registry.py", rastreados)
-        self.assertIn("src/freoa_v6/registry.py", linhas)
+        self.assertIn("src/traslado/registry.py", rastreados)
+        self.assertIn("src/traslado/registry.py", linhas)
         for n in rastreados:
             self.assertTrue(n in linhas or "!" + n in linhas, n)
 
     def test_conferencia_de_membros_do_wheel_rejeita_extra(self):
         b = carregar("build_release")
-        nomes = ["src/freoa_v6/__init__.py", "src/freoa_v6/cli.py", "pyproject.toml"]
+        nomes = ["src/traslado/__init__.py", "src/traslado/cli.py", "pyproject.toml"]
         wheel = Path(tempfile.mkdtemp(prefix="t11-w-")) / "x.whl"
         self.addCleanup(shutil.rmtree, wheel.parent, True)
 
@@ -304,10 +304,10 @@ class SelecaoDoWheel(unittest.TestCase):
             with zipfile.ZipFile(wheel, "w") as z:
                 for m in membros:
                     z.writestr(m, b"")
-        base = ("freoa_v6/__init__.py", "freoa_v6/cli.py", "freoa_md_converter-1.1.0.dist-info/METADATA")
+        base = ("traslado/__init__.py", "traslado/cli.py", "traslado-2.0.0.dist-info/METADATA")
         montar(*base)
         b.conferir_wheel(wheel, nomes)  # não levanta
-        montar(*base, "freoa_v6/extra_nao_listado.py")
+        montar(*base, "traslado/extra_nao_listado.py")
         with self.assertRaises(SystemExit):
             b.conferir_wheel(wheel, nomes)
         montar(*base[:2])  # arquivo listado faltando no wheel
@@ -320,16 +320,16 @@ class VersaoNoDocumento(unittest.TestCase):
     def test_versao_do_pacote_manifest_e_document_json_coincidem(self):
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import test_acceptance
-        import freoa_v6
+        import traslado
         if os.environ.get("T11_EXIGE_INSTALADO"):
             from importlib.metadata import version
-            self.assertEqual(version("freoa-md-converter"), freoa_v6.__version__)  # metadados do wheel instalado
+            self.assertEqual(version("traslado"), traslado.__version__)  # metadados do wheel instalado
         caso = test_acceptance.Acceptance("test_plain_text_sentinel_and_source_immutability")
         caso.setUp()
         try:
             raiz, documento, _ = caso.artifact(caso.job(caso.text("v.txt", "texto")))
             manifest = json.loads((raiz / "manifest.json").read_text(encoding="utf-8"))
-            self.assertEqual({manifest["converter"], documento["converter_version"]}, {freoa_v6.__version__})
+            self.assertEqual({manifest["converter"], documento["converter_version"]}, {traslado.__version__})
         finally:
             caso.tearDown()
 
@@ -338,7 +338,7 @@ class VersaoNoDocumento(unittest.TestCase):
 class OrigemNoModoInstalado(unittest.TestCase):
     @unittest.skipIf(os.environ.get("T11_EXIGE_INSTALADO"), "meta-teste do ambiente de desenvolvimento")
     def test_teste_do_instalador_nao_injeta_src_no_modo_instalado(self):
-        """Com T11_EXIGE_INSTALADO e freoa_v6 só disponível pelo código-fonte, o teste dos subprocessos tem de falhar."""
+        """Com T11_EXIGE_INSTALADO e traslado só disponível pelo código-fonte, o teste dos subprocessos tem de falhar."""
         env = {**os.environ, "T11_EXIGE_INSTALADO": "1", "PYTHONPATH": str(ROOT / "src")}
         nome = "tests.test_installer_rc3.%s.test_cli_doctor_and_error_json_stay_utf8_when_parent_pipe_is_cp1252"
         classe = re.search(r"^class (\w+)\(.*\):(?:(?!^class ).)*?def test_cli_doctor_and_error_json_stay_utf8",
@@ -351,9 +351,9 @@ class OrigemNoModoInstalado(unittest.TestCase):
         r = executar(env)
         saida = r.stdout + r.stderr
         self.assertNotEqual(r.returncode, 0, saida[-2000:])
-        # a causa tem de ser a importação de freoa_v6 no subprocesso, reportada pela asserção do teste do instalador
+        # a causa tem de ser a importação de traslado no subprocesso, reportada pela asserção do teste do instalador
         self.assertIn("FAIL: test_cli_doctor_and_error_json_stay_utf8_when_parent_pipe_is_cp1252", saida)
-        self.assertIn("No module named 'freoa_v6'", saida.replace("\\'", "'"))
+        self.assertIn("No module named 'traslado'", saida.replace("\\'", "'"))
 
 
 @unittest.skipUnless((ROOT / ".github/workflows").is_dir(), "workflows ausentes no pacote extraído")
@@ -390,8 +390,8 @@ class QualificacaoOCR(unittest.TestCase):
     def test_motor_real_reconhece_digitalizacao(self):
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import test_acceptance
-        from freoa_v6.model import Options
-        from freoa_v6.ocr import find_tesseract
+        from traslado.model import Options
+        from traslado.ocr import find_tesseract
         exe = os.environ.get("T11_TESSERACT") or find_tesseract()
         self.assertTrue(exe and Path(exe).is_file(), "motor OCR exigido ausente")
         versao = subprocess.run([exe, "--version"], capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -563,7 +563,7 @@ class RunnerCore(unittest.TestCase):
         self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="json.interno_inexistente"), {"json"}))
         if importlib.util.find_spec("PIL"):
             self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="PIL.interno_inexistente"), OPCIONAIS))
-        self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="freoa_v6.cli"), OPCIONAIS))
+        self.assertFalse(extra_ausente(ModuleNotFoundError("x", name="traslado.cli"), OPCIONAIS))
         self.assertFalse(extra_ausente(ImportError("x", name="fitz"), OPCIONAIS))
         self.assertFalse(extra_ausente(ValueError("No module named 'fitz'"), OPCIONAIS))
 
@@ -642,7 +642,7 @@ class Nucleo(unittest.TestCase):
             "        if nome.split('.')[0] in %r: raise ModuleNotFoundError(nome, name=nome)\n"
             "sys.meta_path.insert(0, Bloqueio())\n"
             "for m in %r:\n"
-            "    importlib.import_module('freoa_v6.' + m)\n"  # lista declarada: módulo ausente é falha, nunca skip
+            "    importlib.import_module('traslado.' + m)\n"  # lista declarada: módulo ausente é falha, nunca skip
         ) % (str(ROOT / "src"), sorted(OPCIONAIS), self.MODULOS)
         r = subprocess.run([sys.executable, "-I", "-X", "utf8", "-c", codigo], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(r.returncode, 0, r.stderr[-2000:])

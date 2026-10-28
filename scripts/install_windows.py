@@ -18,9 +18,9 @@ import time
 import uuid
 
 PRODUCT = "freoa-md-converter"
-# Fonte única da versão: src/freoa_v6/__init__.py, lido como texto (sem importar o pacote nem dependências).
+# Fonte única da versão: src/traslado/__init__.py, lido como texto (sem importar o pacote nem dependências).
 try:
-    VERSION = re.search(r'^__version__ = "([^"]+)"', (Path(__file__).resolve().parents[1] / "src/freoa_v6/__init__.py").read_text(encoding="utf-8"), re.M).group(1)
+    VERSION = re.search(r'^__version__ = "([^"]+)"', (Path(__file__).resolve().parents[1] / "src/traslado/__init__.py").read_text(encoding="utf-8"), re.M).group(1)
 except OSError:  # script fora de um pacote completo (ex.: sonda de testes): sem versão, copy_payload recusa
     VERSION = None
 LOG_DIRECTORY = None
@@ -86,9 +86,9 @@ def run(argv, *, capture=False, timeout=1200, env=None):
             # Reuse the reviewed process boundary from this authenticated payload;
             # no installed/previous package is imported by the installer.
             package = Path(__file__).resolve().parents[1]
-            helper = package / "src/freoa_v6/windows_job.py"
+            helper = package / "src/traslado/windows_job.py"
             manifest = read_json(package / "INSTALL-PAYLOAD.json")
-            entries = [x for x in manifest["files"] if x["path"] == "src/freoa_v6/windows_job.py"]
+            entries = [x for x in manifest["files"] if x["path"] == "src/traslado/windows_job.py"]
             data = no_links(helper).read_bytes()
             if len(entries) != 1 or hashlib.sha256(data).hexdigest() != entries[0]["sha256"]:
                 raise ValueError("Supervisor de instalação mudou")
@@ -400,7 +400,7 @@ def install(args):
         if args.profile == "Full":
             run([python, "-I", "-m", "pip", "install", "--no-input", "--index-url", "https://pypi.org/simple",
                  "--only-binary=:all:", "--require-hashes", "-r", release / "requirements-full.hashes.lock"], env=environment)
-        wheels = list((release / "dist").glob(f"freoa_md_converter-{VERSION}-*.whl"))
+        wheels = list((release / "dist").glob(f"traslado-{VERSION}-*.whl"))
         if len(wheels) != 1:
             raise ValueError("Wheel próprio ambíguo")
         run([python, "-I", "-m", "pip", "install", "--no-input", "--no-index", "--no-deps", wheels[0]], env=environment)
@@ -413,7 +413,7 @@ def install(args):
         atomic_json(release / "freoa-runtime.json", {"schema_version": 1, "languages": args.languages,
             "data_root": str(data_root), "profile": args.profile, "ocr_installed": use_ocr})
         doctor_file = release / "installation-doctor.json"
-        doctor = json.loads(run([python, "-I", "-m", "freoa_v6", "doctor"], capture=True, env=environment))
+        doctor = json.loads(run([python, "-I", "-m", "traslado", "doctor"], capture=True, env=environment))
         if args.profile == "Full" and not all(doctor["capabilities"][x]["available"] for x in ["fitz", "PIL", "docx", "openpyxl", "pptx"]):
             raise ValueError("Bibliotecas Full não disponíveis")
         if use_ocr and not set(args.languages) <= set(doctor["languages"]):
@@ -462,7 +462,7 @@ def install(args):
                       preserved_files=retained, legacy_migrations=migrations, warnings=warnings)
         if args.launch:
             try:
-                subprocess.Popen([str(venv / "Scripts/pythonw.exe"), "-I", "-m", "freoa_v6", "gui"],
+                subprocess.Popen([str(venv / "Scripts/pythonw.exe"), "-I", "-m", "traslado", "gui"],
                                  cwd=data_root, env=environment, creationflags=subprocess.CREATE_NO_WINDOW)
             except OSError as exc:
                 warnings.append("Instalação concluída; abra pelo atalho: " + str(exc))

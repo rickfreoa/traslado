@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from freoa_v6 import doctor, ocr, runtime
-from freoa_v6.model import Options
+from traslado import doctor, ocr, runtime
+from traslado.model import Options
 
 class RuntimeRC3(unittest.TestCase):
     def setUp(self):

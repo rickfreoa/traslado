@@ -32,7 +32,7 @@ jobs:
           python-version: "3.13"
       - name: Tag igual a v + versão
         run: |
-          VERSAO=$(python -c "import re,pathlib; print(re.search(r'^__version__ = \"([^\"]+)\"', pathlib.Path('src/freoa_v6/__init__.py').read_text(encoding='utf-8'), re.M)[1])")
+          VERSAO=$(python -c "import re,pathlib; print(re.search(r'^__version__ = \"([^\"]+)\"', pathlib.Path('src/traslado/__init__.py').read_text(encoding='utf-8'), re.M)[1])")
           echo "VERSAO=$VERSAO" >> "$GITHUB_ENV"
           if [ "$GITHUB_REF_NAME" != "v$VERSAO" ]; then
             echo "Tag $GITHUB_REF_NAME diverge da versão v$VERSAO" >&2
@@ -78,7 +78,7 @@ jobs:
         with:
           subject-path: |
             dist/traslado-${{ env.VERSAO }}-windows.zip
-            dist/freoa_md_converter-${{ env.VERSAO }}-py3-none-any.whl
+            dist/traslado-${{ env.VERSAO }}-py3-none-any.whl
             dist/SHA256SUMS
       - name: Criar release em rascunho (nunca publicar)
         env:
@@ -86,7 +86,7 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             "dist/traslado-$VERSAO-windows.zip" \
-            "dist/freoa_md_converter-$VERSAO-py3-none-any.whl" \
+            "dist/traslado-$VERSAO-py3-none-any.whl" \
             dist/SHA256SUMS \
             --draft --verify-tag --title "Traslado $VERSAO" \
             --notes "Rascunho gerado por workflow. Revisar SHA256SUMS e a attestation antes de publicar manualmente."

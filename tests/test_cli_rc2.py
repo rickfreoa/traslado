@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from freoa_v6.cli import main
+from traslado.cli import main
 
 
 class CLIContracts(unittest.TestCase):
