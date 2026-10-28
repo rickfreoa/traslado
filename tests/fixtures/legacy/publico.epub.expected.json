@@ -1,0 +1,17 @@
+{
+  "blocks": {
+    "text": 5
+  },
+  "source_blocks": {
+    "heading": 2,
+    "paragraph": 3
+  },
+  "notes": [],
+  "ordered": [
+    "Relato público",
+    "Ação inicial",
+    "[link público](<https://example.org>)",
+    " continua.",
+    "Fim do relato."
+  ]
+}

@@ -215,3 +215,25 @@ A nova conversão termina em pasta privada antes da substituição. A publicaç�
 OCR exige todos os idiomas selecionados. A rc9 consulta `--list-langs` com o executável/tessdata efetivos e verifica diagnósticos de carregamento após a execução. Não reduz silenciosamente `eng+fra+por` a `eng`. O bloco OCR registra `requested_languages`, `available_languages` e `language_validation`; uma listagem de modelos disponíveis não prova a qualidade do reconhecimento. `confidence` continua sendo média de escores do motor, não acurácia, e `fidelity` permanece `unverified`, inclusive com confiança alta. Trocas de ordinais, grafia e números exigem comparação com a página original; não são corrigidas por substituições heurísticas.
 
 A rc9 também elimina espaços iniciais da faixa de sobreposição quando o intervalo já coberto permite, conservando offsets, hashes, proteção de tabelas/código e sobreposição efetiva. Evidências rc8 são históricas, em `audit/history-rc8/`. O relatório rc9 contém os resultados atuais e os limites de validação.
+## Formatos legados (experimental)
+
+O extra opcional `legacy` combina com Core e Full: `pip install 'traslado[legacy]'`
+ou `pip install 'traslado[full,legacy]'`. Ative explicitamente com
+`traslado convert arquivo.rtf -o resultados --engine legacy`, ou `legacy = true`
+na seção `[conversion]` do TOML. A GUI ainda não oferece esse controle.
+
+DOC, RTF, ODT, ODS, ODP, PPT e EPUB usam exclusivamente o módulo compilado
+local do anydoc 0.2.4; XLS não é suportado. DOCX, XLSX e PPTX continuam com os
+extratores existentes. Não há OCR hospedado nem acesso à rede no adaptador.
+
+O resultado traz `submotor: "anydoc"`, `submotor_version: "0.2.4"`,
+`experimental: true`, `fidelity: "unverified"` e os avisos
+`legacy_engine_experimental` e `legacy_layout_unavailable`. A única folha é
+lógica (`page 1`, `route: "legacy"`): não representa paginação física nem caixas.
+Notas preservadas pelo modelo recebem chamadas `[^n]` (fim: `[^en]`) e definições
+únicas ao fim; células cobertas por mesclagem ficam vazias com aviso.
+Estilos de caracteres, paginação, geometria e fidelidade editorial não são
+garantidos. O anydoc pode perder semântica de notas de EPUB e estrutura de
+formatos binários; revisão do original continua necessária. Imagens externas
+não são baixadas. O resultado segue a publicação normal em pasta própria;
+somente `--overwrite` explícito autoriza substituir uma saída anterior.

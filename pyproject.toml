@@ -18,6 +18,7 @@ dependencies = []
 Homepage = "https://github.com/rickfreoa/traslado"
 
 [project.optional-dependencies]
+legacy = ["firecrawl-anydoc==0.2.4"]
 test = ["markdown-it-py==4.0.0", "mdurl==0.1.2"]
 pdf = ["PyMuPDF==1.28.2", "Pillow==12.3.0"]
 office = ["python-docx==1.2.0", "openpyxl==3.1.5", "python-pptx==1.0.2"]

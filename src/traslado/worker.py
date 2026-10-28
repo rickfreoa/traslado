@@ -47,7 +47,8 @@ def main() -> int:
     request = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     workspace = Path(request["workspace"])
     options = Options(**request["options"])
-    document = Document(request["source_name"], request["sha256"], options=request["options"])
+    document_options = {key: value for key, value in request["options"].items() if key != "legacy" or value}
+    document = Document(request["source_name"], request["sha256"], options=document_options)
     start = time.monotonic()
     try:
         snapshot = Path(request["snapshot"])

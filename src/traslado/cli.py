@@ -40,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     convert.add_argument("-o", "--output", type=Path, required=True)
     convert.add_argument("--recursive", action="store_true")
     convert.add_argument("--mode", choices=["auto", "native", "ocr"])
+    convert.add_argument("--engine", choices=["legacy"], help="Ativar motor legado experimental local")
     convert.add_argument("--furniture", choices=["off", "mark"])
     convert.add_argument("--language")
     convert.add_argument("--dpi", type=int)
@@ -87,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
             values["scan_previews"] = True
         if args.no_tables:
             values["tables"] = False
+        if args.engine == "legacy":
+            values["legacy"] = True
         options = Options(**values)
         files = discover(args.source, args.output, args.recursive)
         if not files:
