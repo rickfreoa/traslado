@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Decide se o release pode seguir, a partir das execuções de ci.yml de um mesmo commit.
 
 Uso: gh api --paginate "repos/<repo>/actions/workflows/ci.yml/runs?head_sha=<sha>&per_page=100" | python scripts/ci_gate.py

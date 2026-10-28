@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Monta o pacote de instalação do Traslado: wheel próprio, INSTALL-PAYLOAD.json, ZIP determinístico e SHA256SUMS.
 
 Uso (na raiz do repositório, Python 3.11-3.14):

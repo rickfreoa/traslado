@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Windows process lifetime containment with kill-on-close Job Objects.
 
 Children start suspended, join the job, and resume only after successful assignment.

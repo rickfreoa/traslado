@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Confronta THIRD-PARTY-INVENTORY.json com o que o Traslado distribui ou baixa (A8).
 
 Uso: python scripts/inventario.py [--raiz DIR] [--saida ARQUIVO]

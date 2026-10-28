@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Windows cloud placeholders are ordinary files; name-surrogate links are refused."""
 from pathlib import Path
 

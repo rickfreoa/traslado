@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Small, validated settings for the locally managed installation.
 
 No environment-variable config discovery. Engine paths are derived from the

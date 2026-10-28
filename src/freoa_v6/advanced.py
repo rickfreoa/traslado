@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Experimental opt-in bridge to separately installed MinerU Kit 4.0.10.
 
 No engine/model is bundled. The bridge is a process boundary, not an OS sandbox.

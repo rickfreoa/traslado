@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Local desktop UI. Extraction runs off the Tk thread; preview is inert text."""
 from __future__ import annotations
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Deterministic character-based RAG chunks with source provenance.
 
 Offsets are half-open Unicode code-point offsets in the exact document.md,

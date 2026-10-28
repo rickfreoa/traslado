@@ -1,4 +1,6 @@
-﻿param([string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'Freoa\MarkdownConverter'))
+﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
+param([string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'Freoa\MarkdownConverter'))
 $ErrorActionPreference='Stop'
 $taskRoot=[IO.Path]::GetFullPath($InstallRoot)
 $taskRecord=Get-Content -LiteralPath (Join-Path $taskRoot 'current.json') -Raw -Encoding UTF8 | ConvertFrom-Json

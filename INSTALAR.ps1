@@ -1,4 +1,6 @@
-﻿[CmdletBinding()]
+﻿# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
+[CmdletBinding()]
 param(
     [ValidateSet('Full','Core')][string]$Profile = 'Full',
     [string]$Python,
