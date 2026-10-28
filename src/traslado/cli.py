@@ -64,6 +64,9 @@ def main(argv: list[str] | None = None) -> int:
 
     setup = sub.add_parser("setup", help="Configurar release candidata, gates e promoção")
     setup.add_argument("--release-id")
+    setup.add_argument("--expected-digests", type=Path)
+    setup.add_argument("--check-active", action="store_true")
+    setup.add_argument("--expected-version", default=__version__)
     setup.add_argument("--profile", choices=["Full", "Core", "full", "core"], default="Full")
     setup.add_argument("--extras")
     setup.add_argument("--languages", default=",".join(lifecycle.DEFAULT_LANGUAGES))
@@ -103,6 +106,9 @@ def main(argv: list[str] | None = None) -> int:
             gui()
             return 0
         if args.command == "setup":
+            if args.check_active:
+                return 0 if lifecycle.active_release_matches(args.root or plat.managed_root(), args.expected_version,
+                    "Core" if args.profile.lower() == "core" else "Full", args.extras, args.languages) else 1
             manifest = lifecycle.setup_release(
                 root=args.root,
                 release_id=args.release_id,
@@ -114,6 +120,7 @@ def main(argv: list[str] | None = None) -> int:
                 allow_offline_promotion=args.allow_offline_promotion,
                 skip_ocr=args.skip_ocr,
                 from_dir=args.from_dir,
+                expected_digests=json.loads(args.expected_digests.read_text(encoding="utf-8-sig")) if args.expected_digests else None,
                 ocr_cache=args.ocr_cache,
                 data_root=args.data_root,
             )

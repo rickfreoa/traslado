@@ -33,7 +33,7 @@ class PlatformE2(unittest.TestCase):
 
     def candidate(self, release='v1', **extra):
         (self.root / 'releases' / release).mkdir(parents=True, exist_ok=True)
-        data = dict(schema_version=2, release_id=release, gates={'doctor': True, 'fixture': True}, **extra)
+        data = dict(schema_version=2, release_id=release, gates={'doctor': True, 'fixture': True, 'revocation': 'ok'}, **extra)
         p.write_candidate(self.root, data)
         return data
 

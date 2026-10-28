@@ -113,8 +113,12 @@ def main() -> int:
             raise ConversionError('resource_limit', "Conversão excede limite de saída")
         if document.status == "partial":
             issue = partial_error(document)
-            (Path(sys.argv[1]).parent / "partial-error.json").write_text(
-                json.dumps({"code": issue.code, "data": issue.data or {}}), encoding="utf-8")
+            warnings = document.warnings + [w for page in document.pages for w in page.warnings]
+            preventive_only = (warnings and all(w.split(":", 1)[0] == "docx_formatting_partial" for w in warnings)
+                               and not getattr(document, "_conversion_issues", []))
+            if not preventive_only:
+                (Path(sys.argv[1]).parent / "partial-error.json").write_text(
+                    json.dumps({"code": issue.code, "data": issue.data or {}}), encoding="utf-8")
         return 0
     except Exception as exc:
         issue = classify(exc)

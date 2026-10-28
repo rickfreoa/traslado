@@ -80,6 +80,10 @@ jobs:
             dist/traslado-${{ env.VERSAO }}-windows.zip
             dist/traslado-${{ env.VERSAO }}-py3-none-any.whl
             dist/SHA256SUMS
+            dist/PAYLOAD-SHA256SUMS
+            dist/requirements-*.hashes.lock
+            dist/install.ps1
+            dist/install.sh
       - name: Criar release em rascunho (nunca publicar)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -87,6 +91,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             "dist/traslado-$VERSAO-windows.zip" \
             "dist/traslado-$VERSAO-py3-none-any.whl" \
-            dist/SHA256SUMS \
+            dist/SHA256SUMS dist/PAYLOAD-SHA256SUMS dist/requirements-*.hashes.lock dist/install.ps1 dist/install.sh \
             --draft --verify-tag --title "Traslado $VERSAO" \
             --notes "Rascunho gerado por workflow. Revisar SHA256SUMS e a attestation antes de publicar manualmente."

@@ -88,11 +88,13 @@ def write_candidate(root, data):
     _atomic(Path(root) / 'candidate.json', data)
 
 
-def promote(root, now=None):
+def promote(root, now=None, *, allow_offline=False, offline_reason=None):
     root = Path(root)
     data = _read(root / 'candidate.json')
     gates = data.get('gates', {})
-    if gates.get('doctor') is not True or gates.get('fixture') is not True or gates.get('revocation') == 'blocked':
+    offline = (allow_offline and offline_reason in {'rascunho', 'teste'}
+               and gates.get('offline_reason') == offline_reason and gates.get('revocation') == 'offline')
+    if gates.get('doctor') is not True or gates.get('fixture') is not True or not (gates.get('revocation') == 'ok' or offline):
         raise ValueError('Gates de promoção não satisfeitos')
     if not _release(root, data.get('release_id')).is_dir():
         raise ValueError('Release ausente')
@@ -105,6 +107,16 @@ def promote(root, now=None):
     _atomic(root / 'current.json', data)
     (root / 'candidate.json').unlink()
     return data
+
+
+def refresh_shortcuts(root, manifest):
+    config = manifest.get('shortcuts', {})
+    if not config.get('enabled'):
+        return
+    create_shortcut(release_python(root, manifest['release_id'], platform=manifest.get('platform')),
+                    name='Traslado', platform=manifest.get('platform'),
+                    home=Path(config['home']),
+                    **{k: Path(v) if v else None for k, v in config.get('dirs', {}).items()})
 
 
 def rollback(root):
@@ -121,6 +133,10 @@ def rollback(root):
     saved['previous_release_id'] = data['release_id']
     saved['promoted_at'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     _atomic(root / 'current.json', saved)
+    refresh_shortcuts(root, saved)
+    # The newer release may have created shortcuts absent from the older manifest.
+    if data.get('shortcuts') != saved.get('shortcuts'):
+        refresh_shortcuts(root, dict(saved, shortcuts=data.get('shortcuts', {})))
     return saved
 
 
