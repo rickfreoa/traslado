@@ -240,6 +240,6 @@ def _map(source, workspace: Path, options: Options, document: Document) -> None:
     # A growing call list also accommodates references inside note definitions.
     for key in called:
         note = notes[key]
-        text = "\n\n".join(block_text(b) for b in blocks(note.blocks))
+        text = "\n\n".join(block_text(b) for b in blocks(note.blocks)).lstrip()
         page.blocks.append(Block("text", labels[key] + ": " + text.replace("\n", "\n    "), engine="anydoc",
                                  details={"note_family": note.kind, "note_id": key}))

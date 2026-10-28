@@ -170,7 +170,7 @@ def docx_table(table, options: Options, note_reference=None) -> Block:
             if pr is not None:
                 grid = pr.find(qn("w:gridSpan"))
                 vertical = pr.find(qn("w:vMerge"))
-                span = int(grid.get(qn("w:val"), "1")) if grid is not None else 1
+                span = _parser_call(int, grid.get(qn("w:val"), "1")) if grid is not None else 1
                 merge = vertical.get(qn("w:val"), "continue") if vertical is not None else None
             if not 1 <= span <= options.max_cells:
                 raise ConversionError('resource_limit', "Mescla de tabela excede limite de células")
@@ -179,7 +179,7 @@ def docx_table(table, options: Options, note_reference=None) -> Block:
                 notes.append("docx_nested_table_structure_flattened")
             cells.append({"text": text, "span": span, "merge": merge, "rowspan": 1, "skip": False})
         before = row.trPr.find(qn("w:gridBefore")) if row.trPr is not None else None
-        start = int(before.get(qn("w:val"), "0")) if before is not None else 0
+        start = _parser_call(int, before.get(qn("w:val"), "0")) if before is not None else 0
         if not 0 <= start <= options.max_cells:
             raise ConversionError('malformed', "Deslocamento de tabela inválido")
         rows.append((start, cells))

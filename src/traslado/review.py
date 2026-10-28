@@ -5,6 +5,11 @@ from collections import defaultdict
 from .model import Document
 
 LABELS = {
+    "legacy_engine_experimental": "Motor legado experimental — legacy_engine_experimental",
+    "legacy_layout_unavailable": "Diagramação original indisponível — legacy_layout_unavailable",
+    "legacy_table_merged_cells_need_review": "Células mescladas exigem revisão — legacy_table_merged_cells_need_review",
+    "legacy_note_definition_unreferenced": "Nota sem chamada no texto — legacy_note_definition_unreferenced",
+    "legacy_image_unavailable": "Imagem indisponível — legacy_image_unavailable",
     "format_extension_mismatch": "Extensão divergente do conteúdo — format_extension_mismatch",
     "ocr_failed": "OCR falhou nesta página; revise o original e o texto recuperado",
     "region_ocr_failed": "OCR de uma região falhou; revise a imagem original",

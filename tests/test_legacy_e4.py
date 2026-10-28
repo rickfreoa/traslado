@@ -73,7 +73,7 @@ class LegacyOptIn(unittest.TestCase):
                     result = execute(source, root / "out", Options(legacy=True))
                     self.assertEqual(result.get("error_code"), expected, result)
 
-    def test_ole_content_detection_is_bounded_and_opt_in(self):
+    def test_ole_content_detection_is_bounded_without_opt_in(self):
         from traslado.detect import sniff
         with scratch() as root:
             source = root / "renamed.bin"
@@ -87,8 +87,13 @@ class LegacyOptIn(unittest.TestCase):
                 entry[:len(name)] = name
                 entry[64:66] = len(name).to_bytes(2, "little")
                 source.write_bytes(header + entry)
-                self.assertEqual(sniff(source), "ole2")
+                self.assertEqual(sniff(source), suffix)
                 self.assertEqual(sniff(source, legacy=True), suffix)
+                result = execute(source, root / "out")
+                self.assertEqual(result.get("error_code"), "unsupported", result)
+                self.assertIn(suffix, result["error"])
+                if suffix != ".xls":
+                    self.assertIn("--engine legacy", result["error"])
 
     def test_disabled_and_missing_extra(self):
         from traslado.legacy import extract

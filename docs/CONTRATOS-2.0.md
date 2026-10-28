@@ -101,7 +101,7 @@ A Biblioteca trata aviso desconhecido como motivo para manter a obra em revisão
 
 ## 5. Motor experimental (extra `legacy`)
 
-- Formatos: `.doc`, `.xls`, `.ppt`, `.rtf`, `.odt`, `.ods`, `.odp`, `.epub` (e os que o anydoc reconhecer por assinatura).
+- Formatos: `.doc`, `.ppt`, `.rtf`, `.odt`, `.ods`, `.odp`, `.epub` (e os que o anydoc reconhecer por assinatura); o anydoc 0.2.4 não lê .xls.
 - Só roda com o extra `legacy` instalado e com `--engine legacy` (CLI) ou `legacy = true` (TOML); nunca substitui saída existente; o resultado leva `submotor: anydoc`, `experimental: true`, `fidelity: unverified` em `document.json` e no `manifest.json`.
 
 ## 6. `revoked.json`

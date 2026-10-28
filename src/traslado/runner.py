@@ -389,7 +389,7 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
     return result
 
 
-def discover(source: Path, output: Path, recursive: bool = False) -> list[Path]:
+def discover(source: Path, output: Path, recursive: bool = False, *, legacy: bool = False) -> list[Path]:
     if is_link(source):
         raise ConversionError('io', "Links de entrada não são permitidos")
     source = source.resolve(strict=True)
@@ -403,7 +403,8 @@ def discover(source: Path, output: Path, recursive: bool = False) -> list[Path]:
         dirs[:] = [x for x in sorted(dirs) if not x.startswith(".") and not is_link(Path(parent)/x)]
         for name in sorted(names):
             path = Path(parent) / name
-            if not name.startswith(".") and not is_link(path) and path.suffix.lower() in SUPPORTED:
+            if (not name.startswith(".") and not is_link(path) and path.suffix.lower() in SUPPORTED
+                    and (legacy or lookup(path.suffix.lower()).id != "legacy")):
                 files.append(path)
                 if len(files) > 10000:
                     raise ConversionError('resource_limit', "Pasta excede limite de arquivos")

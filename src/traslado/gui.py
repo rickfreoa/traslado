@@ -596,7 +596,7 @@ class App:
         try:
             report = inspect(options.tesseract, options.tessdata)
             self.events.put(("doctor", report, options.language))
-            files = discover(source, output, recursive)
+            files = discover(source, output, recursive, legacy=options.legacy)
             if not files:
                 raise ValueError("Nenhum arquivo suportado encontrado")
             has_ocr_input = any(p.suffix.lower() == ".pdf" or p.suffix.lower() in IMAGE_SUFFIXES for p in files)

@@ -205,16 +205,19 @@ def _advanced_images(markdown: str, refs: list[dict[str, Any]]) -> list[tuple[in
     Look for literal code in the whole document, so a sliced chunk cannot lose
     the opening delimiter and accidentally turn a literal example into a link.
     """
-    advanced = [ref for ref in refs if ref["engine"].startswith("mineru-kit-")]
+    advanced = [ref for ref in refs if ref["engine"].startswith("mineru-kit-") or ref["engine"] == "anydoc"]
     if not advanced:
         return []
     protected = _protected(markdown, [], code_only=True, blocks=[(ref["char_start"], ref["char_end"]) for ref in refs])
     images = []
-    for match in re.finditer(r"!\[Imagem reconstruída\]\(assets/(advanced-[a-zA-Z0-9_.-]+\.png)\)", markdown):
-        begin, end = match.span()
-        if (any(ref["char_start"] <= begin and end <= ref["char_end"] for ref in advanced)
-                and not any(a < end and b > begin for a, b in protected)):
-            images.append((begin, end, match.group(1)))
+    patterns = ((r"!\[Imagem reconstruída\]\(assets/(advanced-[a-zA-Z0-9_.-]+\.png)\)", "mineru-kit-"),
+                (r"!\[(?:\\.|[^\]\n])*\]\(assets/(legacy-[0-9]+\.[a-z]+)\)", "anydoc"))
+    for pattern, engine in patterns:
+        for match in re.finditer(pattern, markdown):
+            begin, end = match.span()
+            if (any(ref["engine"].startswith(engine) and ref["char_start"] <= begin and end <= ref["char_end"] for ref in advanced)
+                    and not any(a < end and b > begin for a, b in protected)):
+                images.append((begin, end, match.group(1)))
     return images
 
 
@@ -428,7 +431,7 @@ def write_chunks(document: Document, markdown: str, directory: Path, *, size_cha
                 for image_start, image_end, asset in advanced_images:
                     begin, end = image_start - chunk["char_start"], image_end - chunk["char_start"]
                     if 0 <= begin < end <= len(chunk["text"]):
-                        edits.append((begin, end, "![Imagem reconstruída](../assets/" + asset + ")"))
+                        edits.append((begin, end, chunk["text"][begin:end].replace("(assets/" + asset + ")", "(../assets/" + asset + ")")))
                 # Rebase only the generated review note, using its known span.
                 # Source links and literal code that happen to match stay intact.
                 if review_notice:
