@@ -131,8 +131,11 @@ class DetectionE3(unittest.TestCase):
             with zipfile.ZipFile(p, 'w') as z:
                 z.writestr('[Content_Types].xml', '<Types>wordprocessingml.document.main+xml</Types>')
             self.assertEqual(sniff(p), '.docx')
-            specs = [importlib.util.find_spec(m) for m in ('docx', 'openpyxl')]
-            instalados = all(s is not None and s.origin not in (None, 'namespace') for s in specs)
+            try:  # importação real: o pacote pode existir com dependência ausente (lxml), e então o formato é unsupported
+                import docx, openpyxl  # noqa: F401,E401
+                instalados = True
+            except ImportError:
+                instalados = False
             expected = 'missing_part' if instalados else 'unsupported'
             self.assertEqual(execute(p, Path(raw) / 'out')['error_code'], expected)
 

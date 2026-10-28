@@ -249,7 +249,7 @@ def _verify_common_lifecycle(
             no_ocr_env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin"
         deg_out = work_dir / "degraded-out"
         deg_proc = subprocess.run(
-            [str(py_exe), "-I", "-X", "utf8", "-m", "traslado", "convert", str(scan_pdf), str(deg_out)],
+            [str(py_exe), "-I", "-X", "utf8", "-m", "traslado", "convert", str(scan_pdf), "-o", str(deg_out)],
             env=no_ocr_env,
             capture_output=True,
             text=True,
@@ -472,7 +472,10 @@ def _probe_windows_servercore_container(dist_dir: Path) -> dict:
     docker = shutil.which("docker")
     if not docker:
         return {"supported": False, "reason": "docker CLI ausente no runner"}
-    info = subprocess.run([docker, "info", "--format", "{{.OSType}}"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+    try:
+        info = subprocess.run([docker, "info", "--format", "{{.OSType}}"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    except subprocess.TimeoutExpired:
+        return {"supported": False, "reason": "docker info sem resposta em 120 s (daemon indisponível no runner)"}
     os_type = (info.stdout or "").strip()
     if info.returncode != 0 or os_type != "windows":
         return {

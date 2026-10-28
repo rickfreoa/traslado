@@ -228,13 +228,23 @@ def _audit_macos(managed_root: Path) -> tuple[list[str], dict]:
                 observed_paths.add(candidate)
 
     vmmap_libs: list[str] = []
+    vmmap_unresolved: list[str] = []
     if shutil.which("vmmap"):
         vm_proc = subprocess.run(["vmmap", "-w", str(os.getpid())], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        # Caminhos podem conter espaços ("Application Support"); a captura começa numa raiz absoluta conhecida
+        # e vai até a extensão. Caminho que não existe no disco não é prova de carga: fica registrado à parte,
+        # e a cobertura vem do DYLD_PRINT_LIBRARIES, que imprime o caminho completo.
+        padrao = re.compile(r"(?:^|\s)(/(?:private|System|usr|Library|Users|opt|Applications|var|tmp)/.*?"
+                            r"(?:\.dylib|\.so|\.framework/\S+))(?:\s|$)")
         for ln in (vm_proc.stdout or "").splitlines():
-            m = re.search(r"(/\S+\.(?:dylib|so|framework/\S+))", ln)
+            m = padrao.search(ln)
             if m:
-                vmmap_libs.append(m.group(1))
-                observed_paths.add(m.group(1))
+                caminho = m.group(1)
+                if Path(caminho).exists():
+                    vmmap_libs.append(caminho)
+                    observed_paths.add(caminho)
+                else:
+                    vmmap_unresolved.append(ln.strip()[:300])
 
     if not dyld_libs and not vmmap_libs:
         raise RuntimeError("DYLD/vmmap não observaram bibliotecas runtime")
@@ -244,6 +254,7 @@ def _audit_macos(managed_root: Path) -> tuple[list[str], dict]:
         "otool": otool_records,
         "dyld_loaded": sorted(set(dyld_libs)),
         "vmmap_loaded": sorted(set(vmmap_libs)),
+        "vmmap_unresolved": sorted(set(vmmap_unresolved))[:200],
     }
 
 
