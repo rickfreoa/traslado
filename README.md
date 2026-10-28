@@ -99,6 +99,14 @@ images = true
 tables = true
 ```
 
+## Erros e avisos
+
+A assinatura do conteúdo prevalece sobre a extensão para PDF, Office, imagens e HTML reconhecidos. Uma divergência gera `format_extension_mismatch` em `document.json`, nos chunks, em `LEIA-AVISOS.txt` e no resumo do resultado. Texto e CSV continuam dependendo da extensão; formatos legados detectados são recusados pelo perfil padrão.
+
+Resultados `failed`, `partial`, `cancelled` e `timeout` incluem `error_code`: `unsupported`, `needs_ocr`, `malformed`, `encrypted`, `resource_limit`, `missing_part`, `io`, `timeout`, `cancelled` ou `internal`. `needs_ocr` inclui `error_pages` (folhas a partir de 1). O campo textual `error` é preservado. Em resultados parciais, vale o primeiro erro localizado por página; avisos de capacidade ou fidelidade sem exceção usam `unsupported`. Erros de uso/configuração saem em JSON no stderr.
+
+Os códigos de saída continuam 0 (completo), 3 (parcial), 2 (falha, cancelamento, timeout ou uso) e 130 (interrupção). `internal` identifica uma exceção ainda não classificada.
+
 ## Artefatos e limites efetivos
 
 Cada conversão publicada cria uma subpasta **com o nome do documento no destino escolhido**, contendo `document.md`, `document.json`, `LEIA-AVISOS.txt`, `manifest.json`, chunks opcionais e ativos locais quando presentes. Repetições recebem `(2)`, `(3)` etc.; arquivos/pastas existentes não são substituídos. Nomes longos são encurtados no meio para conservar ano/número de volume, com limite de 80 caracteres antes do sufixo de repetição. Links, nomes reservados Windows e caracteres de caminho são tratados. Pastas `.freoa-work-…` são temporárias da transação e são removidas ao terminar; uma falha de limpeza aparece explicitamente no log. JSON mantém rotas por página, blocos, motores, avisos, texto nativo e informações de OCR; manifesto registra SHA-256 da fonte/artefatos, opções e versão. O hash comprova identidade dos bytes, não acurácia.

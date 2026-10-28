@@ -3,15 +3,41 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 import sys
 import time
+
+from .errors import ConversionError, classify, partial_error
 
 from .formats import extract
 from .model import Document, Options
 from .render import layout
 from .review import review_text
 from .safety import is_link, sha256
+
+
+def _content_layout(document, suffix):
+    """Use the detected format for presentation, retaining the source title.
+
+    The renderer uses source_name's suffix to enable PDF/OCR line joining.
+    Keep that existing policy for renamed inputs without altering provenance.
+    """
+    if Path(document.source_name).suffix.lower() == suffix:
+        return layout(document)
+    name = str(Path(document.source_name).with_suffix(suffix))
+    rendered = layout(replace(document, source_name=name))
+    old = "# " + name.replace("\n", " ")
+    new = "# " + document.source_name.replace("\n", " ")
+    delta = len(new) - len(old)
+    rendered.markdown = new + rendered.markdown[len(old):]
+    for ref in rendered.refs:
+        ref["char_start"] += delta
+        ref["char_end"] += delta
+    rendered.atomic = [(start + delta, end + delta) for start, end in rendered.atomic]
+    if rendered.review_notice is not None:
+        rendered.review_notice = tuple(offset + delta for offset in rendered.review_notice)
+    return rendered
 
 
 def main() -> int:
@@ -25,8 +51,13 @@ def main() -> int:
     start = time.monotonic()
     try:
         snapshot = Path(request["snapshot"])
-        if is_link(snapshot) or snapshot.stat().st_size > options.max_input_bytes or sha256(snapshot) != request["sha256"]:
-            raise ValueError("Snapshot não corresponde ao hash de origem")
+        if is_link(snapshot):
+            raise ConversionError("io", "Snapshot não corresponde ao hash de origem")
+        if snapshot.stat().st_size > options.max_input_bytes:
+            raise ConversionError("resource_limit", "Snapshot não corresponde ao hash de origem")
+        if sha256(snapshot) != request["sha256"]:
+            raise ConversionError("io", "Snapshot não corresponde ao hash de origem")
+        document.warnings.extend(request.get("warnings", []))
         extract(snapshot, workspace, options, document)
         if options.advanced_kit:
             if Path(request["snapshot"]).suffix == ".pdf":
@@ -35,11 +66,12 @@ def main() -> int:
             else:
                 document.warnings.append("advanced_pdf_only")
         if sha256(snapshot) != request["sha256"]:
-            raise ValueError("Snapshot mudou durante a leitura")
+            raise ConversionError("io", "Snapshot mudou durante a leitura")
         if any(p.warnings for p in document.pages) or document.warnings:
             document.status = "partial"
         document.duration_seconds = time.monotonic() - start
-        rendered = layout(document)
+        effective_layout = (lambda doc: _content_layout(doc, snapshot.suffix)) if request.get("warnings") else layout
+        rendered = effective_layout(document)
         data = document.to_dict()
         data["fidelity"] = "unverified"
         data["presentation"] = {"markdown": "document.md", "layout": "document-layout.json",
@@ -55,23 +87,38 @@ def main() -> int:
                    "interval": "half_open", "blocks": rendered.refs}
         (workspace / "document-layout.json").write_bytes(
             (json.dumps(mapping, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
-        (workspace / "LEIA-AVISOS.txt").write_text(review_text(document), encoding="utf-8")
+        review = review_text(document)
+        if request.get("warnings"):
+            review += "\n" + "\n".join(request["warnings"]) + "\n"
+        (workspace / "LEIA-AVISOS.txt").write_text(review, encoding="utf-8")
         if options.chunks:
-            from .chunks import write_chunks
+            from . import chunks
             remaining = options.max_output_bytes - sum(p.stat().st_size for p in workspace.rglob("*") if p.is_file())
             if remaining < 1:
-                raise ValueError("Conversão excede limite de saída antes dos chunks")
-            write_chunks(document, markdown, workspace / "chunks",
-                         size_chars=options.chunk_size_chars, overlap_chars=options.chunk_overlap_chars,
-                         max_output_bytes=remaining)
+                raise ConversionError('resource_limit', "Conversão excede limite de saída antes dos chunks")
+            # One isolated worker per document. Reuse the same presentation
+            # adapter for the chunk module's exact-Markdown/span validation.
+            previous_layout = chunks.layout
+            try:
+                chunks.layout = effective_layout
+                chunks.write_chunks(document, markdown, workspace / "chunks",
+                                    size_chars=options.chunk_size_chars, overlap_chars=options.chunk_overlap_chars,
+                                    max_output_bytes=remaining)
+            finally:
+                chunks.layout = previous_layout
         (workspace / "progress.json").unlink(missing_ok=True)
         (workspace / ".progress.json.tmp").unlink(missing_ok=True)
         total = sum(p.stat().st_size for p in workspace.rglob("*") if p.is_file())
         if total > options.max_output_bytes:
-            raise ValueError("Conversão excede limite de saída")
+            raise ConversionError('resource_limit', "Conversão excede limite de saída")
+        if document.status == "partial":
+            issue = partial_error(document)
+            (Path(sys.argv[1]).parent / "partial-error.json").write_text(
+                json.dumps({"code": issue.code, "data": issue.data or {}}), encoding="utf-8")
         return 0
     except Exception as exc:
-        (workspace / "error.json").write_text(json.dumps({"type": type(exc).__name__, "error": str(exc)[:2000]},
+        issue = classify(exc)
+        (workspace / "error.json").write_text(json.dumps({"type": type(exc).__name__, "error": str(exc)[:2000], "code": issue.code, "data": issue.data or {}},
                                                        ensure_ascii=False), encoding="utf-8")
         return 2
 

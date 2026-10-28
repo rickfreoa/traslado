@@ -16,15 +16,18 @@ import time
 import uuid
 from typing import Callable
 
+from .errors import ConversionError, classify
+
 from . import __version__
-from .registry import SUPPORTED
+from .registry import SUPPORTED, lookup
+from .detect import sniff
 from .model import Options
 from .safety import Cancelled, SnapshotLock, is_link, run_bounded, sha256
 
 
 def _cleanup(path: Path, root: Path) -> None:
     if path.resolve().parent != root.resolve() or not path.name.startswith(".freoa-work-") or is_link(path):
-        raise ValueError("Limpeza fora do diretório de trabalho")
+        raise ConversionError('io', "Limpeza fora do diretório de trabalho")
     shutil.rmtree(path)
 
 
@@ -44,7 +47,7 @@ def output_name(source: Path) -> str:
 def _verify_previous(target: Path, source: Path, expected_manifest: str | None = None) -> str:
     """Refuse unknown, edited or supplemented outputs. Output root remains trusted."""
     def refuse() -> None:
-        raise ValueError("Sobrescrita recusada: resultado anterior desconhecido, alterado ou de outra entrada; desmarque Sobrescrever para criar outra pasta")
+        raise ConversionError('io', "Sobrescrita recusada: resultado anterior desconhecido, alterado ou de outra entrada; desmarque Sobrescrever para criar outra pasta")
     if is_link(target) or not target.is_dir():
         refuse()
     manifest_path = target / "manifest.json"
@@ -112,7 +115,7 @@ def _publish(package: Path, target: Path, source: Path, overwrite: bool,
              cancel: Callable[[], bool] | None = None) -> str | None:
     if not overwrite or not target.exists():
         if is_link(target):
-            raise ValueError("Link de saída não permitido")
+            raise ConversionError('io', "Link de saída não permitido")
         package.rename(target)
         return None
     fingerprint = _verify_previous(target, source)
@@ -122,15 +125,15 @@ def _publish(package: Path, target: Path, source: Path, overwrite: bool,
     target.rename(backup)
     try:
         if target.exists() or is_link(target):
-            raise ValueError("Destino ocupado durante a publicação")
+            raise ConversionError('io', "Destino ocupado durante a publicação")
         package.rename(target)
     except Exception as publication_error:
         try:
             if target.exists() or is_link(target):
-                raise ValueError("Destino ocupado durante a recuperação")
+                raise ConversionError('io', "Destino ocupado durante a recuperação")
             backup.rename(target)
         except Exception as recovery_error:
-            raise RuntimeError(f"Publicação falhou ({publication_error}); saída anterior preservada em {backup}; recuperação falhou ({recovery_error})") from publication_error
+            raise ConversionError('io', f"Publicação falhou ({publication_error}); saída anterior preservada em {backup}; recuperação falhou ({recovery_error})") from publication_error
         raise
     try:
         _verify_previous(backup, source, fingerprint)
@@ -150,19 +153,19 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
     result = {"source": str(source), "status": "failed", "output": None, "error": None}
     try:
         if is_link(source):
-            raise ValueError("Links de entrada não são permitidos")
+            raise ConversionError('io', "Links de entrada não são permitidos")
         source = source.expanduser().resolve(strict=True)
-        if not source.is_file() or source.suffix.lower() not in SUPPORTED:
-            raise ValueError("Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
+        if not source.is_file():
+            raise ConversionError('unsupported', "Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
         if source.stat().st_size > options.max_input_bytes:
-            raise ValueError("Entrada excede limite de bytes")
+            raise ConversionError('resource_limit', "Entrada excede limite de bytes")
         if is_link(output_root):
-            raise ValueError("Links de saída não são permitidos")
+            raise ConversionError('io', "Links de saída não são permitidos")
         if output_root.exists() and not output_root.is_dir():
-            raise ValueError("A saída deve ser uma pasta, nunca o próprio arquivo de entrada")
+            raise ConversionError('io', "A saída deve ser uma pasta, nunca o próprio arquivo de entrada")
         output_root = output_root.expanduser().resolve()
         if output_root == source:
-            raise ValueError("Entrada e saída coincidem")
+            raise ConversionError('io', "Entrada e saída coincidem")
         if cancel and cancel():
             raise Cancelled("Conversão cancelada")
         output_root.mkdir(parents=True, exist_ok=True)
@@ -181,20 +184,37 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
                     raise Cancelled("Conversão cancelada")
                 total += len(chunk)
                 if total > options.max_input_bytes:
-                    raise ValueError("Entrada excede limite de bytes")
+                    raise ConversionError('resource_limit', "Entrada excede limite de bytes")
                 writer.write(chunk)
                 h.update(chunk)
         after = source.stat()
         if (before.st_size, before.st_mtime_ns, before.st_ino) != (after.st_size, after.st_mtime_ns, after.st_ino):
-            raise ValueError("Entrada mudou durante a leitura; tente novamente")
+            raise ConversionError('io', "Entrada mudou durante a leitura; tente novamente")
         digest = h.hexdigest()
+        # Inspect the immutable private copy, so the dispatched signature and
+        # the hashed bytes cannot come from different versions of the source.
+        detected = sniff(snapshot)
+        suffix = detected or source.suffix.lower()
+        if suffix not in SUPPORTED:
+            if detected is None:
+                raise ConversionError("unsupported", "Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
+            raise ConversionError("unsupported", "Formato detectado não suportado: " + detected)
+        mismatch = detected is not None and (lookup(source.suffix.lower()) != lookup(detected)
+                    or (lookup(detected).id == "image" and source.suffix.lower() not in
+                        {detected, {".jpg": ".jpeg", ".tif": ".tiff"}.get(detected)}))
+        canonical_snapshot = private / ("input" + suffix)
+        if snapshot != canonical_snapshot:
+            snapshot.rename(canonical_snapshot)
+            snapshot = canonical_snapshot
         if is_link(snapshot):
-            raise ValueError("Snapshot inseguro")
+            raise ConversionError('io', "Snapshot inseguro")
         snapshot_lock = SnapshotLock(snapshot)
         if snapshot.stat().st_size > options.max_input_bytes or sha256(snapshot) != digest:
-            raise ValueError("Snapshot mudou antes da extração")
+            raise ConversionError('io', "Snapshot mudou antes da extração")
         request = {"source_name": source.name, "sha256": digest, "snapshot": str(snapshot),
                    "workspace": str(package), "options": asdict(options)}
+        if mismatch:
+            request["warnings"] = [f"format_extension_mismatch: extensão {source.suffix.lower()} com conteúdo {detected}"]
         request_file = private / "request.json"
         request_file.write_text(json.dumps(request), encoding="utf-8")
         last_progress = None
@@ -229,25 +249,38 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
                            on_poll=notify_progress)
         if code != 0:
             error = package / "error.json"
-            info = json.loads(error.read_text(encoding="utf-8")) if error.is_file() else {"error": "Processo de extração falhou"}
-            raise RuntimeError(info["error"])
+            # A process killed at its memory quota may not be able to write JSON.
+            exhausted = (code & 0xffffffff) in {0xc0000017, 0xc000009a, 0xc000012d}
+            if not error.is_file() and (private / "worker.log").is_file():
+                with (private / "worker.log").open("rb") as log:
+                    exhausted |= b"MemoryError" in log.read(4 * 1024 * 1024)
+            info = json.loads(error.read_text(encoding="utf-8")) if error.is_file() else {
+                "error": "Processo de extração falhou", "code": "resource_limit" if exhausted else "internal"}
+            raise ConversionError(info.get("code", "internal"), info["error"], info.get("data"))
+        partial_info = private / "partial-error.json"
+        if partial_info.is_file():
+            info = json.loads(partial_info.read_text(encoding="utf-8"))
+            result["error_code"] = info["code"]
+            if info.get("data", {}).get("error_pages"):
+                result["error_pages"] = info["data"]["error_pages"]
+            partial_info.unlink()
         json_path = package / "document.json"
         if not json_path.is_file() or json_path.stat().st_size > options.max_output_bytes:
-            raise ValueError("Resultado inválido ou excessivo")
+            raise ConversionError('resource_limit', "Resultado inválido ou excessivo")
         report = json.loads(json_path.read_text(encoding="utf-8"))
         if report.get("source_sha256") != digest or report.get("status") not in {"complete", "partial"}:
-            raise ValueError("Contrato de resultado inválido")
+            raise ConversionError('io', "Contrato de resultado inválido")
         if cancel and cancel():
             raise Cancelled("Conversão cancelada")
         members = []
         total = 0
         for file in sorted(package.rglob("*")):
             if is_link(file):
-                raise ValueError("Link de saída não permitido")
+                raise ConversionError('io', "Link de saída não permitido")
             if file.is_file():
                 total += file.stat().st_size
                 if total > options.max_output_bytes:
-                    raise ValueError("Saída excede limite de bytes")
+                    raise ConversionError('resource_limit', "Saída excede limite de bytes")
                 members.append({"path": file.relative_to(package).as_posix(), "sha256": sha256(file), "bytes": file.stat().st_size})
         manifest = {"schema_version": 1, "converter": __version__, "source_sha256": digest,
                     "source_name": source.name, "source_path": str(source), "options": asdict(options), "files": members,
@@ -255,7 +288,7 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
                     "status": report["status"], "fidelity": "unverified"}
         (package / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         if total + (package / "manifest.json").stat().st_size > options.max_output_bytes:
-            raise ValueError("Saída e manifesto excedem limite de bytes")
+            raise ConversionError('resource_limit', "Saída e manifesto excedem limite de bytes")
         manifest_file = package / "manifest.json"
         members.append({"path": "manifest.json", "sha256": sha256(manifest_file), "bytes": manifest_file.stat().st_size})
         basename = output_name(source)
@@ -278,23 +311,23 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
             reservation = candidate
             break
         if reservation is None:
-            raise ValueError("Não foi possível reservar uma pasta para o resultado; outro processo pode estar publicando nessa pasta")
+            raise ConversionError('io', "Não foi possível reservar uma pasta para o resultado; outro processo pode estar publicando nessa pasta")
         replacing = options.overwrite and (target.exists() or is_link(target))
         # Detect changes since the manifest walk. Output-root access is still
         # trusted: this is a validation boundary, not an OS filesystem sandbox.
         # Unique package + same-filesystem rename makes all user files visible together.
         for attempt in range(4):
             if sha256(snapshot) != digest:
-                raise ValueError("Snapshot mudou durante a extração")
+                raise ConversionError('io', "Snapshot mudou durante a extração")
             current_paths = list(package.rglob("*"))
             if any(is_link(file) for file in current_paths) or {
                     file.relative_to(package).as_posix() for file in current_paths if file.is_file()
                     } != {member["path"] for member in members}:
-                raise ValueError("Conjunto de arquivos mudou antes da publicação")
+                raise ConversionError('io', "Conjunto de arquivos mudou antes da publicação")
             for member in members:
                 file = package / member["path"]
                 if is_link(file) or file.stat().st_size != member["bytes"] or sha256(file) != member["sha256"]:
-                    raise ValueError("Resultado mudou antes da publicação")
+                    raise ConversionError('io', "Resultado mudou antes da publicação")
             if cancel and cancel():
                 raise Cancelled("Conversão cancelada")
             try:
@@ -315,11 +348,16 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
         result["full_page_images_in_original"] = sum(bool(p.get("metrics", {}).get("scan_page_image_in_source_pdf"))
             and not p.get("metrics", {}).get("scan_previews_exported") for p in report["pages"])
     except Cancelled as exc:
-        result.update(status="cancelled", error=str(exc))
+        result.update(status="cancelled", error=str(exc), error_code="cancelled")
     except TimeoutError as exc:
-        result.update(status="timeout", error=str(exc))
+        result.update(status="timeout", error=str(exc), error_code="timeout")
     except Exception as exc:
-        result.update(status="failed", error=str(exc)[:2000])
+        issue = classify(exc)
+        status = issue.code if issue.code in {"cancelled", "timeout"} else "failed"
+        result.update(status=status, error=str(exc)[:2000], error_code=issue.code)
+        result.pop("error_pages", None)
+        if issue.data and "error_pages" in issue.data:
+            result["error_pages"] = issue.data["error_pages"]
     finally:
         if 'reservation' in locals() and reservation is not None:
             try:
@@ -339,13 +377,13 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
 
 def discover(source: Path, output: Path, recursive: bool = False) -> list[Path]:
     if is_link(source):
-        raise ValueError("Links de entrada não são permitidos")
+        raise ConversionError('io', "Links de entrada não são permitidos")
     source = source.resolve(strict=True)
     output = output.resolve()
     if source.is_file():
         return [source]
     if output == source or source in output.parents:
-        raise ValueError("Escolha uma saída fora da pasta de entrada")
+        raise ConversionError('io', "Escolha uma saída fora da pasta de entrada")
     files = []
     for parent, dirs, names in os.walk(source, followlinks=False):
         dirs[:] = [x for x in sorted(dirs) if not x.startswith(".") and not is_link(Path(parent)/x)]
@@ -354,7 +392,7 @@ def discover(source: Path, output: Path, recursive: bool = False) -> list[Path]:
             if not name.startswith(".") and not is_link(path) and path.suffix.lower() in SUPPORTED:
                 files.append(path)
                 if len(files) > 10000:
-                    raise ValueError("Pasta excede limite de arquivos")
+                    raise ConversionError('resource_limit', "Pasta excede limite de arquivos")
         if not recursive:
             break
     return files
