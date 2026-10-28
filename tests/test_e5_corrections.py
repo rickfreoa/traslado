@@ -16,7 +16,10 @@ import unittest
 from unittest.mock import patch
 
 from traslado import __version__, lifecycle, platform as plat, revocation, runtime, ocr
-from tests.test_lifecycle_e5 import synthetic_certificate_bundle
+try:
+    from tests.test_lifecycle_e5 import synthetic_certificate_bundle
+except ImportError:  # suíte rodando de cópia dos testes, sem o pacote tests
+    from test_lifecycle_e5 import synthetic_certificate_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 WHEEL = f"traslado-{__version__}-py3-none-any.whl"

@@ -9,7 +9,10 @@ from types import SimpleNamespace as N
 import unittest
 from unittest.mock import patch
 
-from tests.test_legacy_e4 import scratch
+try:
+    from tests.test_legacy_e4 import scratch
+except ImportError:  # suíte rodando de cópia dos testes, sem o pacote tests
+    from test_legacy_e4 import scratch
 from traslado.errors import ConversionError, classify, partial_error
 from traslado.model import Document, Options
 from traslado.runner import discover, execute

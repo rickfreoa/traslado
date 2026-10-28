@@ -89,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
     update.add_argument("--yes", action="store_true")
     update.add_argument("--root", type=Path)
     update.add_argument("--from-dir", type=Path)
+    update.add_argument("--allow-offline-promotion", action="store_true",
+                        help="Só com --from-dir e TRASLADO_PROMOCAO_OFFLINE=rascunho|teste")
 
     uninstall = sub.add_parser("uninstall", help="Remover atalhos e raiz gerenciada")
     uninstall.add_argument("--yes", action="store_true")
@@ -139,7 +141,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(info, ensure_ascii=False, indent=2))
             return 0 if info.get("current") is not None else 1
         if args.command == "update":
-            res = lifecycle.update_release(version=args.version, yes=args.yes, root=args.root, from_dir=args.from_dir)
+            if args.allow_offline_promotion and args.from_dir is None:
+                raise ValueError("--allow-offline-promotion exige --from-dir")
+            res = lifecycle.update_release(version=args.version, yes=args.yes, root=args.root, from_dir=args.from_dir,
+                                           allow_offline_promotion=args.allow_offline_promotion)
             print(json.dumps(res, ensure_ascii=False, indent=2))
             return 0
         if args.command == "uninstall":

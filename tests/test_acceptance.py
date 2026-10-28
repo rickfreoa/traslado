@@ -70,11 +70,18 @@ class Acceptance(unittest.TestCase):
         import fitz
         from PIL import Image, ImageDraw, ImageFont
         image = Image.new("RGB", (1600, 900), "white")
-        font_path = Path(os.environ.get("SystemRoot", "C:/Windows")) / "Fonts/arial.ttf"
-        try:
-            font = ImageFont.truetype(str(font_path), 42)
-        except OSError:
-            font = ImageFont.truetype("DejaVuSans.ttf", 42)
+        candidatas = [Path(os.environ.get("SystemRoot", "C:/Windows")) / "Fonts/arial.ttf",
+                      Path("/System/Library/Fonts/Supplemental/Arial.ttf"), Path("/Library/Fonts/Arial.ttf"),
+                      Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"), Path("DejaVuSans.ttf")]
+        font = None
+        for candidata in candidatas:
+            try:
+                font = ImageFont.truetype(str(candidata), 42)
+                break
+            except OSError:
+                continue
+        if font is None:
+            font = ImageFont.load_default(size=42)
         draw = ImageDraw.Draw(image)
         expected = ["CONTRATO DE SERVICOS", "Valor total: 12345 reais.", "Prazo: 30 dias."]
         for index, text in enumerate(expected):

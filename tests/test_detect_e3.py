@@ -107,7 +107,8 @@ class DetectionE3(unittest.TestCase):
             root = Path(raw)
             (root / 'yes.docx').write_bytes(b'%PDF-1.7')
             (root / 'ignored.bin').write_bytes(b'%PDF-1.7')
-            self.assertEqual(discover(root, root.parent / 'output'), [root / 'yes.docx'])
+            found = [Path(x).resolve() for x in discover(root, root.parent / 'output')]
+            self.assertEqual(found, [(root / 'yes.docx').resolve()])
 
     def test_alias_extensions_do_not_emit_mismatch(self):
         from PIL import Image
@@ -130,7 +131,7 @@ class DetectionE3(unittest.TestCase):
             with zipfile.ZipFile(p, 'w') as z:
                 z.writestr('[Content_Types].xml', '<Types>wordprocessingml.document.main+xml</Types>')
             self.assertEqual(sniff(p), '.docx')
-            expected = 'missing_part' if importlib.util.find_spec('docx') else 'unsupported'
+            expected = 'missing_part' if all(importlib.util.find_spec(m) for m in ('docx', 'openpyxl')) else 'unsupported'
             self.assertEqual(execute(p, Path(raw) / 'out')['error_code'], expected)
 
 

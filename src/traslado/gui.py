@@ -82,26 +82,26 @@ class App:
         self._row_results: dict[str, dict] = {}
         self._preview_token = 0
         self._preview_row: str | None = None
-        self.preview_label = tk.StringVar(value="Selecione um resultado para ver a prévia textual.")
-        self.result_detail = tk.StringVar(value="Selecione um arquivo para consultar os caminhos completos.")
+        self.preview_label = tk.StringVar(master=root, value="Selecione um resultado para ver a prévia textual.")
+        self.result_detail = tk.StringVar(master=root, value="Selecione um arquivo para consultar os caminhos completos.")
         self._wrap_labels = []
         self._layout_callback = None
         self._advanced_visible = False
         self._file_display_width = None
-        self.source = tk.StringVar()
-        self.output = tk.StringVar(value=str(default_output_path()))
-        self.input_kind = tk.StringVar(value="file")
-        self.config_path = tk.StringVar()
-        self.mode = tk.StringVar(value="auto")
-        self.language = tk.StringVar(value=default_language())
-        self.recursive = tk.BooleanVar(value=True)
-        self.chunk = tk.BooleanVar(value=True)
-        self.chunk_size = tk.StringVar(value="6000")
-        self.chunk_overlap = tk.StringVar(value="600")
-        self.scan_previews = tk.BooleanVar(value=False)
-        self.overwrite = tk.BooleanVar(value=False)
-        self.status = tk.StringVar(value="Verificando instalação…")
-        self.capabilities = tk.StringVar(value="Verificando capacidades e idiomas…")
+        self.source = tk.StringVar(master=root)
+        self.output = tk.StringVar(master=root, value=str(default_output_path()))
+        self.input_kind = tk.StringVar(master=root, value="file")
+        self.config_path = tk.StringVar(master=root)
+        self.mode = tk.StringVar(master=root, value="auto")
+        self.language = tk.StringVar(master=root, value=default_language())
+        self.recursive = tk.BooleanVar(master=root, value=True)
+        self.chunk = tk.BooleanVar(master=root, value=True)
+        self.chunk_size = tk.StringVar(master=root, value="6000")
+        self.chunk_overlap = tk.StringVar(master=root, value="600")
+        self.scan_previews = tk.BooleanVar(master=root, value=False)
+        self.overwrite = tk.BooleanVar(master=root, value=False)
+        self.status = tk.StringVar(master=root, value="Verificando instalação…")
+        self.capabilities = tk.StringVar(master=root, value="Verificando capacidades e idiomas…")
         self._setup_style()
         self.header = tk.Frame(root, bg=ACCENT)
         self.header.pack(fill="x")

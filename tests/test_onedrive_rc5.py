@@ -73,6 +73,7 @@ class CloudGuardsRC5(unittest.TestCase):
             self.assertFalse(unsafe_link(file))
             self.assertEqual(installer.no_links(file), file.resolve())
 
+@unittest.skipIf(sys.platform == "darwin", "install_windows.py recusa links por desenho; no macOS o diretório temporário fica sob /var, que é link")
 class InstallerDiagnosticsRC5(unittest.TestCase):
     def setUp(self):
         # Authenticate the real helper in a private payload. These unit tests

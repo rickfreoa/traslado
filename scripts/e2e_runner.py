@@ -113,6 +113,15 @@ def _build_post1_release_dir(dist_dir: Path, post_dir: Path, target_version: str
     return post_dir
 
 
+def _sem_gh(env: dict) -> dict:
+    """PATH sem o GitHub CLI: artefatos locais de CI não têm attestation de release.yml, e o instalador só a confere
+    quando gh existe. O E2E de artefato publicado (E11) roda com gh e attestation real."""
+    nomes = {"gh", "gh.exe"}
+    partes = [p for p in env.get("PATH", "").split(os.pathsep)
+              if p and not any((Path(p) / nome).is_file() for nome in nomes)]
+    return {**env, "PATH": os.pathsep.join(partes)}
+
+
 def _managed_python(managed_root: Path, release_id: str) -> Path:
     if os.name == "nt":
         return managed_root / "releases" / release_id / ".venv" / "Scripts" / "python.exe"
@@ -279,8 +288,9 @@ def _verify_common_lifecycle(
             "--root",
             str(managed_root),
             "--yes",
+            "--allow-offline-promotion",
         ],
-        env=env,
+        env=_sem_gh(env),
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -333,7 +343,7 @@ def run_linux_container_post_install(
         temp_dir = work_dir / "tmp"
         temp_dir.mkdir()
         env.update(TEMP=str(temp_dir), TMP=str(temp_dir), TMPDIR=str(temp_dir))
-        env["TRASLADO_ALLOW_OFFLINE_REVOCATION"] = "1"
+        env["TRASLADO_PROMOCAO_OFFLINE"] = "teste"
 
         report: dict = {"os": "linux", "mode": "linux-container"}
         if pre_inventory_path and pre_inventory_path.is_file():
@@ -510,7 +520,7 @@ def run_windows_e2e(dist_dir: Path, audit_output: Path, ocr_cache: Path | None =
         env["TRASLADO_SHORTCUT_DESKTOP_DIR"] = str(desktop_dir)
         env["TRASLADO_SHORTCUT_START_MENU_DIR"] = str(start_menu_dir)
         env["TRASLADO_DATA_ROOT"] = str(data_root)
-        env["TRASLADO_ALLOW_OFFLINE_REVOCATION"] = "1"
+        env["TRASLADO_PROMOCAO_OFFLINE"] = "teste"
         if ocr_cache and ocr_cache.is_dir():
             env["TRASLADO_OCR_CACHE"] = str(ocr_cache.resolve())
 
@@ -527,8 +537,9 @@ def run_windows_e2e(dist_dir: Path, audit_output: Path, ocr_cache: Path | None =
             "-Root",
             str(managed_root),
             "-Yes",
+            "-AllowOfflinePromotion",
         ]
-        inst_proc = subprocess.run(install_cmd, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        inst_proc = subprocess.run(install_cmd, env=_sem_gh(env), capture_output=True, text=True, encoding="utf-8", errors="replace")
         if inst_proc.returncode != 0:
             raise RuntimeError(f"install.ps1 falhou (rc={inst_proc.returncode}):\n{inst_proc.stdout}\n{inst_proc.stderr}")
 
@@ -661,11 +672,12 @@ def run_macos_e2e(dist_dir: Path, audit_output: Path) -> dict:
         env["HOME"] = str(profile_dir)
         env["TRASLADO_SHORTCUT_APPLICATIONS_DIR"] = str(apps_dir)
         env["TRASLADO_DATA_ROOT"] = str(data_root)
-        env["TRASLADO_ALLOW_OFFLINE_REVOCATION"] = "1"
+        env["TRASLADO_PROMOCAO_OFFLINE"] = "teste"
 
         inst_proc = subprocess.run(
-            ["sh", str(dist_dir / "install.sh"), "--from-dir", str(dist_dir), "--root", str(managed_root), "--yes"],
-            env=env,
+            ["sh", str(dist_dir / "install.sh"), "--from-dir", str(dist_dir), "--root", str(managed_root), "--yes",
+             "--allow-offline-promotion"],
+            env=_sem_gh(env),
             capture_output=True,
             text=True,
             encoding="utf-8",

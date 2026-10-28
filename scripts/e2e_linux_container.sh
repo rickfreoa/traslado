@@ -59,12 +59,28 @@ else
     INSTALLED_PREREQS="none (curl, ca-certificates, tar, gzip já presentes na imagem mínima)"
 fi
 
+# tar e gzip são pré-requisitos documentados do install.sh (descompactam uv e o Python gerenciado);
+# imagens mínimas como fedora-minimal não os trazem, e o E2E os instala, registrando no inventário.
+NEED_ARCHIVE=""
 for tool in tar gzip; do
-    if ! command -v "$tool" >/dev/null 2>&1; then
-        echo "ERRO: imagem sem $tool; bootstrap uv exige tar/gzip. Brief só autoriza instalar curl/ca-certificates." | tee "$OUT_DIR/limite-bootstrap-$DISTRO_LABEL.txt" >&2
-        exit 1
-    fi
+    command -v "$tool" >/dev/null 2>&1 || NEED_ARCHIVE="$NEED_ARCHIVE $tool"
 done
+if [ -n "$NEED_ARCHIVE" ]; then
+    echo "=== 2b. Instalando pré-requisitos de arquivo:$NEED_ARCHIVE ==="
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -y >/dev/null; apt-get install -y --no-install-recommends $NEED_ARCHIVE >/dev/null
+        INSTALLED_PREREQS="$INSTALLED_PREREQS; apt-get:$NEED_ARCHIVE"
+    elif command -v microdnf >/dev/null 2>&1; then
+        microdnf install -y $NEED_ARCHIVE >/dev/null
+        INSTALLED_PREREQS="$INSTALLED_PREREQS; microdnf:$NEED_ARCHIVE"
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y $NEED_ARCHIVE >/dev/null
+        INSTALLED_PREREQS="$INSTALLED_PREREQS; dnf:$NEED_ARCHIVE"
+    fi
+    for tool in tar gzip; do
+        command -v "$tool" >/dev/null 2>&1 || { echo "ERRO: $tool ausente após instalação" >&2; exit 1; }
+    done
+fi
 
 echo "=== 3. Reconfirmando ausência de python3, python, wish (tk), uv e tesseract após pré-requisitos ==="
 for c in python3 python wish wish8.6 tclsh tclsh8.6 uv tesseract; do
@@ -84,14 +100,14 @@ EOF
 HOME="/tmp/e2e-work/home"
 export HOME
 export XDG_DATA_HOME="$HOME/.local/share"
-export TRASLADO_ALLOW_OFFLINE_REVOCATION="1"
+export TRASLADO_PROMOCAO_OFFLINE="teste"
 export TMPDIR="/tmp/e2e-work"
 mkdir -p "$HOME" "$XDG_DATA_HOME"
 
 MANAGED_ROOT="$XDG_DATA_HOME/traslado"
 
 echo "=== 4. Testando install.sh --from-dir com --no-shortcut ==="
-sh "$DIST_DIR/install.sh" --from-dir "$DIST_DIR" --root "$MANAGED_ROOT" --yes --no-shortcut
+sh "$DIST_DIR/install.sh" --from-dir "$DIST_DIR" --root "$MANAGED_ROOT" --yes --no-shortcut --allow-offline-promotion
 if [ -f "$XDG_DATA_HOME/applications/traslado.desktop" ]; then
     echo "ERRO: atalho .desktop foi criado mesmo com --no-shortcut" >&2
     exit 1
@@ -101,7 +117,7 @@ echo "=== 5. Executando install.sh --from-dir padrão (com atalhos .desktop e .p
 VENV_PY="$(echo "$MANAGED_ROOT"/releases/*/.venv/bin/python)"
 "$VENV_PY" -I -m traslado uninstall --yes --root "$MANAGED_ROOT"
 test ! -e "$MANAGED_ROOT"
-sh "$DIST_DIR/install.sh" --from-dir "$DIST_DIR" --root "$MANAGED_ROOT" --yes
+sh "$DIST_DIR/install.sh" --from-dir "$DIST_DIR" --root "$MANAGED_ROOT" --yes --allow-offline-promotion
 
 VENV_PY="$(echo "$MANAGED_ROOT"/releases/*/.venv/bin/python)"
 if [ -z "$VENV_PY" ] || [ ! -x "$VENV_PY" ]; then

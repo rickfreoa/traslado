@@ -141,7 +141,9 @@ class OCRConcurrencyT11(unittest.TestCase):
                     safety.run_bounded([sys.executable, '-c', script], self.root, 10, log, env=given)
                 self.assertEqual(popen.call_args.kwargs['env'], given)
                 received = json.loads(log.read_text())
-                self.assertEqual({k: received[k] for k in expected}, expected)
+                # Windows não herda variáveis de ambiente de valor vazio (ex.: GITHUB_ACTION_REF no runner).
+                expected_vivas = {k: v for k, v in expected.items() if v != '' or os.name != 'nt'}
+                self.assertEqual({k: received.get(k) for k in expected_vivas}, expected_vivas)
                 self.assertEqual(received.get('OMP_THREAD_LIMIT'), expected.get('OMP_THREAD_LIMIT'))
                 if given is not None:
                     self.assertEqual(given, expected)

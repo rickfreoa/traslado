@@ -619,6 +619,8 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "teste de PowerShell install.ps1 específico do Windows")
     def test_bootstrap_install_ps1_com_fromdir_e_traslado_test_uv(self) -> None:
         """Item 1: executa install.ps1 -FromDir com TRASLADO_TEST_UV apontando para mock local sem rede."""
+        if not (ROOT / "release-files.txt").is_file():
+            self.skipTest("modo instalado: sem release-files.txt para o build local; o E2E cobre o bootstrap real")
         from_dir = self.tmp / "from_dir"
         from_dir.mkdir(parents=True, exist_ok=True)
 

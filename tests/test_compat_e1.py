@@ -189,6 +189,8 @@ class CompatE1(unittest.TestCase):
 
     def test_entry_points(self):
         import configparser
+        if not (ROOT / "release-files.txt").is_file():
+            self.skipTest("modo instalado: sem release-files.txt; o job de build cobre os entry points do wheel")
         # Only packaging needs the backend; conversion/import tests use src.
         backend = subprocess.run([sys.executable, "-c", "import setuptools, wheel"],
                                  capture_output=True, timeout=30)

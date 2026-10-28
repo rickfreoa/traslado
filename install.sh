@@ -166,6 +166,12 @@ else
                 echo "Plataforma não suportada pelo instalador: $OS_NAME / $ARCH_NAME" >&2
                 exit 2 ;;
         esac
+        for tool in tar gzip; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+                echo "Pré-requisito ausente: $tool (necessário para descompactar o uv). Instale-o pelo gerenciador do sistema e repita." >&2
+                exit 2
+            fi
+        done
         UV_ARCHIVE="uv-$UV_PLATFORM.tar.gz"
         UV_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/$UV_ARCHIVE"
         mkdir -p "$UV_DIR"

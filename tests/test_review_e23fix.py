@@ -12,7 +12,10 @@ import zipfile
 import zlib
 import tempfile
 import unittest
+import importlib.util
 from traslado import detect, formats, platform, runner, safety
+
+FULL = all(importlib.util.find_spec(m) is not None for m in ("fitz", "docx", "pptx", "openpyxl", "PIL"))
 from traslado.errors import ConversionError, classify, partial_error
 from traslado.model import Document, Options
 
@@ -55,6 +58,7 @@ class ReviewE23Fix(unittest.TestCase):
                     source.write_bytes(b'x' * offset + b'%PDF-1.7')
                     self.assertEqual(detect.sniff(source), expected)
 
+    @unittest.skipUnless(FULL, "perfil Core: extratores Office/PDF/imagem ausentes")
     def test_real_malformed_parsers(self):
         for kind in ['docx', 'pptx', 'xlsx', 'workbook', 'bmp']:
             with self.subTest(kind=kind):
@@ -98,6 +102,7 @@ class ReviewE23Fix(unittest.TestCase):
                     self.assertEqual(error.exception.code, 'malformed')
                     self.assertEqual(classify(exc).code, 'internal')
 
+    @unittest.skipUnless(FULL, "perfil Core: PyMuPDF ausente")
     def test_pdf_localized_runtime(self):
         tmp_path = self.tmp_path
         import fitz

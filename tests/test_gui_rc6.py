@@ -138,7 +138,7 @@ class GUIRc6(unittest.TestCase):
         if root.winfo_screenheight()-self.MARGEM_DE_TELA<self.ALTURA_JANELA_PARA_DUAS_LINHAS_2X:
             self.skipTest(f"tela {root.winfo_screenwidth()}x{root.winfo_screenheight()} abaixo de {self.ALTURA_JANELA_PARA_DUAS_LINHAS_2X+self.MARGEM_DE_TELA} px de altura: não há espaço para duas linhas em escala 2x")
         self.add_results(root,app)
-        self.assertGreater(root.winfo_height(),650)
+        self.assertGreaterEqual(root.winfo_height(),650)  # o gerenciador de janelas pode não crescer além do pedido; o critério é o de duas linhas visíveis, abaixo
         self.assertLessEqual(root.minsize()[1],root.winfo_screenheight()-self.MARGEM_DE_TELA)
         rows=app.results.get_children()
         visible=[app.results.bbox(row) for row in rows if app.results.bbox(row)]

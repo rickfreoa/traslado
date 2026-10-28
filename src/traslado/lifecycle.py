@@ -834,7 +834,13 @@ def uninstall_managed(
                 shutil.rmtree(path)
             else:
                 path.unlink(missing_ok=True)
-        if keep_data:
+        data_inside = any(data == managed.resolve() or managed.resolve() in data.parents for data in preserved)
+        if (platform_name == "win32" and os.name == "nt" and not keep_data and not data_inside
+                and Path(sys.executable).resolve().is_relative_to(managed.resolve())):
+            # O Windows não apaga o interpretador em execução: a remoção espera o fim deste processo.
+            _defer_self_removal(managed)
+            deferred = True
+        elif keep_data:
             for sub in ("current.json", "candidate.json", "releases", "python", "tools"):
                 target = managed / sub
                 if target.exists():
@@ -858,6 +864,7 @@ def update_release(
     yes: bool = False,
     root: Path | None = None,
     from_dir: Path | None = None,
+    allow_offline_promotion: bool = False,
     repo: str = revocation.DEFAULT_REPO,
     platform_name: str | None = None,
     env: dict[str, str] | None = None,
@@ -921,6 +928,8 @@ def update_release(
                 argv.append("-NoShortcut")
             if yes:
                 argv.append("-Yes")
+            if allow_offline_promotion:
+                argv.append("-AllowOfflinePromotion")
         else:
             argv = [
                 "sh", str(script_path),
@@ -936,6 +945,8 @@ def update_release(
                 argv.append("--no-shortcut")
             if yes:
                 argv.append("--yes")
+            if allow_offline_promotion:
+                argv.append("--allow-offline-promotion")
 
         proc = runner_fn(argv)
         if proc.returncode != 0:
