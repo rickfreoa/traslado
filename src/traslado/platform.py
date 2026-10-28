@@ -318,8 +318,12 @@ def create_shortcut(target_python, name='Traslado', desktop=True, start_menu=Tru
         executable.parent.mkdir(parents=True, exist_ok=True)
         executable.write_text('#!/bin/sh\nexec ' + shlex.quote(str(target)) + ' -I -m traslado.gui "$@"\n', encoding='utf-8')
         executable.chmod(0o755)
+        resources = app / 'Contents/Resources'
+        resources.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(icon, resources / 'traslado.png')
         with (app / 'Contents/Info.plist').open('wb') as stream:
-            plistlib.dump(dict(CFBundleName=name, CFBundleExecutable='Traslado', CFBundleIdentifier='org.traslado.desktop', CFBundlePackageType='APPL'), stream)
+            plistlib.dump(dict(CFBundleName=name, CFBundleExecutable='Traslado', CFBundleIdentifier='org.traslado.desktop',
+                               CFBundlePackageType='APPL', CFBundleIconFile='traslado.png'), stream)
         result.append(app)
     else:
         apps.mkdir(parents=True, exist_ok=True)

@@ -212,7 +212,7 @@ def _verify_common_lifecycle(
         fx_path = ROOT / "src/traslado/assets" / fx_name
         dest_fx = conv_out / fx_name.replace(".", "_")
         proc = subprocess.run(
-            [str(py_exe), "-I", "-X", "utf8", "-m", "traslado", "convert", str(fx_path), str(dest_fx), "--chunks"],
+            [str(py_exe), "-I", "-X", "utf8", "-m", "traslado", "convert", str(fx_path), "-o", str(dest_fx), "--chunks"],
             env=env,
             capture_output=True,
             text=True,
@@ -351,7 +351,13 @@ def run_linux_container_post_install(
 
         # Verificar atalhos .desktop e .png criados pela instalação padrão
         current = json.loads((managed_root / "current.json").read_text(encoding="utf-8"))
-        shortcuts = [Path(p) for p in current.get("shortcuts", [])]
+        # current.json (esquema 2) guarda a configuração dos atalhos, não a lista de arquivos criados.
+        config = current.get("shortcuts") or {}
+        assert config.get("enabled") is True, f"Atalhos desativados no manifesto: {config}"
+        home_sc, dirs = Path(config["home"]), config.get("dirs") or {}
+        apps_dir = Path(dirs.get("applications_dir") or home_sc / ".local/share/applications")
+        icons_dir = Path(dirs.get("icons_dir") or home_sc / ".local/share/icons/hicolor/256x256/apps")
+        shortcuts = [apps_dir / "traslado.desktop", icons_dir / "traslado.png"]
         desktop_files = [p for p in shortcuts if p.suffix == ".desktop"]
         png_files = [p for p in shortcuts if p.suffix == ".png"]
         assert desktop_files and desktop_files[0].is_file(), f"Atalho .desktop ausente: {shortcuts}"

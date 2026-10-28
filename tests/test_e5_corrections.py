@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -137,6 +138,10 @@ class CorrectionsE5(unittest.TestCase):
         # Actual local package install, without dependencies or network build isolation.
         subprocess.run([sys.executable, "-m", "venv", "--without-pip", "--system-site-packages", str(target)], check=True, capture_output=True)
         py = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        # Sem isolamento de build, vale o setuptools herdado do interpretador base; license SPDX (PEP 639) exige >= 77.
+        versao = subprocess.run([str(py), "-c", "import setuptools; print(setuptools.__version__)"], capture_output=True, text=True)
+        if versao.returncode != 0 or int(versao.stdout.strip().split(".")[0]) < 77:
+            self.skipTest("setuptools do interpretador base ausente ou anterior a 77 (PEP 639): " + (versao.stdout.strip() or versao.stderr[-200:]))
         install = subprocess.run([sys.executable, "-m", "pip", "--python", str(py), "install", "--no-deps", "--no-build-isolation", str(ROOT)], capture_output=True, text=True)
         self.assertEqual(install.returncode, 0, install.stdout+install.stderr)
         output = Path(self.tmp.name) / "revoked.json"
@@ -144,6 +149,7 @@ class CorrectionsE5(unittest.TestCase):
         self.assertEqual(smoke.returncode, 0, smoke.stdout+smoke.stderr)
         self.assertEqual(json.loads(output.read_text())["sequence"], 42)
 
+    @unittest.skipUnless((ROOT / ".github/workflows/revocation.yml").is_file(), "workflows ausentes no pacote extraído")
     def test_08_09_workflow_serialization_errors_and_latest_contract(self):
         workflow = (ROOT / ".github/workflows/revocation.yml").read_text(encoding="utf-8")
         self.assertIn("group: traslado-revocation", workflow)
@@ -205,6 +211,7 @@ class CorrectionsE5(unittest.TestCase):
                 path.write_text("fixture")
         self.assertFalse(gate({"status": "ok", "output": str(output)}))
 
+    @unittest.skipUnless(all(importlib.util.find_spec(m) for m in ("docx", "fitz", "openpyxl", "pptx", "PIL")), "fixture Full exige o perfil Full")
     def test_13_real_full_fixture_preventive_docx_warning(self):
         self.assertTrue(lifecycle.run_fixture_gate(profile="Full", chunks=True))
 

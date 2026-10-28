@@ -910,7 +910,9 @@ def update_release(
         active_profile = (current_manifest.get("profile") if isinstance(current_manifest, dict) else None) or "Full"
         active_extras = (current_manifest.get("extras") if isinstance(current_manifest, dict) else None) or []
         active_langs = (current_manifest.get("languages") if isinstance(current_manifest, dict) else None) or list(DEFAULT_LANGUAGES)
-        had_shortcuts = bool(current_manifest.get("shortcuts")) if isinstance(current_manifest, dict) else False
+        sc_config = current_manifest.get("shortcuts") if isinstance(current_manifest, dict) else None
+        # Esquema 2: {"enabled": bool, ...}; manifestos anteriores guardavam a lista de caminhos.
+        had_shortcuts = bool(sc_config.get("enabled")) if isinstance(sc_config, dict) else bool(sc_config)
 
         if platform_name == "win32":
             ps = str(POWERSHELL_WIN if POWERSHELL_WIN.is_file() else "powershell.exe")

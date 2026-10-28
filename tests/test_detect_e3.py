@@ -131,7 +131,9 @@ class DetectionE3(unittest.TestCase):
             with zipfile.ZipFile(p, 'w') as z:
                 z.writestr('[Content_Types].xml', '<Types>wordprocessingml.document.main+xml</Types>')
             self.assertEqual(sniff(p), '.docx')
-            expected = 'missing_part' if all(importlib.util.find_spec(m) for m in ('docx', 'openpyxl')) else 'unsupported'
+            specs = [importlib.util.find_spec(m) for m in ('docx', 'openpyxl')]
+            instalados = all(s is not None and s.origin not in (None, 'namespace') for s in specs)
+            expected = 'missing_part' if instalados else 'unsupported'
             self.assertEqual(execute(p, Path(raw) / 'out')['error_code'], expected)
 
 

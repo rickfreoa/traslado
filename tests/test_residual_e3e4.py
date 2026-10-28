@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ricardo Peres Freoa
 """Residual E3/E4 integration regressions."""
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
@@ -18,7 +19,14 @@ from traslado.model import Document, Options
 from traslado.runner import discover, execute
 
 
+def instalado(*nomes):
+    """Pacote real instalado; diretório homônimo no sys.path vira namespace package sem origem e não conta."""
+    specs = [importlib.util.find_spec(n) for n in nomes]
+    return all(s is not None and s.origin not in (None, "namespace") for s in specs)
+
+
 class ResidualIntegration(unittest.TestCase):
+    @unittest.skipUnless(instalado("fitz", "lxml", "PIL", "docx", "pptx"), "perfil sem extratores Office/PDF/imagem")
     def test_parser_exception_classes(self):
         import fitz
         from lxml.etree import XMLSyntaxError
@@ -32,6 +40,7 @@ class ResidualIntegration(unittest.TestCase):
                 self.assertEqual(classify(exc).code, 'malformed')
         self.assertEqual(classify(RuntimeError('bug')).code, 'internal')
 
+    @unittest.skipUnless(instalado("docx"), "perfil sem python-docx")
     def test_docx_non_numeric_grid_attributes(self):
         from docx import Document as Docx
         from docx.oxml import OxmlElement
@@ -52,6 +61,7 @@ class ResidualIntegration(unittest.TestCase):
                     result = execute(source, root / 'out', Options(mode='native'))
                     self.assertEqual(result.get('error_code'), 'malformed', result)
 
+    @unittest.skipUnless(instalado("fitz", "PIL"), "perfil sem PyMuPDF/Pillow")
     def test_pdf_localized_subclasses_and_table_failures(self):
         import fitz
         from traslado.pdf import extract
@@ -153,6 +163,7 @@ class ResidualIntegration(unittest.TestCase):
             self.assertTrue(label.endswith(' — ' + code))
             self.assertNotEqual(label.split(' — ')[0], code.replace('_', ' '))
 
+    @unittest.skipUnless(instalado("anydoc"), "extra legacy ausente")
     def test_real_rtf_image_fixture_chunks(self):
         import base64
         png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')

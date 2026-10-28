@@ -117,6 +117,7 @@ class PlatformE2(unittest.TestCase):
                 with (paths[0] / 'Contents/Info.plist').open('rb') as stream:
                     self.assertEqual(plistlib.load(stream)['CFBundleExecutable'], 'Traslado')
                 self.assertIn('-I -m traslado.gui', (paths[0] / 'Contents/MacOS/Traslado').read_text())
+                self.assertEqual((paths[0] / 'Contents/Resources/traslado.png').read_bytes()[:8], b'\x89PNG\r\n\x1a\n')
             self.assertEqual(p.remove_shortcuts(['Traslado'], platform=system, home=home), paths)
 
     def test_windows_shortcuts(self):
