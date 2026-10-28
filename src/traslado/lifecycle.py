@@ -372,12 +372,10 @@ def handle_legacy_windows(
     env = os.environ if env is None else env
     if platform_name != "win32":
         return []
-    candidates = list(plat.legacy_roots(platform=platform_name, env=env))
     if env.get("TRASLADO_LEGACY_ROOT"):
-        candidates.append(Path(env["TRASLADO_LEGACY_ROOT"]))
-    sibling_legacy = Path(new_root).parent / "Freoa/MarkdownConverter"
-    if sibling_legacy not in candidates:
-        candidates.append(sibling_legacy)
+        candidates = [Path(env["TRASLADO_LEGACY_ROOT"])]
+    else:
+        candidates = [Path(new_root).parent / "Freoa/MarkdownConverter"]
 
     superseded: list[dict] = []
     seen: set[Path] = set()
