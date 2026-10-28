@@ -4,6 +4,12 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 
 ## 2.0.0 (em andamento)
 
+- Extra `legacy` com anydoc 0.2.4 para DOC, RTF, ODT, ODS, ODP, PPT e EPUB,
+  somente com ativação explícita no CLI/TOML. XLS permanece não suportado.
+- Adaptador local no worker contido, erros tipados, notas, tabelas e proveniência
+  experimental em documento/manifesto; doctor informa disponibilidade.
+- Fixtures sintéticas públicas, gabaritos estruturais e mutações determinísticas.
+  A GUI ainda não oferece seleção do motor legado.
 - Detecção pelo conteúdo para PDF, OOXML, imagens cadastradas e HTML; extensão divergente gera `format_extension_mismatch`, com despacho pelo formato detectado. OLE2, RTF, ODF e EPUB são identificados para diagnóstico e recusados pelo perfil padrão.
 - Erros tipados no worker, no resultado por arquivo e no stderr do CLI, com `error_pages` para OCR indisponível; códigos de saída e mensagens anteriores preservados.
 - Distribuição e módulo `traslado`, com aliases de módulo `freoa_v6` na série 2.x.

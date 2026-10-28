@@ -32,6 +32,7 @@ src/traslado/detect.py
 src/traslado/doctor.py
 src/traslado/errors.py
 src/traslado/formats.py
+src/traslado/legacy.py
 src/traslado/gui.py
 src/traslado/model.py
 src/traslado/ocr.py

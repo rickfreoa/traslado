@@ -1,0 +1,36 @@
+{
+  "blocks": {
+    "text": 5,
+    "table": 1
+  },
+  "source_blocks": {
+    "paragraph": 3,
+    "table": 1,
+    "note_definition": 2
+  },
+  "notes": [
+    {
+      "label": "1",
+      "text": "Nota primeira.",
+      "before": "Ação inicial",
+      "after": " continua.",
+      "family": "footnote"
+    },
+    {
+      "label": "2",
+      "text": "Nota segunda.",
+      "before": "Segundo trecho",
+      "after": " termina.",
+      "family": "footnote"
+    }
+  ],
+  "ordered": [
+    "Ação inicial",
+    "Segundo trecho",
+    "Norte",
+    "Sul",
+    "Fim do relato.",
+    "[^1]: Nota primeira.",
+    "[^2]: Nota segunda."
+  ]
+}

@@ -8,9 +8,11 @@ import re
 import zipfile
 import zlib
 
+from .errors import ConversionError
 
 
-def sniff(path: Path) -> str | None:
+
+def sniff(path: Path, *, legacy: bool = False) -> str | None:
     with Path(path).open("rb") as stream:
         head = stream.read(4096)
     text_extension = Path(path).suffix.lower() in {
@@ -37,6 +39,8 @@ def sniff(path: Path) -> str | None:
         return ".webp"
     # GIF is intentionally absent: the built-in registry does not support it.
     if head.startswith(bytes.fromhex("D0CF11E0A1B11AE1")):
+        if legacy:
+            return _ole_format(path, head) or "ole2"
         return "ole2"
     if head.startswith(b"{\\rtf"):
         return ".rtf"
@@ -80,3 +84,37 @@ def sniff(path: Path) -> str | None:
         except (zipfile.BadZipFile, zlib.error, EOFError, RuntimeError, NotImplementedError):
             return None
     return None
+
+
+def _ole_format(path: Path, head: bytes) -> str | None:
+    """Bounded CFB directory walk; no optional parser in the supervisor."""
+    import struct
+    if len(head) < 512 or head[30:32] not in (b"\x09\x00", b"\x0c\x00"):
+        return None
+    size = 1 << int.from_bytes(head[30:32], "little")
+    sector = int.from_bytes(head[48:52], "little")
+    fat_ids = struct.unpack_from("<109I", head, 76)
+    names = {"WordDocument": ".doc", "PowerPoint Document": ".ppt", "Workbook": ".xls", "Book": ".xls"}
+    seen = set()
+    with path.open("rb") as stream:
+        for _ in range(4096):
+            if sector >= 0xFFFFFFFA or sector in seen:
+                return None
+            seen.add(sector)
+            stream.seek((sector + 1) * size)
+            directory = stream.read(size)
+            for offset in range(0, len(directory) - 127, 128):
+                length = int.from_bytes(directory[offset+64:offset+66], "little")
+                if 2 <= length <= 64 and length % 2 == 0:
+                    name = directory[offset:offset+length-2].decode("utf-16-le", errors="replace")
+                    if name in names:
+                        return names[name]
+            fat_index, entry = divmod(sector, size // 4)
+            if fat_index >= len(fat_ids) or fat_ids[fat_index] >= 0xFFFFFFFA:
+                return None
+            stream.seek((fat_ids[fat_index] + 1) * size + entry * 4)
+            value = stream.read(4)
+            if len(value) != 4:
+                return None
+            sector = int.from_bytes(value, "little")
+    raise ConversionError("resource_limit", "Diretório OLE excede limite de inspeção")

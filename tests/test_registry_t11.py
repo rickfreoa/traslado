@@ -21,7 +21,8 @@ from traslado import doctor, formats, registry, runner
 from traslado.model import Document, Options
 
 
-EXPECTED = frozenset(".pdf .docx .xlsx .pptx .txt .md .json .xml .csv .tsv .html .htm .png .jpg .jpeg .tif .tiff .bmp .webp".split())
+EXPECTED = frozenset(".pdf .docx .xlsx .pptx .txt .md .json .xml .csv .tsv .html .htm .png .jpg .jpeg .tif .tiff .bmp .webp .doc .rtf .odt .ods .odp .ppt .epub".split())
+BUILTIN_EXPECTED = EXPECTED - frozenset(".doc .rtf .odt .ods .odp .ppt .epub".split())
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -57,7 +58,7 @@ class RegistryT11(unittest.TestCase):
         self.assertIs(runner.SUPPORTED, registry.SUPPORTED)
         self.assertIsInstance(registry.REGISTRY, tuple)
         self.assertEqual({c.id for c in registry.REGISTRY},
-                         {"pdf", "docx", "xlsx", "pptx", "image", "csv", "html", "text"})
+                         {"pdf", "docx", "xlsx", "pptx", "image", "csv", "html", "text", "legacy"})
         self.assertEqual(sum(len(c.extensions) for c in registry.REGISTRY), len(EXPECTED))
         for converter in registry.REGISTRY:
             with self.assertRaises(FrozenInstanceError):
@@ -276,7 +277,7 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
                 ".htm": "<p>BEFORE &amp; AFTER 12345</p>",
             }.items():
                 (inputs / ("record" + suffix)).write_text(content, encoding="utf-8")
-            self.assertEqual({p.suffix for p in inputs.iterdir()}, EXPECTED)
+            self.assertEqual({p.suffix for p in inputs.iterdir()}, BUILTIN_EXPECTED)
             code = """
 import json,sys,hashlib,subprocess
 from dataclasses import asdict
@@ -312,7 +313,7 @@ print(json.dumps(results))
                 outputs.append(json.loads(proc.stdout))
             compared = []
             # DOCX changes on purpose in A5a (notes, per-species warnings) and has its own tests.
-            for suffix in sorted(EXPECTED - {".docx"}):
+            for suffix in sorted(BUILTIN_EXPECTED - {".docx"}):
                 for relative in ("document.md", "document.json", "document-layout.json", "chunks/chunks.jsonl"):
                     payloads = [(Path(out[suffix]) / relative).read_bytes() for out in outputs]
                     if relative == "document.json":

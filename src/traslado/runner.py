@@ -193,13 +193,18 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
         digest = h.hexdigest()
         # Inspect the immutable private copy, so the dispatched signature and
         # the hashed bytes cannot come from different versions of the source.
-        detected = sniff(snapshot)
+        detected = sniff(snapshot, legacy=options.legacy)
         suffix = detected or source.suffix.lower()
         if suffix not in SUPPORTED:
+            if suffix == "ole2" and not options.legacy:
+                raise ConversionError("unsupported", "Formato detectado ole2; use --engine legacy para DOC/PPT (XLS não suportado)")
             if detected is None:
                 raise ConversionError("unsupported", "Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
             raise ConversionError("unsupported", "Formato detectado não suportado: " + detected)
+        if lookup(suffix).id == "legacy" and not options.legacy:
+            raise ConversionError("unsupported", "Formato legado " + suffix + "; use --engine legacy")
         mismatch = detected is not None and (lookup(source.suffix.lower()) != lookup(detected)
+                    or (lookup(detected).id == "legacy" and source.suffix.lower() != detected)
                     or (lookup(detected).id == "image" and source.suffix.lower() not in
                         {detected, {".jpg": ".jpeg", ".tif": ".tiff"}.get(detected)}))
         canonical_snapshot = private / ("input" + suffix)
@@ -212,7 +217,7 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
         if snapshot.stat().st_size > options.max_input_bytes or sha256(snapshot) != digest:
             raise ConversionError('io', "Snapshot mudou antes da extração")
         request = {"source_name": source.name, "sha256": digest, "snapshot": str(snapshot),
-                   "workspace": str(package), "options": asdict(options)}
+                   "workspace": str(package), "options": {k: v for k, v in asdict(options).items() if k != "legacy" or v}}
         if mismatch:
             request["warnings"] = [f"format_extension_mismatch: extensão {source.suffix.lower()} com conteúdo {detected}"]
         request_file = private / "request.json"
@@ -290,9 +295,11 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
                     raise ConversionError('resource_limit', "Saída excede limite de bytes")
                 members.append({"path": file.relative_to(package).as_posix(), "sha256": sha256(file), "bytes": file.stat().st_size})
         manifest = {"schema_version": 1, "converter": __version__, "source_sha256": digest,
-                    "source_name": source.name, "source_path": str(source), "options": asdict(options), "files": members,
+                    "source_name": source.name, "source_path": str(source), "options": {k: v for k, v in asdict(options).items() if k != "legacy" or v}, "files": members,
                     "directories": sorted(p.relative_to(package).as_posix() for p in package.rglob("*") if p.is_dir()),
                     "status": report["status"], "fidelity": "unverified"}
+        if report.get("submotor") == "anydoc":
+            manifest.update({key: report[key] for key in ("submotor", "submotor_version", "experimental")})
         (package / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         if total + (package / "manifest.json").stat().st_size > options.max_output_bytes:
             raise ConversionError('resource_limit', "Saída e manifesto excedem limite de bytes")

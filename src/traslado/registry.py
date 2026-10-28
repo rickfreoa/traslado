@@ -58,7 +58,18 @@ def _extractor(name: str):
     return extract
 
 
+def _legacy(path, workspace, options, document):
+    from .legacy import extract
+    extract(path, workspace, options, document)
+
+
 REGISTRY: tuple[Converter, ...] = (
+    Converter("legacy", (".doc", ".rtf", ".odt", ".ods", ".odp", ".ppt", ".epub"),
+              ("native_text", "tables", "images", "notes"),
+              ("max_input_bytes", "max_archive_bytes", "max_cells", "max_output_bytes"),
+              ("legacy_engine_experimental", "legacy_layout_unavailable", "image_semantics_unverified",
+               "legacy_table_merged_cells_need_review", "legacy_note_definition_unreferenced", "legacy_image_unavailable"),
+              ("anydoc",), (), _legacy),
     Converter("pdf", (".pdf",), ("native_text", "tables", "images", "ocr"),
               ("max_pages", "max_pixels", "max_cells", "dpi", "ocr_timeout", "max_output_bytes"),
               ("pdf_form_field_semantics_unverified", "pdf_annotations_not_extracted",

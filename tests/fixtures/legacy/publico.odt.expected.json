@@ -1,0 +1,43 @@
+{
+  "blocks": {
+    "text": 8,
+    "table": 1
+  },
+  "source_blocks": {
+    "heading": 1,
+    "paragraph": 3,
+    "table": 1,
+    "list_item": 2,
+    "note_definition": 2
+  },
+  "notes": [
+    {
+      "label": "1",
+      "text": "Nota primeira.",
+      "before": "Ação inicial",
+      "after": " continua.",
+      "family": "footnote"
+    },
+    {
+      "label": "e2",
+      "text": "Nota final.",
+      "before": "Segundo trecho",
+      "after": " termina.",
+      "family": "endnote"
+    }
+  ],
+  "ordered": [
+    "# Relato público",
+    "Ação inicial",
+    "Segundo trecho",
+    "Norte unido",
+    "Leste",
+    "Oeste",
+    "Item inicial",
+    "Item final",
+    "Fim do relato.",
+    "[^1]: Nota primeira.",
+    "[^e2]: Nota final."
+  ],
+  "merged": true
+}

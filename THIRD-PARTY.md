@@ -40,3 +40,11 @@ As ferramentas de build têm somente versões exatas no pyproject. Python, Tcl/T
 - **Perfil Python histórico.** A resolução inventariada é a de CPython 3.14.6 em Windows; 3.11 a 3.13 e Linux usam os mesmos locks com hash, sem inventário próprio.
 - **PyMuPDF/MuPDF.** Nenhum ZIP ou wheel distribuído contém seus bytes (verificado no build e no workflow de release); o extra Full o instala no ambiente do usuário e segue a decisão de licenciamento acima.
 - **Sem SBOM completo** para interpretador, Tcl/Tk, ferramentas de build e bibliotecas nativas embutidas em wheels de terceiros.
+### Motor legado opcional
+
+`firecrawl-anydoc` **0.2.4**, licença **MIT**, extra `legacy`. A conversão usa
+somente `anydoc._anydoc`, localmente, sem OCR hospedado. Os crates Rust embutidos
+e suas licenças estão no SBOM CycloneDX do próprio wheel:
+`firecrawl_anydoc-0.2.4.dist-info/sboms/anydoc-python.cyclonedx.json`.
+Não há hashes de wheels anydoc nos locks atuais; a entrada aditiva no inventário
+não substitui o SBOM dos componentes nativos.
