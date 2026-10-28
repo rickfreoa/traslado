@@ -759,12 +759,8 @@ class App:
 
 
 def main() -> None:
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except (AttributeError, OSError):
-            pass
+    from .platform import enable_hidpi
+    enable_hidpi()
     root = tk.Tk()
     App(root)
     root.mainloop()

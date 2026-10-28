@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 build/
 work/
+tests/_medicoes/
 ocr-cache/
 *.egg-info/
 dist/*
