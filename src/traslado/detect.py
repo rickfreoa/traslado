@@ -39,9 +39,7 @@ def sniff(path: Path, *, legacy: bool = False) -> str | None:
         return ".webp"
     # GIF is intentionally absent: the built-in registry does not support it.
     if head.startswith(bytes.fromhex("D0CF11E0A1B11AE1")):
-        if legacy:
-            return _ole_format(path, head) or "ole2"
-        return "ole2"
+        return _ole_format(path, head) or "ole2"
     if head.startswith(b"{\\rtf"):
         return ".rtf"
     text = head.removeprefix(b"\xef\xbb\xbf").lstrip().lower()

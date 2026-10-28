@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import sys
 import zipfile
+import zlib
 
 from .errors import ConversionError
 from .model import Block, Document, Options, Page
@@ -50,8 +51,17 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
     if zipfile.is_zipfile(path):
         try:
             check_archive(path, options)
+            # The native parser does not consistently distinguish unsupported
+            # compression and encryption. Validate member headers with zipfile
+            # in the worker, without decompressing their contents.
+            with zipfile.ZipFile(path) as archive:
+                for info in archive.infolist():
+                    with archive.open(info):
+                        pass
         except NotImplementedError as exc:
             raise ConversionError("unsupported", str(exc)) from exc
+        except (zipfile.BadZipFile, zlib.error, EOFError) as exc:
+            raise ConversionError("malformed", str(exc)) from exc
         except RuntimeError as exc:
             if "password" in str(exc).lower() or "encrypted" in str(exc).lower():
                 raise ConversionError("encrypted", str(exc)) from exc
@@ -125,7 +135,7 @@ def _map(source, workspace: Path, options: Options, document: Document) -> None:
                 url = url.replace("<", "%3C").replace(">", "%3E").replace("\n", "%0A")
                 text = "[" + inline(item.content, depth + 1) + "](<" + url + ">)"
             elif kind == "image":
-                text = item.alt or ""
+                text = " ".join((item.alt or "").split())  # alt numa linha: o rebase dos chunks exige o link inteiro
                 image = item.source
                 if options.images and image and image.kind == "asset" and image.asset_id in assets:
                     key = image.asset_id
@@ -233,6 +243,6 @@ def _map(source, workspace: Path, options: Options, document: Document) -> None:
     # A growing call list also accommodates references inside note definitions.
     for key in called:
         note = notes[key]
-        text = "\n\n".join(block_text(b) for b in blocks(note.blocks))
+        text = "\n\n".join(block_text(b) for b in blocks(note.blocks)).lstrip()
         page.blocks.append(Block("text", labels[key] + ": " + text.replace("\n", "\n    "), engine="anydoc",
                                  details={"note_family": note.kind, "note_id": key}))

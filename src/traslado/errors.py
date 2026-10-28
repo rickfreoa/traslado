@@ -42,6 +42,9 @@ def classify(exc: Exception) -> ConversionError:
         code = "malformed"
     elif isinstance(exc, UnicodeError):
         code = "malformed"
+    elif type(exc).__name__ in {"FileDataError", "EmptyFileError", "XMLSyntaxError",
+                                "UnidentifiedImageError", "InvalidXmlError"}:
+        code = "malformed"
     elif type(exc).__name__ in {"DecompressionBombError", "DecompressionBombWarning"}:
         code = "resource_limit"
     elif isinstance(exc, ValueError) and str(exc) in {

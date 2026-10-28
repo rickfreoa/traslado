@@ -125,7 +125,8 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
             for item in report["converters"]:
                 self.assertEqual(set(item), {"id", "extensions", "state", "code", "detail", "capabilities", "known_losses"})
                 self.assertIn(item["code"], registry.REASON_CODES)
-            self.assertEqual({p.suffix.lower() for p in runner.discover(inputs, root / "out")}, EXPECTED)
+            self.assertEqual({p.suffix.lower() for p in runner.discover(inputs, root / "out")}, BUILTIN_EXPECTED)
+            self.assertEqual({p.suffix.lower() for p in runner.discover(inputs, root / "out", legacy=True)}, EXPECTED)
             for source in inputs.iterdir():
                 supported = source.suffix.lower() in EXPECTED
                 # Single files keep the 1.0.0 path: execute refuses them with the established message.
@@ -144,7 +145,7 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
             nested = inputs / "nested"
             nested.mkdir()
             (nested / "nested.TXT").write_bytes(b"nested")
-            self.assertEqual(len(runner.discover(inputs, root / "out", recursive=True)), len(EXPECTED) + 1)
+            self.assertEqual(len(runner.discover(inputs, root / "out", recursive=True)), len(BUILTIN_EXPECTED) + 1)
 
     def test_unavailable_does_not_short_circuit_worker(self):
         with scratch() as folder:

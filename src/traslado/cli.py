@@ -166,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.engine == "legacy":
             values["legacy"] = True
         options = Options(**values)
-        files = discover(args.source, args.output, args.recursive)
+        files = discover(args.source, args.output, args.recursive, legacy=options.legacy)
         if not files:
             raise ConversionError("unsupported", "Nenhum arquivo suportado encontrado")
         results = []
