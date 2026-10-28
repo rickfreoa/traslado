@@ -65,3 +65,23 @@ class WindowsJob:
         if self.handle:
             self.kernel.CloseHandle(self.handle)
             self.handle = None
+
+    def peak_memory(self):
+        limits = ExtendedLimits()
+        self.kernel.QueryInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p]
+        self.kernel.QueryInformationJobObject.restype = wintypes.BOOL
+        if not self.kernel.QueryInformationJobObject(self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits), None):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return limits.peak_job_memory
+
+    def process_ids(self):
+        # Job limits permit at most 32 processes; leave room for the header.
+        class Pids(ctypes.Structure):
+            _fields_ = [('assigned', wintypes.DWORD), ('count', wintypes.DWORD),
+                        ('pids', ctypes.c_size_t * 32)]
+        data = Pids()
+        self.kernel.QueryInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p]
+        self.kernel.QueryInformationJobObject.restype = wintypes.BOOL
+        if not self.kernel.QueryInformationJobObject(self.handle, 3, ctypes.byref(data), ctypes.sizeof(data), None):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return list(data.pids[:data.count])

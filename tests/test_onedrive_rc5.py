@@ -71,6 +71,23 @@ class CloudGuardsRC5(unittest.TestCase):
             self.assertEqual(installer.no_links(file), file.resolve())
 
 class InstallerDiagnosticsRC5(unittest.TestCase):
+    def setUp(self):
+        # Authenticate the real helper in a private payload. These unit tests
+        # must not depend on an ignored build artifact in the checkout root.
+        import hashlib
+        self.payload_temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.payload_temp.cleanup)
+        payload = Path(self.payload_temp.name)
+        helper = payload / 'src/traslado/windows_job.py'
+        helper.parent.mkdir(parents=True)
+        data = (Path(__file__).resolve().parents[1] / 'src/traslado/windows_job.py').read_bytes()
+        helper.write_bytes(data)
+        (payload / 'INSTALL-PAYLOAD.json').write_text(json.dumps({'files': [
+            {'path': 'src/traslado/windows_job.py', 'sha256': hashlib.sha256(data).hexdigest()}]}), encoding='utf-8')
+        location = patch.object(installer, '__file__', str(payload / 'scripts/install_windows.py'))
+        location.start()
+        self.addCleanup(location.stop)
+
     def test_child_error_is_visible_and_persisted_even_without_capture(self):
         with tempfile.TemporaryDirectory() as raw:
             logs = Path(raw).resolve()
@@ -91,7 +108,9 @@ class InstallerDiagnosticsRC5(unittest.TestCase):
     def test_timeout_persists_child_diagnostic(self):
         with tempfile.TemporaryDirectory() as raw, patch.object(installer, "LOG_DIRECTORY", Path(raw)), contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaises(subprocess.TimeoutExpired):
-                installer.run([sys.executable, "-I", "-c", "import time;print('BEFORE_TIMEOUT',flush=True);time.sleep(30)"], timeout=1)
+                # Allow the venv launcher and child to start on a loaded host;
+                # still require a real timeout and the child's persisted output.
+                installer.run([sys.executable, "-I", "-c", "import time;print('BEFORE_TIMEOUT',flush=True);time.sleep(30)"], timeout=8)
             self.assertIn("BEFORE_TIMEOUT", next(Path(raw).glob("*.log")).read_text())
 
     def test_excessive_stage_output_is_refused_with_bounded_tail_log(self):

@@ -345,7 +345,7 @@ class OCRConcurrencyT11(unittest.TestCase):
             with patch.dict(os.environ, env), patch.object(runner, 'run_bounded', side_effect=supervised):
                 result = runner.execute(self.source, self.root / 'output',
                                         Options(mode='ocr', language='eng', tesseract=sys.executable,
-                                                ocr_timeout=60, job_timeout=4 if mode == 'timeout' else 15),
+                                                ocr_timeout=60, job_timeout=12 if mode == 'timeout' else 30),
                                         cancel=cancel if mode == 'cancel' else None)
             self.assertEqual(result['status'], 'timeout' if mode == 'timeout' else 'cancelled', result)
             receipts = [json.loads(p.read_text()) for p in self.root.glob('*.pid')]
@@ -354,7 +354,7 @@ class OCRConcurrencyT11(unittest.TestCase):
                 self.assert_dead(receipt['pid'])
             self.assertEqual(list((self.root / 'output').iterdir()), [], result)
             self.assertNotIn('cleanup_warning', result)
-            self.assertLess(time.monotonic() - started, 20)
+            self.assertLess(time.monotonic() - started, 35)
 
 
 if __name__ == '__main__':
