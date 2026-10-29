@@ -48,14 +48,16 @@
     {
       "name": "PyMuPDF",
       "version": "1.28.2",
-      "license_expression": "AGPL-3.0-only",
+      "license_expression": "AGPL-3.0-only OR LicenseRef-Artifex-Commercial",
       "license_metadata": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License",
       "license_files": [
         {
           "file": "pymupdf-1.28.2.dist-info/COPYING",
           "sha256": "40e60697600535eabfb5ae05f72829d88cfe8d02dd4792f5a754f6f51dabe55b"
         }
-      ]
+      ],
+      "license_selected": "AGPL-3.0-only",
+      "license_note": "COPYING da 1.28.2 (sha256 40e606…be55b): \"GNU AFFERO GPL 3.0 or Artifex Commercial License\", sem cláusula \"ou posterior\"; ramo adotado AGPL-3.0-only."
     },
     {
       "name": "python-docx",

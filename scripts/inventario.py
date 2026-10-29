@@ -22,6 +22,18 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 
 
+
+def licenca_admitida(expr: str, selecionada, permitidas: set) -> bool:
+    """LICENSE-POLICY §5.2: expressão simples na allowlist; com OR, ao menos um ramo admitido e o ramo adotado
+    registrado em license_selected; com AND, todos os ramos admitidos."""
+    expr = expr.strip()
+    if " OR " in expr:
+        ramos = [r.strip() for r in expr.split(" OR ")]
+        return selecionada in ramos and selecionada in permitidas
+    if " AND " in expr:
+        return all(r.strip() in permitidas for r in expr.split(" AND "))
+    return expr in permitidas
+
 def norm(nome: str) -> str:
     return re.sub(r"[-_.]+", "-", nome).lower()
 
@@ -71,6 +83,10 @@ def verificar(raiz: Path) -> tuple[list[str], list[str]]:
 
     raw_inv = ler("THIRD-PARTY-INVENTORY.json")
     raw_md = ler("THIRD-PARTY.md")
+    linha = "Licença do código próprio: AGPL-3.0-or-later"
+    for nome_doc, texto in (("THIRD-PARTY.md", raw_md), ("README.md", ler("README.md"))):
+        if linha not in texto.splitlines():
+            div.append(f"{nome_doc} sem a linha exata '{linha}' (LICENSE-POLICY.md §5.6)")
     if "6.0.0rc" in raw_inv or "6.0.0rc" in raw_md:
         div.append("menção proibida a 6.0.0rc em THIRD-PARTY-INVENTORY.json ou THIRD-PARTY.md")
     if inv.get("candidate_version") != "2.0.0":
@@ -96,11 +112,11 @@ def verificar(raiz: Path) -> tuple[list[str], list[str]]:
             continue
         if d["version"] != versao:
             div.append(f"versão divergente no inventário: {nome} lock={versao} inventário={d['version']}")
-        lic = d.get("license_expression") or d.get("license_metadata")
-        if not lic:
-            div.append(f"dependência sem licença no inventário: {nome}")
-        elif allowed_spdx and d.get("license_expression") not in allowed_spdx:
-            div.append(f"dependência com licença fora de licenses-allowlist.json: {nome} ({d.get('license_expression')})")
+        expr = d.get("license_expression")
+        if not expr:
+            div.append(f"dependência sem expressão SPDX no inventário: {nome}")
+        elif allowed_spdx and not licenca_admitida(expr, d.get("license_selected"), allowed_spdx):
+            div.append(f"dependência com licença fora de licenses-allowlist.json (ou ramo OR sem license_selected admitido): {nome} ({expr})")
     # O lock com hashes é o efetivamente instalado (INSTALAR.ps1 e CI): confronta nome->versão com o outro lock e com o inventário.
     fixas_hash = lock_python(ler("requirements-full.hashes.lock"))
     for nome in sorted(fixas.keys() | fixas_hash.keys()):

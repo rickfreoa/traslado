@@ -199,7 +199,7 @@ class DeteccaoMuPDF(unittest.TestCase):
 
 
 class Inventario(unittest.TestCase):
-    ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "ocr-assets.lock.json", "requirements-full.lock",
+    ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "README.md", "ocr-assets.lock.json", "requirements-full.lock",
                 "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1", "licenses-allowlist.json",
                 "locks/requirements-legacy.hashes.lock"]
 
@@ -260,6 +260,22 @@ class Inventario(unittest.TestCase):
         div = self.alterar_inventario(lambda d: d.update(lacunas=[]))
         self.assertTrue(any("sem licença e sem lacuna declarada" in x for x in div))
         self.assertTrue(any("lacuna Linux" in x for x in div))
+
+    def test_ramo_or_exige_license_selected_admitido(self):
+        def sem_selecao(d):
+            for x in d["dependencies"]:
+                if x["name"] == "PyMuPDF":
+                    x.pop("license_selected", None)
+        self.assertTrue(any("PyMuPDF" in x or "pymupdf" in x for x in self.alterar_inventario(sem_selecao)))
+        self.assertTrue(self.inv.licenca_admitida("MIT", None, {"MIT"}))
+        self.assertFalse(self.inv.licenca_admitida("A OR B", "C", {"A", "C"}))
+        self.assertTrue(self.inv.licenca_admitida("A OR B", "A", {"A"}))
+        self.assertFalse(self.inv.licenca_admitida("A AND B", None, {"A"}))
+
+    def test_linha_de_licenca_obrigatoria_no_readme_e_third_party(self):
+        readme = self.tmp / "README.md"
+        readme.write_text(readme.read_text(encoding="utf-8").replace("Licença do código próprio: AGPL-3.0-or-later", ""), encoding="utf-8")
+        self.assertTrue(any("README.md sem a linha exata" in x for x in self.inv.verificar(self.tmp)[0]))
 
 
 @unittest.skipUnless(GIT, "exige checkout git")

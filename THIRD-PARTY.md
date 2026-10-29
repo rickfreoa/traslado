@@ -1,12 +1,14 @@
 # Dependências e licenças — 2.0.0
 
+Licença do código próprio: AGPL-3.0-or-later
+
 Este arquivo descreve dependências do projeto; não declara que toda redistribuição seja autorizada ou que um subprocesso elimine obrigações de licença. A licença `AGPL-3.0-or-later` declarada para o código próprio do Traslado 2.0.0 não substitui as licenças de bibliotecas, executáveis e modelos de terceiros. Confirme as licenças nos artefatos resolvidos antes de distribuir o conjunto.
 
 | Componente | Uso/perfil | Fonte e condição observada |
 |---|---|---|
 | Traslado 2.0.0 | Código de autoria própria | `AGPL-3.0-or-later` (`LICENCE`, SHA-256 `8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef`). |
 | Python / Tcl-Tk | Ambiente e interface local | [Python](https://www.python.org/about/legal/) (`PSF-2.0`) e [Tcl/Tk](https://www.tcl-lang.org/software/tcltk/license.html) (`TCL`). |
-| PyMuPDF 1.28.2 | PDF, Full ou pdf | [Licenciamento oficial](https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright): `AGPL-3.0-only` ou licença comercial Artifex. |
+| PyMuPDF 1.28.2 | PDF, Full ou pdf | [Licenciamento oficial](https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright): `AGPL-3.0-only` ou licença comercial Artifex (o `COPYING` da 1.28.2 não traz "ou posterior"; ramo adotado `AGPL-3.0-only`, de modo que quem redistribuir a combinação a distribui sob a AGPL-3.0). |
 | Pillow 12.3.0 | Imagens/PDF, extras | [Licença MIT-CMU / HPND e notices](https://github.com/python-pillow/Pillow/blob/main/LICENSE). |
 | lxml 6.1.3 | XML/Office, Full | `BSD-3-Clause`. |
 | python-docx 1.2.0 | DOCX, Office/Full | [MIT](https://github.com/python-openxml/python-docx/blob/master/LICENSE). |

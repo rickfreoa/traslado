@@ -6,6 +6,8 @@ Traslado é a primeira versão pública do antigo Freoa Markdown Converter v6 (6
 
 Candidata com limitações explícitas: testes sintéticos não homologam fidelidade jurídica, e todo texto convertido sai marcado `fidelity: unverified`.
 
+Licença do código próprio: AGPL-3.0-or-later
+
 ## Instalação
 
 ### Controle primário: download verificado com GitHub Attestations
