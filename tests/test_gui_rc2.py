@@ -20,17 +20,28 @@ except ImportError:
 
 @unittest.skipIf(tk is None, 'Tk unavailable')
 class GUIRC2(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Uma só Tk por classe e uma Toplevel por teste: criar e destruir várias Tk no mesmo processo trava
+        # root.update() no Tk do macOS (visto no CI, sempre no 2.º ou 3.º teste da classe).
+        try:
+            cls.raiz = tk.Tk()
+            cls.raiz.withdraw()
+        except tk.TclError as exc:
+            raise unittest.SkipTest(f"Tk display unavailable: {exc}")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.raiz.destroy()
+
     def setUp(self):
         # Vigia: travamento do Tk (visto no macOS do CI) vira traceback de todas as threads e falha, não timeout mudo.
         faulthandler.dump_traceback_later(180, exit=True)
         self.addCleanup(faulthandler.cancel_dump_traceback_later)
         # Dispose destroyed Tk fixture cycles on the UI thread before worker allocations.
         gc.collect()
-        try:
-            self.root = tk.Tk()
-            self.root.withdraw()
-        except tk.TclError as exc:
-            self.skipTest(f"Tk display unavailable: {exc}")
+        self.root = tk.Toplevel(self.raiz)
+        self.root.withdraw()
         with patch.object(App, 'check_installation', lambda self: None):
             self.app = App(self.root)
         # Lixo cíclico da construção (variáveis Tk) coletado na thread da interface e o restante congelado:
