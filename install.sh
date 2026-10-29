@@ -86,9 +86,9 @@ ROOT="$(CDPATH= cd -- "$ROOT" && pwd)"
 
 sha256_file() {
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$1" | awk '{h = $1; sub(/^\\/, "", h); print tolower(h)}'
+        sha256sum "$1" | awk '{h = $1; if (substr(h, 1, 1) == sprintf("%c", 92)) h = substr(h, 2); print tolower(h)}'
     elif command -v shasum >/dev/null 2>&1; then
-        shasum -a 256 "$1" | awk '{h = $1; sub(/^\\/, "", h); print tolower(h)}'
+        shasum -a 256 "$1" | awk '{h = $1; if (substr(h, 1, 1) == sprintf("%c", 92)) h = substr(h, 2); print tolower(h)}'
     else
         openssl dgst -sha256 "$1" | awk '{print tolower($NF)}'
     fi
