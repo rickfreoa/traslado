@@ -148,7 +148,10 @@ def _remove_unreferenced_release_locked(root: Path, release: Path, candidate_rep
     candidate = plat.read_candidate(root) or {}
     # A candidata em instalação (de outro processo) é protegida; só o próprio setup remove a sua reprovada.
     protegidas = {current.get("release_id"), current.get("previous_release_id")}
-    if not candidate_reprovada:
+    gates = candidate.get("gates") if isinstance(candidate.get("gates"), dict) else {}
+    reprovada = (candidate_reprovada or gates.get("doctor") is False or gates.get("fixture") is False
+                 or gates.get("revocation") == "blocked")
+    if not reprovada:
         protegidas.add(candidate.get("release_id"))
     if release.name in protegidas:
         return False

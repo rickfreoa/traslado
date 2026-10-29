@@ -86,7 +86,12 @@ class PodaConcorrente(unittest.TestCase):
             self.assertTrue((root / "releases/candidata").is_dir())
             self.assertTrue((root / "releases/atual").is_dir())
             self.assertFalse((root / "releases/orfa").exists())
-            # O próprio setup remove a sua candidata reprovada.
+            # Candidata com gate reprovado no candidate.json (limpeza do instalador) ou pelo próprio setup: removível.
+            plat._atomic(root / "candidate.json", {"release_id": "candidata", "gates": {"doctor": True, "fixture": False}})
+            self.assertTrue(lifecycle.remove_unreferenced_release(root, root / "releases/candidata"))
+            (root / "releases/candidata").mkdir()
+            plat._atomic(root / "candidate.json", {"release_id": "candidata", "gates": {"doctor": True, "fixture": True}})
+            self.assertFalse(lifecycle.remove_unreferenced_release(root, root / "releases/candidata"))
             self.assertTrue(lifecycle.remove_unreferenced_release(root, root / "releases/candidata", candidate_reprovada=True))
 
     def test_lock_de_promocao_ocupado_adia_pela_marca(self) -> None:
