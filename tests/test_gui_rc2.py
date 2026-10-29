@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ricardo Peres Freoa
 from __future__ import annotations
+import faulthandler
 import gc
 
 from pathlib import Path
@@ -20,6 +21,9 @@ except ImportError:
 @unittest.skipIf(tk is None, 'Tk unavailable')
 class GUIRC2(unittest.TestCase):
     def setUp(self):
+        # Vigia: travamento do Tk (visto no macOS do CI) vira traceback de todas as threads e falha, não timeout mudo.
+        faulthandler.dump_traceback_later(180, exit=True)
+        self.addCleanup(faulthandler.cancel_dump_traceback_later)
         # Dispose destroyed Tk fixture cycles on the UI thread before worker allocations.
         gc.collect()
         try:
