@@ -396,6 +396,7 @@ class CorrectionsE5(unittest.TestCase):
             self.assertEqual(cli.main(["shortcuts", "--root", str(self.root)]), 0)
             refresh.assert_called_once()
 
+    @unittest.skipUnless((ROOT / ".github/workflows/revocation.yml").is_file(), "workflows ausentes no pacote extraído (rodam no job de build)")
     def test_n8_workflow_first_issue_only_when_release_absent(self):
         workflow = (ROOT / ".github/workflows/revocation.yml").read_text()
         self.assertIn('case "$RELEASE_STATUS" in\n                404) PREV_SEQ=0', workflow)
@@ -404,6 +405,7 @@ class CorrectionsE5(unittest.TestCase):
         self.assertIn('if [ -n "$PRODUCT_LATEST" ]; then', workflow)
         self.assertIn('latest nao conferido', workflow)
 
+    @unittest.skipUnless((ROOT / ".github/workflows/revocation.yml").is_file(), "workflows ausentes no pacote extraído (rodam no job de build)")
     def test_n9_sequence_content_and_gh_ref(self):
         from tests.test_lifecycle_e5 import _iso_offset
         doc = dict(schema=revocation.SCHEMA_REVOKED, sequence=1, issued_at=_iso_offset(-1), expires_at=_iso_offset(7), revoked=[])

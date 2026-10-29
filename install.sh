@@ -394,6 +394,8 @@ mkdir -p "$ROOT/releases"
 mkdir "$RELEASE_DIR" || exit 2
 
 export UV_PYTHON_INSTALL_DIR="$ROOT/python"
+# Cache do uv dentro da raiz gerenciada: nada fica em ~/.cache e o uninstall leva tudo.
+export UV_CACHE_DIR="$ROOT/state/uv-cache"
 mkdir -p "$UV_PYTHON_INSTALL_DIR"
 
 VENV_DIR="$RELEASE_DIR/.venv"

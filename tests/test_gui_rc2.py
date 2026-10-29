@@ -33,6 +33,11 @@ class GUIRC2(unittest.TestCase):
             self.skipTest(f"Tk display unavailable: {exc}")
         with patch.object(App, 'check_installation', lambda self: None):
             self.app = App(self.root)
+        # Lixo cíclico da construção (variáveis Tk) coletado na thread da interface e o restante congelado:
+        # finalizar Variable numa thread de trabalho (leitura da prévia) trava o Tk no macOS.
+        gc.collect()
+        gc.freeze()
+        self.addCleanup(gc.unfreeze)
         self.temporary = tempfile.TemporaryDirectory()
         self.folder = Path(self.temporary.name)
 

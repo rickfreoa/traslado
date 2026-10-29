@@ -6,6 +6,7 @@ from __future__ import annotations
 from collections import Counter
 import os
 from pathlib import Path
+import gc
 import queue
 import subprocess
 import sys
@@ -767,6 +768,10 @@ def main() -> None:
     enable_hidpi()
     root = tk.Tk()
     App(root)
+    # Lixo cíclico da construção da janela (variáveis Tk) não pode ser finalizado por uma thread de trabalho:
+    # Variable.__del__ chama o Tcl fora da thread dele, o que trava o Tk no macOS. Coleta aqui e congela o resto.
+    gc.collect()
+    gc.freeze()
     root.mainloop()
 
 
