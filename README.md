@@ -51,6 +51,10 @@ Após a instalação, o comando `traslado` gerencia o ciclo de vida local sem ex
 - `traslado rollback` — restaura a release imediatamente anterior preservada em `releases/<previous_release_id>`;
 - `traslado uninstall [--yes] [--keep-data]` — remove atalhos e a raiz de instalação gerenciada, preservando sempre os documentos do usuário (`data_root`).
 
+Implantação lado a lado: `install.ps1 -NoPromote` (ou `install.sh --no-promote`) instala e qualifica a release candidata sem tocar a instalação ativa; a promoção vem depois, pelo Python da candidata, com `traslado setup --promote --release-id <id>`.
+
+Limites conhecidos: os scripts e pacotes não têm assinatura de código (SmartScreen e Gatekeeper podem alertar); no Windows Server Core a extensão nativa do PyMuPDF não carrega e a instalação falha fechada.
+
 ## Novidades da 1.1.0
 
 A 1.1 acrescenta geometria e classificação aos artefatos estruturados, notas no DOCX e OCR concorrente, sem mudar o texto. Na amostra de qualificação (80 obras), o Markdown dos PDFs nativos saiu idêntico ao da 1.0.0; nas páginas com OCR, as palavras são as mesmas e só muda o espaçamento, porque cada parágrafo reconhecido vira uma linha (quebras internas passam a espaço). Histórico completo em [CHANGELOG.md](CHANGELOG.md).

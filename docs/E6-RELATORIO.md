@@ -1,6 +1,6 @@
 # E6 — CI multiplataforma, E2E e auditoria
 
-Estado em 28/10/2026: implementação na árvore, **sem commit e sem push**. Branch `t20/e6`, HEAD de partida `b4633654b14db7efc45e5c9fb67c5cf61e590ac1`. Não há links de runs: nenhum run foi solicitado nesta retomada. O integrador deve registrar os links e os resultados reais após enviar a branch. Este relatório não declara a matriz ou os E2E aprovados.
+Estado em 29/10/2026: **CI aprovada** na branch `t20/e6`, commit `4484c18`, run 40827368727 (https://github.com/rickfreoa/traslado/actions/runs/40827368727): 37 jobs verdes — build em checkout limpo com testes da árvore-fonte, matriz Windows/Ubuntu/macOS × 3.11–3.14 × Core/Full e legacy 3.13, mutação, contenção nos três SO e consolidação, E2E Debian e Fedora mínimos por digest, Windows (Server Core registrado como limite: DLL de sistema exigida pelo PyMuPDF ausente; gates reprovam e nada é promovido) e macOS. Revisão independente: APROVADA_COM_RESSALVAS, ressalvas corrigidas (ver diário). As seções abaixo são o relatório original da implementação; onde divergem do estado atual, prevalece este parágrafo e o `release.yml` vigente (PyPI dentro de `release.yml`, job de verificação sem escrita, bytes liberados idênticos ao pacote testado no CI).
 
 ## Entregas e decisões
 

@@ -22,7 +22,9 @@ Estes contratos valem para toda a série 2.x. Mudança incompatível só na 3.0.
 | Linux | `$XDG_DATA_HOME/traslado`, ou `~/.local/share/traslado` | — |
 | macOS | `~/Library/Application Support/Traslado` | — |
 
-Estrutura: `current.json`, `candidate.json` (opcional), `releases/<release_id>/` (imutável enquanto referenciado), `state/` (estado do cliente, por exemplo `revocation.json`), `logs/`.
+Estrutura: `current.json`, `candidate.json` (opcional), `releases/<release_id>/` (imutável enquanto referenciado), `state/` (estado do cliente, por exemplo `revocation.json`, `uv-cache/`, `pending-uninstall.json`, `pending-removals/`), `logs/`. Nada do ciclo de vida é gravado fora da raiz, salvo atalhos e o `data_root` do usuário.
+
+Instaladores: sem opção, instalam e promovem; com `-NoPromote`/`--no-promote`, deixam a candidata qualificada em `candidate.json` e `current.json` intacto.
 
 ### 2.1 `current.json` e `candidate.json` (schema_version 2)
 
