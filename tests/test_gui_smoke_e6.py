@@ -31,6 +31,23 @@ ASSETS = Path(traslado.__file__).resolve().parent / "assets"
 
 
 
+def esperar_no_mainloop(root, condition, timeout):
+    """Espera a condição girando o mainloop (como o produto), não por laço de root.update(): no Tk 8.6 do macOS,
+    update() repetido em laço trava de forma intermitente no runner do CI. Devolve True se a condição ocorreu."""
+    deadline = time.monotonic() + timeout
+    estado = {"ok": False}
+    def tick():
+        if condition():
+            estado["ok"] = True
+            root.quit()
+        elif time.monotonic() > deadline:
+            root.quit()
+        else:
+            root.after(5, tick)
+    root.after(0, tick)
+    root.mainloop()
+    return estado["ok"]
+
 def setUpModule():
     # Vigia do módulo: travamento do Tk vira traceback de todas as threads e falha, em vez de consumir o job.
     faulthandler.dump_traceback_later(600, exit=True)
@@ -67,13 +84,7 @@ class GuiSmokeSyntheticEventE6(unittest.TestCase):
                 root.update()
 
                 # Aguarda término da checagem inicial de ambiente (doctor) para habilitar inputs
-                init_deadline = time.monotonic() + 60.0
-                while time.monotonic() < init_deadline:
-                    root.update()
-                    if not app.busy:
-                        break
-                    time.sleep(0.02)
-                else:
+                if not esperar_no_mainloop(root, lambda: not app.busy, 60.0):
                     self.fail("Timeout (60s) aguardando checagem inicial de ambiente da GUI")
 
                 # Preenchimento por widgets de entrada e geração de eventos sintéticos
@@ -94,13 +105,7 @@ class GuiSmokeSyntheticEventE6(unittest.TestCase):
                 # Disparo real pelo botão Converter agora
                 app.convert_button.invoke()
 
-                deadline = time.monotonic() + 60.0
-                while time.monotonic() < deadline:
-                    root.update()
-                    if not app.busy and len(app._row_results) >= 1:
-                        break
-                    time.sleep(0.02)
-                else:
+                if not esperar_no_mainloop(root, lambda: not app.busy and len(app._row_results) >= 1, 60.0):
                     self.fail("Timeout (60s) aguardando término da conversão na GUI")
 
                 rows = app.results.get_children()
@@ -109,14 +114,11 @@ class GuiSmokeSyntheticEventE6(unittest.TestCase):
                 app._select_result()
 
                 # Aguarda carregamento assíncrono do preview com timeout
-                preview_deadline = time.monotonic() + 10.0
-                preview_txt = ""
-                while time.monotonic() < preview_deadline:
-                    root.update()
-                    preview_txt = app.preview.get("1.0", "end").strip()
-                    if preview_txt and not preview_txt.startswith("Carregando a prévia"):
-                        break
-                    time.sleep(0.02)
+                def preview_pronto():
+                    texto = app.preview.get("1.0", "end").strip()
+                    return bool(texto) and not texto.startswith("Carregando a prévia")
+                esperar_no_mainloop(root, preview_pronto, 10.0)
+                preview_txt = app.preview.get("1.0", "end").strip()
 
                 res = app._row_results[rows[0]]
                 self.assertIn(res.get("status"), {"complete", "partial", "ok"}, res)

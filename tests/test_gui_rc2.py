@@ -19,9 +19,24 @@ except ImportError:
     tk = None
     App = None
 
+def esperar_no_mainloop(root, condition, timeout):
+    """Espera a condição girando o mainloop (como o produto), não por laço de root.update(): no Tk 8.6 do macOS,
+    update() repetido em laço trava de forma intermitente no runner do CI. Devolve True se a condição ocorreu."""
+    deadline = time.monotonic() + timeout
+    estado = {"ok": False}
+    def tick():
+        if condition():
+            estado["ok"] = True
+            root.quit()
+        elif time.monotonic() > deadline:
+            root.quit()
+        else:
+            root.after(5, tick)
+    root.after(0, tick)
+    root.mainloop()
+    return estado["ok"]
+
 @unittest.skipIf(tk is None, 'Tk unavailable')
-@unittest.skipIf(sys.platform == 'darwin', 'questão aberta: no runner macOS do CI, root.update() trava de forma intermitente nesta classe '
-                 '(prévia lida em thread de trabalho); a fumaça real de GUI (test_gui_smoke_e6) continua rodando no macOS')
 class GUIRC2(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -64,13 +79,8 @@ class GUIRC2(unittest.TestCase):
             self.temporary.cleanup()
 
     def pump_until(self, condition, timeout=3):
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            self.root.update()
-            if condition():
-                return
-            time.sleep(.005)
-        self.fail('Tk event condition timed out')
+        if not esperar_no_mainloop(self.root, condition, timeout):
+            self.fail('Tk event condition timed out')
 
     def text(self):
         return self.app.preview.get('1.0', 'end').strip()
