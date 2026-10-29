@@ -35,7 +35,7 @@ As ferramentas de build têm somente versões exatas no `pyproject.toml`. Python
 
 ## Dependências exclusivas de testes
 
-`markdown-it-py==4.0.0` e `mdurl==0.1.2` têm licença `MIT` conforme os arquivos LICENSE das distribuições usadas na validação. O extra `test` e `requirements-test.hashes.lock` os declaram explicitamente; não são instalados no perfil Full pelo bootstrap Windows. Os artefatos de teste não são bibliotecas do runtime.
+`markdown-it-py==4.0.0`, `mdurl==0.1.2` e `setuptools==82.0.1` têm licença `MIT` conforme os arquivos LICENSE das distribuições usadas na validação; o `setuptools` serve só ao teste do emissor de revogação instalado sem isolamento de build (PEP 639 exige 77 ou posterior). O extra `test` e `requirements-test.hashes.lock` os declaram explicitamente; não são instalados no perfil Full pelo bootstrap Windows. Os artefatos de teste não são bibliotecas do runtime.
 
 ## Lacunas declaradas (2.0.0)
 

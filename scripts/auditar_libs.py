@@ -64,6 +64,69 @@ def _is_permitted(lib_path: str, allowed: list[str], forbidden: list[str], is_wi
     return False, "fora da allowlist"
 
 
+# Bibliotecas que só podem vir da raiz gerenciada: a mesma biblioteca do sistema indicaria dependência oculta.
+_PROIBIDAS_NO_SISTEMA = re.compile(r"^lib(python\d|tk\d|tcl\d|tesseract|lept|mupdf)", re.I)
+GRUPOS_OBRIGATORIOS = ("_tkinter", "pymupdf", "pillow", "lxml")
+
+
+def _pacotes_iniciais(caminho: Path) -> set[str]:
+    """Nomes de pacote do inventário inicial do contêiner (dpkg-query -W ou rpm -qa)."""
+    nomes: set[str] = set()
+    for linha in caminho.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "=" in linha.split("\t")[0] or not linha.strip():
+            continue  # linhas do /etc/os-release
+        if "\t" in linha:  # dpkg-query -W: nome[:arq]<TAB>versão
+            nomes.add(linha.split("\t", 1)[0].split(":", 1)[0])
+        else:  # rpm -qa: nome-versão-release.arq
+            nomes.add(linha.strip())
+    return nomes
+
+
+def _dono_do_pacote(lib: str) -> list[str]:
+    """Pacotes donos de lib (dpkg -S ou rpm -qf), tentando também o caminho canônico (usrmerge)."""
+    candidatos = [lib]
+    real = os.path.realpath(lib)
+    if real != lib:
+        candidatos.append(real)
+    for c in list(candidatos):
+        for de, para in (("/usr/lib/", "/lib/"), ("/lib/", "/usr/lib/"), ("/usr/lib64/", "/lib64/"), ("/lib64/", "/usr/lib64/")):
+            if c.startswith(de):
+                candidatos.append(para + c[len(de):])
+    for c in candidatos:
+        if shutil.which("dpkg"):
+            proc = subprocess.run(["dpkg", "-S", c], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            if proc.returncode == 0:
+                return sorted({ln.split(":", 1)[0].strip().split(",")[0].strip() for ln in proc.stdout.splitlines() if ":" in ln})
+        elif shutil.which("rpm"):
+            proc = subprocess.run(["rpm", "-qf", c], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            if proc.returncode == 0:
+                return sorted({ln.strip() for ln in proc.stdout.splitlines() if ln.strip()})
+    return []
+
+
+def _violacoes_de_sistema(observed: list[str], managed_root: Path, inventario: Path | None) -> list[dict[str, str]]:
+    """E4: biblioteca de sistema precisa pertencer a pacote presente antes da instalação e não pode ser
+    uma das bibliotecas que o Traslado traz consigo (python, tk/tcl, tesseract, leptonica, mupdf)."""
+    raizes = {str(managed_root).rstrip("/") + "/", str(managed_root.resolve()).rstrip("/") + "/"}
+    iniciais = _pacotes_iniciais(inventario) if inventario else None
+    violacoes = []
+    for lib in observed:
+        if any(lib.startswith(r) for r in raizes) or not lib.startswith("/") or lib == "/etc/ld.so.cache":
+            continue
+        nome = Path(lib).name
+        if _PROIBIDAS_NO_SISTEMA.match(nome):
+            violacoes.append({"library": lib, "reason": "biblioteca que deveria vir da raiz gerenciada carregada do sistema"})
+            continue
+        if iniciais is None:
+            continue
+        donos = _dono_do_pacote(lib)
+        if not donos:
+            violacoes.append({"library": lib, "reason": "biblioteca de sistema sem pacote dono"})
+        elif not any(d in iniciais or d.split(":", 1)[0] in iniciais for d in donos):
+            violacoes.append({"library": lib, "reason": "pacote dono ausente do inventário inicial: " + ", ".join(donos)})
+    return violacoes
+
+
 def _find_extension_binaries(managed_root: Path) -> dict[str, list[Path]]:
     targets = {
         "python": [Path(sys.executable), Path(sys.executable).resolve()],
@@ -177,6 +240,9 @@ def _audit_linux(managed_root: Path) -> tuple[list[str], dict]:
                 if mapped.startswith("/"):
                     maps_paths.add(mapped.split(" (deleted)")[0])
     observed_paths |= maps_paths
+    sem_binario = [g for g in GRUPOS_OBRIGATORIOS if not binaries.get(g)]
+    if sem_binario:
+        raise RuntimeError("Grupos sem binário inspecionado: " + ", ".join(sem_binario))
     return sorted(observed_paths), {
         "method": "ldd + /proc/<pid>/maps",
         "binaries_inspected": {k: [str(x) for x in v] for k, v in binaries.items()},
@@ -252,6 +318,9 @@ def _audit_macos(managed_root: Path) -> tuple[list[str], dict]:
 
     if not dyld_libs and not vmmap_libs:
         raise RuntimeError("DYLD/vmmap não observaram bibliotecas runtime")
+    sem_binario = [g for g in GRUPOS_OBRIGATORIOS if not binaries.get(g)]
+    if sem_binario:
+        raise RuntimeError("Grupos sem binário inspecionado: " + ", ".join(sem_binario))
     return sorted(observed_paths), {
         "method": "otool -L + DYLD_PRINT_LIBRARIES + vmmap",
         "binaries_inspected": {k: [str(x) for x in v] for k, v in binaries.items()},
@@ -282,8 +351,10 @@ def _audit_windows(managed_root: Path) -> tuple[list[str], dict]:
             for i in range(count):
                 if psapi.GetModuleFileNameExW(h_proc, h_mods[i], buf, 1024):
                     modules.add(buf.value)
-    except Exception:
-        pass
+        else:
+            raise OSError(ctypes.get_last_error(), "EnumProcessModules falhou")
+    except Exception as exc:
+        raise RuntimeError(f"Enumeração de módulos (EnumProcessModules) falhou: {exc}") from exc
 
     # 2. Complemento via PowerShell Get-Process -Id <pid> -Module
     ps_modules: list[str] = []
@@ -297,13 +368,22 @@ def _audit_windows(managed_root: Path) -> tuple[list[str], dict]:
             errors="replace",
             timeout=30,
         )
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr[-500:])
         for ln in (proc.stdout or "").splitlines():
             p = ln.strip()
             if p:
                 ps_modules.append(p)
                 modules.add(p)
-    except Exception:
-        pass
+    except Exception as exc:
+        raise RuntimeError(f"Enumeração de módulos (Get-Process -Module) falhou: {exc}") from exc
+    if not ps_modules:
+        raise RuntimeError("Get-Process -Module não listou módulos")
+    # Os modulos dos dois métodos devem incluir o próprio interpretador e as extensões do Full.
+    nomes = {Path(m).name.lower() for m in modules}
+    for exigido in ("_tkinter.pyd",):
+        if exigido not in nomes:
+            raise RuntimeError(f"Módulo esperado não carregado: {exigido}")
 
     if not modules:
         raise RuntimeError("Nenhum módulo Windows enumerado: auditoria indisponível")
@@ -314,8 +394,10 @@ def _audit_windows(managed_root: Path) -> tuple[list[str], dict]:
     }
 
 
-def auditar(managed_root: Path, allowlist_path: Path) -> dict:
+def auditar(managed_root: Path, allowlist_path: Path, inventario_inicial: Path | None = None) -> dict:
     conv_info = _run_full_conversion_in_process()
+    if not conv_info["tkinter_loaded"]:
+        raise RuntimeError("_tkinter não carregou no Python gerenciado: " + str(conv_info["tkinter_error"]))
     is_win = os.name == "nt"
     if is_win:
         observed, details = _audit_windows(managed_root)
@@ -341,6 +423,12 @@ def auditar(managed_root: Path, allowlist_path: Path) -> dict:
             permitted.append(entry)
         else:
             violations.append(entry)
+    for binario, linhas in details.get("ldd_not_found", {}).items():
+        for linha in linhas:
+            violations.append({"library": linha, "reason": "dependência não resolvida (ldd not found) de " + binario})
+    if not is_win and sys.platform != "darwin":
+        violations += _violacoes_de_sistema(observed, managed_root, inventario_inicial)
+        details["inventario_inicial"] = str(inventario_inicial) if inventario_inicial else None
 
     return {
         "platform": sys.platform,
@@ -362,10 +450,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--root", type=Path, required=True, help="Raiz gerenciada da instalação do Traslado")
     ap.add_argument("--allowlist", type=Path, required=True, help="Arquivo ci/libs-permitidas-<so>.txt")
     ap.add_argument("--saida", type=Path, required=True, help="Caminho do relatório JSON de auditoria")
+    ap.add_argument("--inventario-inicial", type=Path, default=None,
+                    help="Linux: inventário de pacotes anterior à instalação (dpkg-query -W ou rpm -qa); obrigatório no E2E")
     args = ap.parse_args(argv)
 
     try:
-        report = auditar(args.root, args.allowlist)
+        if args.inventario_inicial is not None and not args.inventario_inicial.is_file():
+            raise RuntimeError(f"Inventário inicial ausente: {args.inventario_inicial}")
+        report = auditar(args.root, args.allowlist, args.inventario_inicial)
     except Exception as exc:
         args.saida.parent.mkdir(parents=True, exist_ok=True)
         args.saida.write_text(json.dumps({"success": False, "error": str(exc), "platform": sys.platform}, indent=2) + "\n", encoding="utf-8")

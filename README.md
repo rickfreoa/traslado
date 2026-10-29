@@ -49,9 +49,13 @@ curl -fsSL https://github.com/rickfreoa/traslado/releases/download/v2.0.0/instal
 Após a instalação, o comando `traslado` gerencia o ciclo de vida local sem exigir administrador:
 
 - `traslado where [--json]` — exibe caminhos da instalação ativa, Python gerenciado, OCR e diretórios do usuário;
-- `traslado update [--version V] [--yes]` — verifica revogação em dois canais, confere `SHA256SUMS` e promove a nova release de forma atômica;
+- `traslado update [--version V] [--yes]` — verifica revogação em dois canais, confere `SHA256SUMS` e promove a nova release de forma atômica; `V` é a versão sem prefixo (`2.0.1`, não `v2.0.1`; o prefixo é recusado);
 - `traslado rollback` — restaura a release imediatamente anterior preservada em `releases/<previous_release_id>`;
 - `traslado uninstall [--yes] [--keep-data]` — remove atalhos e a raiz de instalação gerenciada, preservando sempre os documentos do usuário (`data_root`).
+
+Revogação sem `gh`: sem o GitHub CLI, o `revoked.json` é conferido só pela presença na release e pelo SAN declarado, sem cadeia de certificados nem assinatura; a autenticidade da lista, nesse caso, não é criptográfica. Com `gh`, a attestation do `revocation.yml` é verificada.
+
+Poda de releases: a remoção de releases não referenciadas ocorre sob o lock de promoção e preserva a ativa, a anterior e a candidata de outra instalação em andamento; com o lock ocupado, fica marcada em `state/pending-removals` e é retomada depois.
 
 Implantação lado a lado: `install.ps1 -NoPromote` (ou `install.sh --no-promote`) instala e qualifica a release candidata sem tocar a instalação ativa; a promoção vem depois, pelo Python da candidata, com `traslado setup --promote --release-id <id>`.
 

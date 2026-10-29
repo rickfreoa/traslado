@@ -135,14 +135,21 @@ class CorrectionsE5(unittest.TestCase):
 
     def test_07_workflow_isolated_emitter_smoke(self):
         target = Path(self.tmp.name) / "emitter"
-        # Actual local package install, without dependencies or network build isolation.
-        subprocess.run([sys.executable, "-m", "venv", "--without-pip", "--system-site-packages", str(target)], check=True, capture_output=True)
-        py = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-        # Sem isolamento de build, vale o setuptools herdado do interpretador base; license SPDX (PEP 639) exige >= 77.
-        versao = subprocess.run([str(py), "-c", "import setuptools; print(setuptools.__version__)"], capture_output=True, text=True)
+        # Instalação local real, sem dependências nem rede: o wheel é construído sem isolamento pelo
+        # interpretador dos testes (setuptools do lock de testes; PEP 639 exige >= 77) e instalado num venv limpo.
+        versao = subprocess.run([sys.executable, "-c", "import setuptools; print(setuptools.__version__)"], capture_output=True, text=True)
         if versao.returncode != 0 or int(versao.stdout.strip().split(".")[0]) < 77:
-            self.skipTest("setuptools do interpretador base ausente ou anterior a 77 (PEP 639): " + (versao.stdout.strip() or versao.stderr[-200:]))
-        install = subprocess.run([sys.executable, "-m", "pip", "--python", str(py), "install", "--no-deps", "--no-build-isolation", str(ROOT)], capture_output=True, text=True)
+            # Na CI o lock de testes fixa setuptools 82.0.1: ali a ausência é defeito, não ambiente.
+            self.assertFalse(os.environ.get("GITHUB_ACTIONS"), "setuptools >= 77 ausente na CI: " + versao.stdout + versao.stderr[-200:])
+            self.skipTest("setuptools ausente ou anterior a 77 (PEP 639): " + (versao.stdout.strip() or versao.stderr[-200:]))
+        wheels = Path(self.tmp.name) / "wheels"
+        build = subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "--no-build-isolation", "-w", str(wheels), str(ROOT)], capture_output=True, text=True)
+        self.assertEqual(build.returncode, 0, build.stdout+build.stderr)
+        subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(target)], check=True, capture_output=True)
+        py = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        limpo = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}  # o venv novo não pode "já ter" o traslado
+        install = subprocess.run([sys.executable, "-m", "pip", "--python", str(py), "install", "--no-deps", "--ignore-installed",
+                                  *map(str, wheels.glob("traslado-*.whl"))], capture_output=True, text=True, env=limpo)
         self.assertEqual(install.returncode, 0, install.stdout+install.stderr)
         output = Path(self.tmp.name) / "revoked.json"
         smoke = subprocess.run([str(py), "-I", "-m", "traslado.revocation", "--input", str(ROOT / "revocation/revoked-list.json"), "--previous-sequence", "41", "--output", str(output)], cwd=target, capture_output=True, text=True)

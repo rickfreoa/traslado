@@ -52,6 +52,29 @@ class ScriptsE6(unittest.TestCase):
         self.assertFalse(audit._is_permitted('/usr/local/lib/a.so', ['/usr/'], ['/usr/local/'], False)[0])
         self.assertTrue(audit._is_permitted('C:\\WINDOWS\\System32\\a.dll', ['C:\\Windows\\System32\\'], [], True)[0])
 
+    def test_e4_lib_de_sistema_ligada_ao_inventario_inicial(self):
+        audit = script('auditar_libs')
+        with tempfile.TemporaryDirectory() as raw:
+            inv = Path(raw)/'inventario.txt'
+            inv.write_text('PRETTY_NAME="Debian GNU/Linux 12"\nID=debian\nlibc6:amd64\t2.36-9\nzlib1g:amd64\t1:1.2.13\n', encoding='utf-8')
+            self.assertEqual(audit._pacotes_iniciais(inv), {'libc6', 'zlib1g'})
+            rpm = Path(raw)/'rpm.txt'
+            rpm.write_text('ID=fedora\nglibc-2.39-17.fc42.x86_64\n', encoding='utf-8')
+            self.assertEqual(audit._pacotes_iniciais(rpm), {'glibc-2.39-17.fc42.x86_64'})
+            root = Path(raw)/'raiz'
+            donos = {'/lib/x86_64-linux-gnu/libc.so.6': ['libc6'], '/usr/lib/x86_64-linux-gnu/libfoo.so.1': ['libfoo1'],
+                     '/usr/lib/x86_64-linux-gnu/libsem.so': []}
+            with patch.object(audit, '_dono_do_pacote', side_effect=lambda lib: donos.get(lib, [])):
+                observadas = [str(root/'python/lib/libpython3.13.so'), '/etc/ld.so.cache', 'linux-vdso.so.1',
+                              '/lib/x86_64-linux-gnu/libc.so.6', '/usr/lib/x86_64-linux-gnu/libfoo.so.1',
+                              '/usr/lib/x86_64-linux-gnu/libsem.so', '/usr/lib/x86_64-linux-gnu/libtk8.6.so',
+                              '/usr/lib/x86_64-linux-gnu/libtesseract.so.5']
+                v = {x['library']: x['reason'] for x in audit._violacoes_de_sistema(observadas, root, inv)}
+            self.assertEqual(set(v), {'/usr/lib/x86_64-linux-gnu/libfoo.so.1', '/usr/lib/x86_64-linux-gnu/libsem.so',
+                                      '/usr/lib/x86_64-linux-gnu/libtk8.6.so', '/usr/lib/x86_64-linux-gnu/libtesseract.so.5'})
+            self.assertIn('ausente do inventário inicial', v['/usr/lib/x86_64-linux-gnu/libfoo.so.1'])
+            self.assertIn('sem pacote dono', v['/usr/lib/x86_64-linux-gnu/libsem.so'])
+
     def test_post1_wheel_metadata_record_and_checksum(self):
         helper = script('e2e_runner')
         with tempfile.TemporaryDirectory() as raw:
