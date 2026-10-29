@@ -332,7 +332,41 @@ class CorrectionsE5(unittest.TestCase):
         self.assertTrue(release.is_dir())
         self.assertTrue((self.root / "state/pending-uninstall.json").is_file())
         with patch.object(lifecycle, "release_in_use", return_value=False):
-            self.assertEqual(cli.main(["where", "--root", str(self.root)]), 0)
+            self.assertEqual(cli.main(["where", "--root", str(self.root)]), 1)  # where não retoma nem remove nada
+            self.assertTrue(release.exists())
+            self.assertEqual(cli.main(["uninstall", "--yes", "--root", str(self.root)]), 0)
+        self.assertFalse(release.exists())
+        self.assertTrue(Path(current["data_root"]).exists())
+
+    def test_n5_deferred_removal_refuses_root_outside_links_and_preserved_data(self):
+        from base64 import b64decode
+        root = self.root
+        (root / "releases/r1/dados").mkdir(parents=True)
+        (root / "releases/r2").mkdir(parents=True)
+        launched = []
+        with patch.object(lifecycle.subprocess, "Popen", side_effect=lambda argv, **kw: launched.append((argv, kw["env"]))):
+            for alvos in ([root], [root.parent], [root / "releases"], [root / "releases/r1"]):
+                with self.subTest(alvos=alvos), self.assertRaises(ValueError):
+                    lifecycle._defer_self_removal(root, alvos, [root / "releases/r1/dados"])
+            self.assertEqual(launched, [])
+            lifecycle._defer_self_removal(root, [root / "releases/r2"], [root / "releases/r1/dados"])
+        argv, env = launched[0]
+        script = b64decode(argv[-1]).decode("utf-16le")
+        self.assertIn("rmdir /s /q", script)
+        self.assertIn("ReparsePoint", script)
+        self.assertNotIn("-Recurse", script)
+        self.assertEqual(env["TRASLADO_REMOVE_KEEP"], str((root / "releases/r1/dados").resolve()))
+
+    def test_n5_new_setup_discards_pending_uninstall_without_touching_data(self):
+        current = self.setup()
+        release = self.root / "releases" / current["release_id"]
+        with patch.object(lifecycle, "release_in_use", return_value=True):
+            lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32")
+        marker = self.root / "state/pending-uninstall.json"
+        self.assertTrue(marker.is_file())
+        with patch.object(lifecycle, "release_in_use", return_value=False):
+            lifecycle.discard_pending_uninstall(self.root)
+        self.assertFalse(marker.exists())
         self.assertFalse(release.exists())
         self.assertTrue(Path(current["data_root"]).exists())
 
@@ -467,30 +501,52 @@ function Get-Command { [CmdletBinding()]param($Name) if ($Name -ne 'gh') { Micro
             self.assertIn("TRASLADO_PROMOCAO_OFFLINE", source[source.index("# 1. Obter uv"):source.index("# 4. Criar")])
 
 
+    @unittest.skipUnless(shutil.which("sh") and shutil.which("awk") and (shutil.which("sha256sum") or shutil.which("shasum")), "sh/awk/sha256 ausentes")
     def test_n1_shell_api_parser_rejects_each_digest_and_release_state(self):
-        source = (ROOT / "install.sh").read_text()
-        validator = source.split("<<'API_VERIFY' || exit 1\n", 1)[1].split("\nAPI_VERIFY", 1)[0]
-        script = Path(self.tmp.name) / "install.sh"
-        script.write_bytes(b"bootstrap")
-        digests = dict(DIGESTS, SHA256SUMS="c"*64, **{"install.sh": hashlib.sha256(script.read_bytes()).hexdigest()})
-        api_path = Path(self.tmp.name) / "api.json"
-        digests_path = Path(self.tmp.name) / "digests.json"
-        valid = dict(draft=False, prerelease=False, tag_name="v2.0.0", assets=[{"name": k, "digest": "sha256:"+v} for k,v in digests.items()])
-        for case in ("valid", "draft", "prerelease", "tag", "missing", *digests):
+        """Bloco real do install.sh (sem Python no sistema): API conferida por awk antes de qualquer instalação."""
+        source = (ROOT / "install.sh").read_text(encoding="utf-8")
+        inicio = source.index("# Script lido de arquivo real")
+        fim = source.index("# 3. Verificação de attestation")
+        bloco = source[inicio:fim]
+        tmp = Path(self.tmp.name)
+        files = {}
+        for name, content in (("traslado-2.0.0-py3-none-any.whl", b"wheel"), ("requirements-full.hashes.lock", b"lock"),
+                              ("SHA256SUMS", b"sums"), ("install.sh", b"bootstrap")):
+            (tmp / name).write_bytes(content)
+            files[name] = hashlib.sha256(content).hexdigest()
+        sha = "sha256sum" if shutil.which("sha256sum") else "shasum -a 256"
+        def run(api, from_pipe=False):
+            (tmp / "api.json").write_text(json.dumps(api), encoding="utf-8")
+            base = {k: v for k, v in files.items() if k != "install.sh"}
+            (tmp / "digests.json").write_text(json.dumps(base, separators=(",", ":")) + "\n", encoding="utf-8")
+            prelude = (f'download_https() {{ cp "{tmp}/api.json" "$2"; }}\n'
+                       f'sha256_file() {{ {sha} "$1" | cut -d" " -f1; }}\n'
+                       f'FROM_DIR=""; CLEAN_VERSION=2.0.0; STAGE_DOWNLOADS="{tmp}"; DIGESTS_PATH="{tmp}/digests.json"\n'
+                       f'WHEEL_NAME=traslado-2.0.0-py3-none-any.whl; WHEEL_PATH="{tmp}/traslado-2.0.0-py3-none-any.whl"\n'
+                       f'PROFILE_LOCK_NAME=requirements-full.hashes.lock; PROFILE_LOCK_PATH="{tmp}/requirements-full.hashes.lock"\n'
+                       f'LEGACY_LOCK_NAME=requirements-legacy.hashes.lock; LEGACY_LOCK_PATH=""; SUMS_PATH="{tmp}/SHA256SUMS"\n')
+            argv = ["sh", "-c", prelude + bloco, "sh" if from_pipe else str(tmp / "install.sh")]
+            return subprocess.run(argv, capture_output=True, text=True)
+        valid = dict(draft=False, prerelease=False, tag_name="v2.0.0", name="Traslado",
+                     author={"login": "x", "name": "y"},
+                     assets=[{"name": k, "uploader": {"login": "u"}, "digest": "sha256:" + v} for k, v in files.items()],
+                     body='"assets": [{"name": "SHA256SUMS", "digest": "sha256:00"}]')
+        proc = run(valid)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads((tmp / "digests.json").read_text())["install.sh"], files["install.sh"])
+        proc = run(valid, from_pipe=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("pipe", proc.stdout)
+        self.assertNotIn("install.sh", json.loads((tmp / "digests.json").read_text()))
+        for case in ("draft", "prerelease", "tag", "missing", "duplicate", *files):
             api = json.loads(json.dumps(valid))
             if case in ("draft", "prerelease"): api[case] = True
             if case == "tag": api["tag_name"] = "v1.0.0"
             if case == "missing": api["assets"] = []
-            if case in digests: next(a for a in api["assets"] if a["name"] == case)["digest"] = "sha256:"+"0"*64
-            api_path.write_text(json.dumps(api))
-            digests_path.write_text(json.dumps({k:v for k,v in digests.items() if k != "install.sh"}))
-            with self.subTest(case=case), patch.object(sys, "argv", ["-", str(api_path), str(digests_path), "2.0.0", str(script)]):
-                if case == "valid":
-                    exec(compile(validator, "install.sh/API_VERIFY", "exec"), {})
-                    self.assertEqual(json.loads(digests_path.read_text()), digests)
-                else:
-                    with self.assertRaises(ValueError):
-                        exec(compile(validator, "install.sh/API_VERIFY", "exec"), {})
+            if case == "duplicate": api["assets"].append(dict(api["assets"][0]))
+            if case in files: next(a for a in api["assets"] if a["name"] == case)["digest"] = "sha256:" + "0" * 64
+            with self.subTest(case=case):
+                self.assertNotEqual(run(api).returncode, 0)
 
     @unittest.skipUnless(os.name == "nt", "Windows process inventory")
     def test_n5_n10_detect_running_release_process(self):

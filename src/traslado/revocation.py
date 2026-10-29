@@ -367,7 +367,9 @@ def verify_promotion(
 
     validate_revoked_document(doc, previous_sequence=prev_seq, now=now_dt)
 
-    if prev_state and doc["sequence"] == prev_seq and prev_state.get("revoked_sha256") != hashlib.sha256(raw_revoked).hexdigest():
+    # Estado gravado antes do campo revoked_sha256 não permite comparar conteúdo: aceita e passa a gravá-lo.
+    if (prev_state and doc["sequence"] == prev_seq and prev_state.get("revoked_sha256") is not None
+            and prev_state["revoked_sha256"] != hashlib.sha256(raw_revoked).hexdigest()):
         raise RevocationError("Mesma sequence com conteudo diferente do persistido")
 
     # Persist monotonic sequence state as soon as revoked.json is authenticated and valid.

@@ -116,9 +116,14 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in {"where", "setup", "update", "uninstall", "rollback", "shortcuts"}:
             lifecycle.prune_releases(managed, pending_only=True)
             if (managed / "state/pending-uninstall.json").is_file():
-                result = lifecycle.uninstall_managed(root=managed, yes=True)
-                print(json.dumps(result, ensure_ascii=False))
-                return 0
+                # Só o próprio uninstall retoma a remoção pendente; setup/update de nova instalação a descartam;
+                # where, rollback e shortcuts não alteram nada por causa dela.
+                if args.command == "uninstall":
+                    result = lifecycle.uninstall_managed(root=managed, yes=True)
+                    print(json.dumps(result, ensure_ascii=False))
+                    return 0
+                if args.command in {"setup", "update"}:
+                    lifecycle.discard_pending_uninstall(managed)
         if args.command == "shortcuts":
             root = args.root or plat.managed_root()
             current = plat.read_current(root)

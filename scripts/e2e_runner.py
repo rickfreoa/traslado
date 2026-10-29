@@ -601,6 +601,8 @@ def run_windows_e2e(dist_dir: Path, audit_output: Path, ocr_cache: Path | None =
         # Desinstalar e conferir remoção
         current = json.loads((managed_root / "current.json").read_text(encoding="utf-8"))
         py_exe = _managed_python(managed_root, current["release_id"])
+        sentinela = data_root / "sentinela-dados-usuario.txt"
+        sentinela.write_text("dado do usuario", encoding="utf-8")
         uninst_proc = subprocess.run(
             [str(py_exe), "-I", "-X", "utf8", "-m", "traslado", "uninstall", "--yes", "--root", str(managed_root)],
             env=env,
@@ -619,12 +621,13 @@ def run_windows_e2e(dist_dir: Path, audit_output: Path, ocr_cache: Path | None =
         if os.name == "nt":
             unexpected += [str(p) for p in local_appdata.rglob("*") if p.is_file()]
         assert not unexpected, f"Arquivos fora da raiz/atalhos após uninstall: {unexpected}"
+        assert sentinela.read_text(encoding="utf-8") == "dado do usuario", "data_root não preservado no uninstall"
         report["uninstall"] = {
             "unexpected_profile_files": unexpected,
             "result": json.loads(uninst_proc.stdout.strip()),
             "root_exists_after": managed_root.exists(),
             "shortcuts_exist_after": desktop_lnk.exists() or start_lnk.exists(),
-            "data_root_preserved": data_root.is_dir(),
+            "data_root_preserved": sentinela.read_text(encoding="utf-8") == "dado do usuario",
         }
         return report
 
@@ -733,6 +736,8 @@ def run_macos_e2e(dist_dir: Path, audit_output: Path) -> dict:
 
         current = json.loads((managed_root / "current.json").read_text(encoding="utf-8"))
         py_exe = _managed_python(managed_root, current["release_id"])
+        sentinela = data_root / "sentinela-dados-usuario.txt"
+        sentinela.write_text("dado do usuario", encoding="utf-8")
         uninst_proc = subprocess.run(
             [str(py_exe), "-I", "-X", "utf8", "-m", "traslado", "uninstall", "--yes", "--root", str(managed_root)],
             env=env,
@@ -751,12 +756,13 @@ def run_macos_e2e(dist_dir: Path, audit_output: Path) -> dict:
         if os.name == "nt":
             unexpected += [str(p) for p in local_appdata.rglob("*") if p.is_file()]
         assert not unexpected, f"Arquivos fora da raiz/atalhos após uninstall: {unexpected}"
+        assert sentinela.read_text(encoding="utf-8") == "dado do usuario", "data_root não preservado no uninstall"
         report["uninstall"] = {
             "unexpected_profile_files": unexpected,
             "result": json.loads(uninst_proc.stdout.strip()),
             "root_exists_after": managed_root.exists(),
             "app_bundle_exists_after": app_bundle.exists(),
-            "data_root_preserved": data_root.is_dir(),
+            "data_root_preserved": sentinela.read_text(encoding="utf-8") == "dado do usuario",
         }
         return report
 

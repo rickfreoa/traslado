@@ -646,6 +646,20 @@ class CiGate(unittest.TestCase):
         self.assertEqual(r.stdout.strip(), "liberar")
 
 
+class PerfilDaMatriz(unittest.TestCase):
+    """Canário: no perfil Full/legacy, um extrator quebrado não pode virar skip silencioso nos testes que o exigem."""
+
+    @unittest.skipUnless(os.environ.get("T11_PERFIL") in {"full", "legacy"}, "só nos perfis Full e legacy da matriz")
+    def test_modulos_do_perfil_importam(self):
+        modulos = ["fitz", "PIL.Image", "docx", "openpyxl", "pptx", "lxml.etree"]
+        for nome in modulos:
+            with self.subTest(modulo=nome):
+                importlib.import_module(nome)
+        if os.environ.get("T11_PERFIL") == "legacy":  # sem importar o pacote Python do anydoc (só o binário é carregado)
+            spec = importlib.util.find_spec("anydoc")
+            self.assertTrue(spec is not None and spec.origin, "anydoc ausente no perfil legacy")
+
+
 class Nucleo(unittest.TestCase):
     MODULOS = ["cli", "runner", "formats", "registry", "doctor", "model", "render", "chunks", "safety", "worker", "runtime", "lifecycle", "revocation"]
 

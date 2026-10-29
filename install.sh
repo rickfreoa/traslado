@@ -225,35 +225,103 @@ DIGESTS_PATH="$STAGE_DOWNLOADS/verified-$RELEASE_ID.json"
     printf '}\n'
 } > "$DIGESTS_PATH"
 
+# Script lido de arquivo real (bash install.sh) ou de pipe (curl ... | sh): no pipe, $0 é o shell e o próprio
+# script não tem digest conferível; a autenticidade dele vem do TLS do GitHub, e o restante é conferido na API.
+SELF_FILE=""
+if [ -f "$0" ] && [ "$(basename "$0")" = "install.sh" ]; then SELF_FILE="$0"; fi
+
 if [ -z "$FROM_DIR" ]; then
-    # Parse the independent API response before obtaining uv or installing anything.
+    # Resposta independente da API conferida antes de obter o uv ou instalar qualquer coisa. Sem Python no
+    # sistema (o instalador não o exige), o JSON é lido por um analisador léxico em awk que respeita strings.
     API_JSON="$STAGE_DOWNLOADS/release-api.json"
+    API_AWK="$STAGE_DOWNLOADS/release-api.awk"
+    API_FIELDS="$STAGE_DOWNLOADS/release-api.txt"
     download_https "https://api.github.com/repos/rickfreoa/traslado/releases/tags/v$CLEAN_VERSION" "$API_JSON"
-    API_PY=$(command -v python3 || command -v python || true)
-    [ -n "$API_PY" ] || { echo "Python necessario para autenticar JSON da API antes de instalar" >&2; exit 1; }
-    "$API_PY" - "$API_JSON" "$DIGESTS_PATH" "$CLEAN_VERSION" "$0" <<'API_VERIFY' || exit 1
-import hashlib, json, pathlib, sys
-api_path, digest_path, version, script = sys.argv[1:]
-api = json.loads(pathlib.Path(api_path).read_text(encoding="utf-8"))
-if not (api.get("draft") is False and api.get("prerelease") is False and api.get("tag_name") == "v" + version):
-    raise ValueError("Release API nao publicada")
-digests = json.loads(pathlib.Path(digest_path).read_text(encoding="utf-8"))
-assets = api["assets"]
-if any(a.get("name") == "install.sh" for a in assets):
-    digests["install.sh"] = hashlib.sha256(pathlib.Path(script).read_bytes()).hexdigest()
-for name, digest in digests.items():
-    matches = [a for a in assets if a.get("name") == name]
-    if len(matches) != 1 or matches[0].get("digest") != "sha256:" + digest:
-        raise ValueError("Digest API divergente ou asset ausente: " + name)
-pathlib.Path(digest_path).write_text(json.dumps(digests), encoding="utf-8")
-API_VERIFY
+    cat > "$API_AWK" <<'API_AWK_EOF'
+# Lê a resposta JSON da API de releases e emite: TOP <chave> <valor> para draft/prerelease/tag_name do
+# objeto raiz, e ASSET <n> <chave> <valor> para name/digest de cada asset. Strings com escapes são tratadas.
+BEGIN { RS = "\001"; depth = 0; nasset = 0; inassets = 0 }
+{
+    s = $0; n = length(s); i = 1; pendingkey = ""
+    while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == "\"") {
+            j = i + 1; str = ""
+            while (j <= n) {
+                d = substr(s, j, 1)
+                if (d == "\\") { str = str substr(s, j, 2); j += 2; continue }
+                if (d == "\"") break
+                str = str d; j++
+            }
+            if (j > n) { print "ERRO string"; exit 1 }
+            i = j + 1
+            while (i <= n && substr(s, i, 1) ~ /[ \t\r\n]/) i++
+            if (substr(s, i, 1) == ":") { key[depth] = str; i++; continue }
+            emit(str); continue
+        }
+        if (c == "{" || c == "[") {
+            depth++; type[depth] = c
+            if (c == "[" && depth == 2 && key[1] == "assets") inassets = 1
+            if (c == "{" && depth == 3 && inassets) nasset++
+            key[depth] = ""; i++; continue
+        }
+        if (c == "}" || c == "]") {
+            if (c == "]" && depth == 2 && inassets) inassets = 0
+            depth--; i++; continue
+        }
+        if (c ~ /[tfn0-9-]/) {
+            j = i; while (j <= n && substr(s, j, 1) ~ /[A-Za-z0-9.+eE-]/) j++
+            emit(substr(s, i, j - i)); i = j; continue
+        }
+        i++
+    }
+}
+function emit(v,   k) {
+    k = key[depth]
+    if (depth == 1 && type[1] == "{" && (k == "draft" || k == "prerelease" || k == "tag_name")) print "TOP", k, v
+    if (depth == 3 && inassets && type[3] == "{" && (k == "name" || k == "digest")) print "ASSET", nasset, k, v
+}
+API_AWK_EOF
+    awk -f "$API_AWK" "$API_JSON" > "$API_FIELDS" || { echo "Resposta da API de releases ilegível" >&2; exit 1; }
+    top_value() { awk -v k="$1" '$1 == "TOP" && $2 == k { n++; v = $3 } END { if (n == 1) print v }' "$API_FIELDS"; }
+    if [ "$(top_value draft)" != "false" ] || [ "$(top_value prerelease)" != "false" ] || [ "$(top_value tag_name)" != "v$CLEAN_VERSION" ]; then
+        echo "Release API nao publicada ou tag divergente" >&2; exit 1
+    fi
+    asset_digest() {  # imprime o digest do único asset com esse nome; nada se ausente ou duplicado
+        awk -v nome="$1" '$1 == "ASSET" && $3 == "name" { nm[$2] = $4 } $1 == "ASSET" && $3 == "digest" { dg[$2] = $4 }
+            END { for (i in nm) if (nm[i] == nome) { n++; v = dg[i] } if (n == 1) print v }' "$API_FIELDS"
+    }
+    VERIFY_LIST="$WHEEL_NAME $PROFILE_LOCK_NAME"
+    [ -n "$LEGACY_LOCK_PATH" ] && VERIFY_LIST="$VERIFY_LIST $LEGACY_LOCK_NAME"
+    [ "$(basename "$SUMS_PATH")" = "SHA256SUMS" ] && VERIFY_LIST="$VERIFY_LIST SHA256SUMS"
+    SELF_DIGEST=""
+    if [ -n "$(asset_digest install.sh)" ]; then
+        if [ -n "$SELF_FILE" ]; then
+            SELF_DIGEST="$(sha256_file "$SELF_FILE")"
+            [ "$(asset_digest install.sh)" = "sha256:$SELF_DIGEST" ] || { echo "Digest API divergente: install.sh" >&2; exit 1; }
+        else
+            echo "Aviso: instalador lido por pipe; digest do próprio install.sh não conferível (os artefatos são conferidos na API)."
+        fi
+    fi
+    for name in $VERIFY_LIST; do
+        case "$name" in
+            "$WHEEL_NAME") file="$WHEEL_PATH" ;;
+            "$PROFILE_LOCK_NAME") file="$PROFILE_LOCK_PATH" ;;
+            "$LEGACY_LOCK_NAME") file="$LEGACY_LOCK_PATH" ;;
+            SHA256SUMS) file="$SUMS_PATH" ;;
+        esac
+        [ "$(asset_digest "$name")" = "sha256:$(sha256_file "$file")" ] || { echo "Digest API divergente ou asset ausente: $name" >&2; exit 1; }
+    done
+    if [ -n "$SELF_DIGEST" ]; then
+        sed 's/}$//' "$DIGESTS_PATH" > "$DIGESTS_PATH.tmp" && printf ',"install.sh":"%s"}\n' "$SELF_DIGEST" >> "$DIGESTS_PATH.tmp" && mv "$DIGESTS_PATH.tmp" "$DIGESTS_PATH"
+    fi
 fi
 
 # 3. Verificação de attestation (gh)
 if command -v gh >/dev/null 2>&1; then
     echo "Verificando attestation criptográfica com gh..."
     SELF_ARTIFACT=""
-    if [ -z "$FROM_DIR" ] && grep -q '"install.sh"' "$DIGESTS_PATH"; then SELF_ARTIFACT="$0"; fi
+    if [ -z "$FROM_DIR" ] && grep -q '"install.sh"' "$DIGESTS_PATH"; then SELF_ARTIFACT="$SELF_FILE"; fi
     for artifact in "$WHEEL_PATH" "$PROFILE_LOCK_PATH" "$LEGACY_LOCK_PATH" "$SUMS_PATH" "$SELF_ARTIFACT"; do
         [ -n "$artifact" ] || continue
         gh attestation verify "$artifact" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref refs/tags/v$CLEAN_VERSION || exit 1

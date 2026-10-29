@@ -19,8 +19,8 @@ def main():
     from test_containment_e2 import ContainmentE2
     source = ROOT / 'tests/_medicoes' / ('contencao-' + sys.platform + '.json')
     source.unlink(missing_ok=True)
-    suite = unittest.TestSuite(ContainmentE2(name) for name in
-                              ('test_memory_child', 'test_memory_grandchild', 'test_timeout'))
+    # Classe inteira: as provas de estouro e também os parsers de RSS e a contagem de rasters do OCR.
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(ContainmentE2)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     args.saida.parent.mkdir(parents=True, exist_ok=True)
     report = json.loads(source.read_text(encoding='utf-8')) if source.exists() else {}

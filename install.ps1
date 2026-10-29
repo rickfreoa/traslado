@@ -224,7 +224,13 @@ try {
         $api = Invoke-RestMethod -Uri "https://api.github.com/repos/rickfreoa/traslado/releases/tags/v$CleanVersion" -Headers @{Accept="application/vnd.github+json"; "User-Agent"="Traslado-Bootstrap"}
         if ($api.draft -isnot [bool] -or $api.prerelease -isnot [bool] -or $api.draft -ne $false -or $api.prerelease -ne $false -or $api.tag_name -cne "v$CleanVersion") { throw "Release API nao publicada ou tag divergente" }
         $selfAsset = @($api.assets | Where-Object { $_.name -ceq "install.ps1" })
-        if ($selfAsset.Count -gt 0) { $VerifiedDigests["install.ps1"] = Get-FileSha256Hex $PSCommandPath }
+        # Via "irm ... | iex" não há arquivo do próprio script ($PSCommandPath vazio): o digest dele não é
+        # conferível, e a autenticidade vem do TLS do GitHub; os artefatos instalados seguem conferidos na API.
+        $SelfFile = if ($PSCommandPath -and (Test-Path -LiteralPath $PSCommandPath -PathType Leaf)) { $PSCommandPath } else { $null }
+        if ($selfAsset.Count -gt 0) {
+            if ($SelfFile) { $VerifiedDigests["install.ps1"] = Get-FileSha256Hex $SelfFile }
+            else { Write-Host "Aviso: instalador executado sem arquivo (iex); digest do proprio install.ps1 nao conferivel." }
+        }
         foreach ($name in $VerifiedDigests.Keys) {
             $assets = @($api.assets | Where-Object { $_.name -ceq $name })
             if ($assets.Count -ne 1 -or $assets[0].digest -cne ("sha256:" + $VerifiedDigests[$name])) { throw "Digest API divergente ou asset ausente: $name" }
@@ -236,7 +242,7 @@ try {
     $GhCmd = Get-Command gh -ErrorAction SilentlyContinue
     if ($GhCmd) {
         Write-Host "Verificando attestation criptográfica com gh..."
-        $SelfArtifact = if (-not $FromDir -and $selfAsset.Count -gt 0) { $PSCommandPath } else { $null }
+        $SelfArtifact = if (-not $FromDir -and $selfAsset.Count -gt 0 -and $SelfFile) { $SelfFile } else { $null }
         foreach ($artifact in @($WheelPath, $ProfileLockPath, $LegacyLockPath, $SumsPath, $SelfArtifact)) {
             if (-not $artifact) { continue }
             & $GhCmd.Source attestation verify $artifact --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref "refs/tags/v$CleanVersion"

@@ -828,16 +828,16 @@ def setup_release(
         plat._atomic(release_dir / "release-integrity.json", release_integrity(release_dir))
         promoted = plat.promote(managed, now=now, allow_offline=offline_allowed, offline_reason=offline_reason)
         prune_releases(managed)
-        handle_legacy_windows(
-            managed,
-            version=__version__,
-            platform_name=platform_name,
-            env=env,
-            home=home_path,
-            now=now,
-            **shortcut_dirs,
-        )
         try:
+            handle_legacy_windows(
+                managed,
+                version=__version__,
+                platform_name=platform_name,
+                env=env,
+                home=home_path,
+                now=now,
+                **shortcut_dirs,
+            )
             plat.refresh_shortcuts(managed, promoted)
         except Exception as exc:
             raise ShortcutError(f"Instalacao promovida; somente os atalhos falharam: {exc}. Recrie-os com: \"{python_exe}\" -I -m traslado shortcuts --root \"{managed}\"") from exc
@@ -846,33 +846,60 @@ def setup_release(
     return candidate_data
 
 
-def _defer_self_removal(managed: Path, paths: list[Path]) -> None:
-    """Windows não apaga o interpretador em execução: um processo destacado espera este PID terminar,
-    remove os caminhos adiados e o marcador, e apaga a raiz se ela tiver ficado vazia (dados preservados ficam)."""
+def _defer_self_removal(managed: Path, paths: list[Path], preserved: list[Path]) -> None:
+    """Windows não apaga o interpretador em execução: um processo destacado espera este PID terminar e remove
+    os caminhos adiados e o marcador. Defesa em profundidade no processo destacado: cada alvo revalidado como
+    interno à raiz, nunca reparse point, nunca contendo dado preservado; remoção por "rmdir /s /q" (não
+    atravessa junctions) e poda só de state, releases e da raiz, não recursiva e apenas se vazios."""
     root = managed.resolve()
     alvos = [Path(p).resolve() for p in paths]
-    if unsafe_link(root) or not alvos or any(not a.is_relative_to(root) or a == root for a in alvos):
-        raise ValueError("Remoção diferida exige caminhos internos à raiz validada")
+    keep = [Path(p).resolve() for p in preserved]
+    if unsafe_link(root) or not alvos or any(
+            not a.is_relative_to(root) or a == root or unsafe_link(a) or any(k.is_relative_to(a) for k in keep)
+            for a in alvos):
+        raise ValueError("Remoção diferida exige caminhos internos à raiz, sem links e sem dados preservados")
     code = (
-        "$ErrorActionPreference='Stop'; "
-        "$root=[IO.Path]::GetFullPath($env:TRASLADO_REMOVE_ROOT); "
-        "if ($root -eq [IO.Path]::GetPathRoot($root)) { exit 2 }; "
+        "$ErrorActionPreference='Continue'; "
+        "$root=[IO.Path]::GetFullPath($env:TRASLADO_REMOVE_ROOT).TrimEnd('\\'); "
+        "if ($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\\')) { exit 2 }; "
+        "$keep=@($env:TRASLADO_REMOVE_KEEP -split [char]10 | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\\') }); "
         "Wait-Process -Id ([int]$env:TRASLADO_REMOVE_PID) -ErrorAction SilentlyContinue; "
-        "$alvos=$env:TRASLADO_REMOVE_PATHS -split [char]10; "
-        "for ($attempt=0; $attempt -lt 30; $attempt++) { "
-        "try { foreach ($a in $alvos) { if ($a -and (Test-Path -LiteralPath $a)) { Remove-Item -LiteralPath $a -Recurse -Force } }; "
+        "$alvos=@($env:TRASLADO_REMOVE_PATHS -split [char]10 | Where-Object { $_ }); "
+        "for ($attempt=0; $attempt -lt 30; $attempt++) { $pendente=$false; "
+        "foreach ($a in $alvos) { $full=[IO.Path]::GetFullPath($a).TrimEnd('\\'); "
+        "if (-not $full.StartsWith($root + '\\', [StringComparison]::OrdinalIgnoreCase)) { continue }; "
+        "if (@($keep | Where-Object { $_.StartsWith($full + '\\', [StringComparison]::OrdinalIgnoreCase) -or $_ -ieq $full }).Count) { continue }; "
+        "if (-not (Test-Path -LiteralPath $full)) { continue }; "
+        "if ((Get-Item -LiteralPath $full -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }; "
+        "& $env:ComSpec /d /c rmdir /s /q \"$full\"; if (Test-Path -LiteralPath $full) { $pendente=$true } }; "
+        "if (-not $pendente) { break }; Start-Sleep -Milliseconds 500 }; "
         "Remove-Item -LiteralPath (Join-Path $root 'state\\pending-uninstall.json') -Force -ErrorAction SilentlyContinue; "
-        "Get-ChildItem -LiteralPath $root -Recurse -Directory | Sort-Object { $_.FullName.Length } -Descending | "
-        "Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } | Remove-Item -Force; "
-        "if (-not (Get-ChildItem -LiteralPath $root -Force)) { Remove-Item -LiteralPath $root -Force }; exit 0 } "
-        "catch { Start-Sleep -Milliseconds 500 } }; exit 1"
+        "foreach ($d in @((Join-Path $root 'state'), (Join-Path $root 'releases'), $root)) { "
+        "try { [IO.Directory]::Delete($d, $false) } catch { } }; exit 0"
     )
     child_env = {**os.environ, "TRASLADO_REMOVE_ROOT": str(root), "TRASLADO_REMOVE_PID": str(os.getpid()),
-                 "TRASLADO_REMOVE_PATHS": "\n".join(str(a) for a in alvos)}
+                 "TRASLADO_REMOVE_PATHS": "\n".join(str(a) for a in alvos),
+                 "TRASLADO_REMOVE_KEEP": "\n".join(str(k) for k in keep)}
     subprocess.Popen([str(POWERSHELL_WIN), "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
                       "-EncodedCommand", base64.b64encode(code.encode("utf-16le")).decode("ascii")],
                      env=child_env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
+def discard_pending_uninstall(managed: Path) -> None:
+    """Nova instalação na mesma raiz: o uninstall pendente deixa de valer. Remove o que já não estiver em uso
+    entre as releases adiadas e apaga o marcador; nunca toca em data_root."""
+    managed = Path(managed)
+    marker = managed / "state/pending-uninstall.json"
+    try:
+        saved = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        saved = {}
+    for release_id in saved.get("release_ids", []) if isinstance(saved, dict) else []:
+        release = managed / "releases" / str(release_id)
+        if release.parent == managed / "releases" and release.is_dir():
+            remove_unreferenced_release(managed, release)
+    marker.unlink(missing_ok=True)
 
 
 def uninstall_managed(
@@ -917,6 +944,7 @@ def uninstall_managed(
         raise ValueError("Desinstalacao recusada: current.json e candidate.json ilegiveis ou sem data_root; nao e seguro adivinhar os dados")
     data_root = valid[0]["data_root"]
     preserved = [Path(m["data_root"]).resolve() for m in valid]
+    data_roots = list(preserved)
     if any(p == managed.resolve() or p in managed.resolve().parents for p in preserved):
         raise ValueError("Desinstalacao recusada: data_root e ancestral da raiz gerenciada")
     deferred = []
@@ -964,9 +992,10 @@ def uninstall_managed(
     # state/pending-uninstall.json para a próxima execução.
     self_held = bool(deferred) and os.name == "nt" and all(
         Path(sys.executable).resolve().is_relative_to(p) or Path(sys.prefix).resolve().is_relative_to(p)
-        or p == runtime_dir.resolve() for p in deferred)
+        or p == runtime_dir.resolve() for p in deferred) and not any(
+        d.is_relative_to(p) for d in data_roots for p in deferred)
     if self_held:
-        _defer_self_removal(managed, deferred)
+        _defer_self_removal(managed, deferred, data_roots)
 
     return {
         "status": "uninstall_pending" if deferred else "uninstalled",

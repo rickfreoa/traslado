@@ -73,7 +73,6 @@ class CloudGuardsRC5(unittest.TestCase):
             self.assertFalse(unsafe_link(file))
             self.assertEqual(installer.no_links(file), file.resolve())
 
-@unittest.skipIf(sys.platform == "darwin", "install_windows.py recusa links por desenho; no macOS o diretório temporário fica sob /var, que é link")
 class InstallerDiagnosticsRC5(unittest.TestCase):
     def setUp(self):
         # Authenticate the real helper in a private payload. These unit tests
@@ -110,15 +109,15 @@ class InstallerDiagnosticsRC5(unittest.TestCase):
             data = installer.run([sys.executable, "-I", "-c", "import sys;print('{\"ok\":true}');print('ADVISORY',file=sys.stderr)"], capture=True)
         self.assertTrue(json.loads(data)["ok"])
     def test_timeout_persists_child_diagnostic(self):
-        with tempfile.TemporaryDirectory() as raw, patch.object(installer, "LOG_DIRECTORY", Path(raw)), contextlib.redirect_stdout(io.StringIO()):
+        with tempfile.TemporaryDirectory() as raw, patch.object(installer, "LOG_DIRECTORY", Path(raw).resolve()), contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaises(subprocess.TimeoutExpired):
                 # Allow the venv launcher and child to start on a loaded host;
                 # still require a real timeout and the child's persisted output.
                 installer.run([sys.executable, "-I", "-c", "import time;print('BEFORE_TIMEOUT',flush=True);time.sleep(30)"], timeout=8)
-            self.assertIn("BEFORE_TIMEOUT", next(Path(raw).glob("*.log")).read_text())
+            self.assertIn("BEFORE_TIMEOUT", next(Path(raw).resolve().glob("*.log")).read_text())
 
     def test_excessive_stage_output_is_refused_with_bounded_tail_log(self):
-        with tempfile.TemporaryDirectory() as raw, patch.object(installer, "LOG_DIRECTORY", Path(raw)), contextlib.redirect_stdout(io.StringIO()):
+        with tempfile.TemporaryDirectory() as raw, patch.object(installer, "LOG_DIRECTORY", Path(raw).resolve()), contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaisesRegex(ValueError, "64 MiB"):
                 installer.run([sys.executable, "-I", "-c", "import os;os.write(1,b'X'*(65*1024*1024))"], timeout=10)
-            self.assertLess(next(Path(raw).glob("*.log")).stat().st_size, 9 * 1024 * 1024)
+            self.assertLess(next(Path(raw).resolve().glob("*.log")).stat().st_size, 9 * 1024 * 1024)
