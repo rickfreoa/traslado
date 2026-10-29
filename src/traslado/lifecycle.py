@@ -37,6 +37,33 @@ class ShortcutError(RuntimeError):
     """Promotion succeeded, desktop integration needs retry (exit 4)."""
 
 
+_TESSERACT_LINUX = (
+    ({"debian", "ubuntu", "linuxmint", "pop"}, "sudo apt install tesseract-ocr"),
+    ({"fedora", "rhel", "centos", "rocky", "almalinux"}, "sudo dnf install tesseract"),
+    ({"opensuse", "suse", "opensuse-leap", "opensuse-tumbleweed", "sles"}, "sudo zypper install tesseract-ocr"),
+    ({"arch", "manjaro", "endeavouros"}, "sudo pacman -S tesseract"),
+    ({"alpine"}, "sudo apk add tesseract-ocr"),
+)
+
+
+def linux_tesseract_hint(os_release: str = "/etc/os-release") -> str:
+    """Comando de instalação do Tesseract para a distribuição em /etc/os-release (ID e ID_LIKE)."""
+    campos: dict[str, list[str]] = {"ID": [], "ID_LIKE": []}
+    try:
+        with open(os_release, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                key, _, value = line.strip().partition("=")
+                if key in campos:
+                    campos[key] = value.strip().strip("\"'").lower().split()
+    except OSError:
+        pass
+    for ident in campos["ID"] + campos["ID_LIKE"]:  # ID decide antes de ID_LIKE
+        for family, command in _TESSERACT_LINUX:
+            if ident in family:
+                return "Para instalar o Tesseract nesta distribuição, execute: " + command
+    return "Instale o pacote do Tesseract OCR pelo gerenciador de pacotes da sua distribuição."
+
+
 def validate_version(version: str) -> str:
     if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+([.-][0-9A-Za-z.]+)?", version):
         raise ValueError("Versao invalida")
@@ -89,19 +116,43 @@ def release_in_use(release: Path) -> bool:
     return False
 
 
-def remove_unreferenced_release(root: Path, release: Path) -> bool:
+def remove_unreferenced_release(root: Path, release: Path, *, candidate_reprovada: bool = False) -> bool:
     if unsafe_link(release):
         return False
     root, release = Path(root).resolve(), Path(release).resolve()
     if release.parent != root / "releases":
         raise ValueError("Caminho de remocao de release recusado")
+    # A poda decide e remove sob o lock de promoção: uma promoção concorrente não troca current/candidate
+    # entre a leitura dos manifestos e a remoção. Lock ocupado: adia pelo marcador de remoção pendente.
+    try:
+        with plat._promotion_lock(root):
+            return _remove_unreferenced_release_locked(root, release, candidate_reprovada)
+    except ValueError as exc:
+        if "lock" not in str(exc).lower():
+            raise
+        plat._atomic(root / "state/pending-removals" / (release.name + ".json"), {"release_id": release.name})
+        return False
+
+
+def _managed_python_exe(managed: Path) -> str | None:
+    current = plat.read_current(managed) or {}
+    python = current.get("python")
+    return str(python) if python and Path(python).is_file() else None
+
+
+def _remove_unreferenced_release_locked(root: Path, release: Path, candidate_reprovada: bool = False) -> bool:
     current = plat.read_current(root)
     if (root / "current.json").exists() and current is None:
         return False
     current = current or {}
-    if release.name in {current.get("release_id"), current.get("previous_release_id")}:
+    candidate = plat.read_candidate(root) or {}
+    # A candidata em instalação (de outro processo) é protegida; só o próprio setup remove a sua reprovada.
+    protegidas = {current.get("release_id"), current.get("previous_release_id")}
+    if not candidate_reprovada:
+        protegidas.add(candidate.get("release_id"))
+    if release.name in protegidas:
         return False
-    for manifest in (current, plat.read_candidate(root) or {}):
+    for manifest in (current, candidate):
         if manifest.get("data_root") and Path(manifest["data_root"]).resolve().is_relative_to(release):
             return False
     marker = root / "state/pending-removals" / (release.name + ".json")
@@ -406,10 +457,7 @@ def setup_ocr(
             exe_path = str(Path(found).resolve())
             origin = "system"
         else:
-            print(
-                "OCR indisponível. Para instalar o Tesseract no Linux, execute: "
-                "sudo apt install tesseract-ocr (ou sudo dnf install tesseract)"
-            )
+            print("OCR indisponível. " + linux_tesseract_hint())
             return {
                 "ocr_installed": False,
                 "ocr": {"tesseract": None, "origin": "none", "version": None},
@@ -823,7 +871,7 @@ def setup_release(
             if revocation_status == "blocked":
                 reasons.append(f"revogação bloqueada ({revocation_error or 'sem confirmação dos dois canais'})")
             if not keep_failed:
-                remove_unreferenced_release(managed, release_dir)
+                remove_unreferenced_release(managed, release_dir, candidate_reprovada=True)
             raise ValueError("Promoção recusada: " + "; ".join(reasons))
         plat._atomic(release_dir / "release-integrity.json", release_integrity(release_dir))
         promoted = plat.promote(managed, now=now, allow_offline=offline_allowed, offline_reason=offline_reason)
@@ -1217,7 +1265,10 @@ def update_release(
                 install_env[var] = value
         proc = run_cmd(argv, env=install_env) if run_cmd else subprocess.run(argv, env=install_env, capture_output=True, text=True, timeout=300)
         if proc.returncode == 4:
-            raise ShortcutError("Atualizacao promovida; somente os atalhos falharam. Recrie com: traslado shortcuts --root " + str(managed))
+            novo = _managed_python_exe(managed)
+            raise ShortcutError("Atualizacao promovida; somente os atalhos falharam. Recrie com: "
+                                + (f"\"{novo}\" -I -m traslado shortcuts --root \"{managed}\"" if novo else
+                                   f"<python da release ativa> -I -m traslado shortcuts --root \"{managed}\""))
         if proc.returncode != 0:
             detail = (getattr(proc, "stderr", "") or getattr(proc, "stdout", "") or "").strip()
             raise ValueError(f"Falha ao executar {script_name} para v{target_version}: {detail}")

@@ -155,6 +155,7 @@ def _verify_common_lifecycle(
     allowlist_path: Path,
     audit_output: Path,
     expect_degraded_ocr: bool,
+    inventario_inicial: Path | None = None,
 ) -> dict:
     report: dict = {}
 
@@ -195,6 +196,7 @@ def _verify_common_lifecycle(
             str(allowlist_path),
             "--saida",
             str(audit_output),
+            *(["--inventario-inicial", str(inventario_inicial)] if inventario_inicial else []),
         ],
         env=env,
         capture_output=True,
@@ -263,7 +265,17 @@ def _verify_common_lifecycle(
         if sys.platform == "darwin":
             assert "brew install tesseract" in err_msg, deg_json
         else:
-            assert "apt install tesseract-ocr" in err_msg or "dnf install tesseract" in err_msg, deg_json
+            # Comando do gerenciador da distribuição do contêiner, nunca o da outra.
+            os_release = Path("/etc/os-release").read_text(encoding="utf-8", errors="replace").lower()
+            ident = {k: v.strip().strip("\"'") for k, _, v in (l.partition("=") for l in os_release.splitlines())}
+            familia = (ident.get("id", "") + " " + ident.get("id_like", "")).split()
+            if "debian" in familia or "ubuntu" in familia:
+                certo, errado = "sudo apt install tesseract-ocr", "dnf"
+            elif "fedora" in familia or "rhel" in familia:
+                certo, errado = "sudo dnf install tesseract", "apt"
+            else:
+                raise AssertionError("Distribuição E2E sem expectativa de comando: " + str(familia))
+            assert certo in err_msg and errado not in err_msg, deg_json
         report["degraded_no_ocr"] = {
             "return_code": deg_proc.returncode,
             "status": deg_json.get("status"),
@@ -346,8 +358,14 @@ def run_linux_container_post_install(
         env["TRASLADO_PROMOCAO_OFFLINE"] = "teste"
 
         report: dict = {"os": "linux", "mode": "linux-container"}
-        if pre_inventory_path and pre_inventory_path.is_file():
-            report["initial_container_inventory"] = json.loads(pre_inventory_path.read_text(encoding="utf-8"))
+        # E4: a auditoria liga cada biblioteca de sistema a um pacote do inventário inicial do contêiner.
+        if not (pre_inventory_path and pre_inventory_path.is_file()):
+            raise RuntimeError("Inventário pré-instalação do contêiner ausente")
+        report["initial_container_inventory"] = json.loads(pre_inventory_path.read_text(encoding="utf-8"))
+        rotulo = report["initial_container_inventory"]["distro_label"]
+        inventario_inicial = pre_inventory_path.parent / f"inventario-inicial-{rotulo}.txt"
+        if not inventario_inicial.is_file():
+            raise RuntimeError(f"Inventário de pacotes inicial ausente: {inventario_inicial}")
 
         # Verificar atalhos .desktop e .png criados pela instalação padrão
         current = json.loads((managed_root / "current.json").read_text(encoding="utf-8"))
@@ -378,6 +396,7 @@ def run_linux_container_post_install(
             allowlist_path=ROOT / "ci/libs-permitidas-linux.txt",
             audit_output=audit_output,
             expect_degraded_ocr=True,
+            inventario_inicial=inventario_inicial,
         )
         report.update(lifecycle_rep)
 

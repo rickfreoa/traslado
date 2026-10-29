@@ -23,6 +23,9 @@ if not os.environ.get("T11_EXIGE_INSTALADO") and str(ROOT / "src") not in sys.pa
 
 from traslado.model import Options
 from traslado.runner import execute
+from traslado.errors import CODES
+
+TYPED_CODES = frozenset(CODES - {"internal"})
 
 import traslado
 ASSETS = Path(traslado.__file__).resolve().parent / "assets"
@@ -171,7 +174,8 @@ class NativeMutationE6Tests(unittest.TestCase):
                         retained = ROOT / "work/native-mutant-failures"
                         retained.mkdir(parents=True, exist_ok=True)
                         (retained / f"{fmt}-{idx}.{fmt}").write_bytes(mutated)
-                    elif code == "internal" or (status == "failed" and code is None):
+                    elif code == "internal" or (status in {"failed", "timeout"} and code not in TYPED_CODES) or \
+                            (status == "timeout" and code != "timeout") or (status in {"complete", "partial"} and code not in (None, *TYPED_CODES)):
                         failures.append((fmt, idx, res))
                         retained = ROOT / "work/native-mutant-failures"
                         retained.mkdir(parents=True, exist_ok=True)
@@ -187,6 +191,10 @@ class NativeMutationE6Tests(unittest.TestCase):
             evidence.write_text(json.dumps({str(k): v for k, v in sorted(counts.items(), key=str)}, indent=2), encoding="utf-8")
 
         self.assertEqual(failures, [], f"Falhas inesperadas na mutação nativa: {failures[:5]}")
+        # Entradas determinísticas, limites folgados (15 s): a linha de base da CI não tem nenhum timeout.
+        # Tolera-se um por carga do executor; mais que isso indica travamento convertido em timeout.
+        timeouts = sum(n for (_fmt, status, _code), n in counts.items() if status == "timeout")
+        self.assertLessEqual(timeouts, 1, f"Timeouts na mutação nativa: {timeouts} ({dict(counts)})")
 
 
 if __name__ == "__main__":

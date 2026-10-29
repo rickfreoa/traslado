@@ -10,6 +10,8 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 - **Ciclo de vida pelo CLI**: `where`, `update`, `rollback`, `uninstall` (preserva sempre `data_root`; no Windows, o que o próprio processo prende é removido logo após a saída dele), `shortcuts`.
 - **CI** em Windows, Ubuntu e macOS, Python 3.11 a 3.14, perfis Core, Full e legacy contra o wheel instalado; mutação, contenção, E2E em contêineres Debian e Fedora mínimos, Windows e macOS, auditoria das bibliotecas dinâmicas carregadas; release em rascunho com bytes idênticos aos testados no CI; PyPI por trusted publishing só após publicação manual.
 - **GUI**: prévia quebra visualmente sequências longas sem espaço (o texto não muda).
+- `needs_ocr` no Linux indica o comando do gerenciador da distribuição (apt, dnf, zypper, pacman ou apk, por `/etc/os-release`); ZIP com método de compressão, versão ou criptografia não suportados resulta em `unsupported`/`encrypted`, não em `internal`.
+- `--version` de `update` recusa o prefixo `v`; sem `gh`, a conferência do `revoked.json` não é criptográfica (presença e SAN declarado).
 - Limite conhecido: no Windows Server Core a extensão nativa do PyMuPDF não carrega (DLL de sistema ausente); a instalação falha fechada, sem promover.
 
 - Extra `legacy` com anydoc 0.2.4 para DOC, RTF, ODT, ODS, ODP, PPT e EPUB,

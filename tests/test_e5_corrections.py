@@ -141,6 +141,8 @@ class CorrectionsE5(unittest.TestCase):
         # Sem isolamento de build, vale o setuptools herdado do interpretador base; license SPDX (PEP 639) exige >= 77.
         versao = subprocess.run([str(py), "-c", "import setuptools; print(setuptools.__version__)"], capture_output=True, text=True)
         if versao.returncode != 0 or int(versao.stdout.strip().split(".")[0]) < 77:
+            # Na CI o lock de testes fixa setuptools 82.0.1: ali a ausência é defeito, não ambiente.
+            self.assertFalse(os.environ.get("GITHUB_ACTIONS"), "setuptools >= 77 ausente na CI: " + versao.stdout + versao.stderr[-200:])
             self.skipTest("setuptools do interpretador base ausente ou anterior a 77 (PEP 639): " + (versao.stdout.strip() or versao.stderr[-200:]))
         install = subprocess.run([sys.executable, "-m", "pip", "--python", str(py), "install", "--no-deps", "--no-build-isolation", str(ROOT)], capture_output=True, text=True)
         self.assertEqual(install.returncode, 0, install.stdout+install.stderr)

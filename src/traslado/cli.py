@@ -25,6 +25,10 @@ class _Parser(argparse.ArgumentParser):
         self.exit(2)
 
 
+
+
+linux_tesseract_hint = lifecycle.linux_tesseract_hint
+
 def main(argv: list[str] | None = None) -> int:
     # JSON transport remains UTF-8 when Windows redirects stdout to a pipe.
     # -I deliberately ignores PYTHONIOENCODING supplied by the installer.
@@ -211,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
                 if sys.platform == "darwin":
                     result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract no macOS, execute: brew install tesseract"
                 elif sys.platform != "win32":
-                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract no Linux, execute: sudo apt install tesseract-ocr (ou sudo dnf install tesseract)"
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). " + linux_tesseract_hint()
                 else:
                     result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Configure o Tesseract local ou reinstale o perfil Full."
             results.append(result)

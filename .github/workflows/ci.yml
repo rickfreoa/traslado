@@ -47,7 +47,7 @@ jobs:
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r requirements-full.hashes.lock
           python -m pip install --only-binary=:all: --require-hashes -r requirements-test.hashes.lock
-          python -m unittest -v tests.test_scripts_e6 tests.test_compat_e1 tests.test_lifecycle_e5 tests.test_e5_corrections
+          python -m unittest -v tests.test_scripts_e6 tests.test_compat_e1 tests.test_lifecycle_e5 tests.test_e5_corrections tests.test_fechamento_e10
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pacote

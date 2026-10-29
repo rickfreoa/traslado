@@ -42,6 +42,13 @@ def classify(exc: Exception) -> ConversionError:
         code = "malformed"
     elif isinstance(exc, UnicodeError):
         code = "malformed"
+    elif isinstance(exc, NotImplementedError) and any(t in str(exc).lower() for t in (
+            "compression method", "zip file version", "strong encryption")):
+        # zipfile: método de compressão, versão ou criptografia não suportados (mesma regra do legado).
+        code = "unsupported"
+    elif isinstance(exc, RuntimeError) and "zip" in str(exc).lower() and (
+            "password" in str(exc).lower() or "encrypted" in str(exc).lower()):
+        code = "encrypted"
     elif type(exc).__name__ in {"FileDataError", "EmptyFileError", "XMLSyntaxError",
                                 "UnidentifiedImageError", "InvalidXmlError"}:
         code = "malformed"
