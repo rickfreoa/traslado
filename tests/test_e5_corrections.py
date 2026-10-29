@@ -511,24 +511,30 @@ function Get-Command { [CmdletBinding()]param($Name) if ($Name -ne 'gh') { Micro
         fim = source.index("# 3. Verificação de attestation")
         bloco = source[inicio:fim]
         tmp = Path(self.tmp.name)
-        files = {}
-        for name, content in (("traslado-2.0.0-py3-none-any.whl", b"wheel"), ("requirements-full.hashes.lock", b"lock"),
-                              ("SHA256SUMS", b"sums"), ("install.sh", b"bootstrap")):
-            (tmp / name).write_bytes(content)
-            files[name] = hashlib.sha256(content).hexdigest()
         funcao_sha = source[source.index("sha256_file() {"):source.index("\n}\n", source.index("sha256_file() {")) + 3]
         tmp_sh = tmp.as_posix()
+        # O bloco vai num arquivo (como o install.sh real), não em "sh -c": o argv do MSYS no Windows colapsa barras.
+        harness = tmp / "self" / "install.sh"
+        harness.parent.mkdir()
+        harness.write_text(f'download_https() {{ cp "{tmp_sh}/api.json" "$2"; }}\n' + funcao_sha +
+                           f'FROM_DIR=""; CLEAN_VERSION=2.0.0; STAGE_DOWNLOADS="{tmp_sh}"; DIGESTS_PATH="{tmp_sh}/digests.json"\n'
+                           f'WHEEL_NAME=traslado-2.0.0-py3-none-any.whl; WHEEL_PATH="{tmp_sh}/traslado-2.0.0-py3-none-any.whl"\n'
+                           f'PROFILE_LOCK_NAME=requirements-full.hashes.lock; PROFILE_LOCK_PATH="{tmp_sh}/requirements-full.hashes.lock"\n'
+                           f'LEGACY_LOCK_NAME=requirements-legacy.hashes.lock; LEGACY_LOCK_PATH=""; SUMS_PATH="{tmp_sh}/SHA256SUMS"\n'
+                           + bloco, encoding="utf-8", newline="\n")
+        files = {}
+        for name, content in (("traslado-2.0.0-py3-none-any.whl", b"wheel"), ("requirements-full.hashes.lock", b"lock"),
+                              ("SHA256SUMS", b"sums")):
+            (tmp / name).write_bytes(content)
+            files[name] = hashlib.sha256(content).hexdigest()
+        files["install.sh"] = hashlib.sha256(harness.read_bytes()).hexdigest()
         def run(api, from_pipe=False):
             (tmp / "api.json").write_text(json.dumps(api), encoding="utf-8")
             base = {k: v for k, v in files.items() if k != "install.sh"}
             (tmp / "digests.json").write_text(json.dumps(base, separators=(",", ":")) + "\n", encoding="utf-8")
-            prelude = (f'download_https() {{ cp "{tmp_sh}/api.json" "$2"; }}\n' + funcao_sha +
-                       f'FROM_DIR=""; CLEAN_VERSION=2.0.0; STAGE_DOWNLOADS="{tmp_sh}"; DIGESTS_PATH="{tmp_sh}/digests.json"\n'
-                       f'WHEEL_NAME=traslado-2.0.0-py3-none-any.whl; WHEEL_PATH="{tmp_sh}/traslado-2.0.0-py3-none-any.whl"\n'
-                       f'PROFILE_LOCK_NAME=requirements-full.hashes.lock; PROFILE_LOCK_PATH="{tmp_sh}/requirements-full.hashes.lock"\n'
-                       f'LEGACY_LOCK_NAME=requirements-legacy.hashes.lock; LEGACY_LOCK_PATH=""; SUMS_PATH="{tmp_sh}/SHA256SUMS"\n')
-            argv = ["sh", "-c", prelude + bloco, "sh" if from_pipe else tmp_sh + "/install.sh"]
-            return subprocess.run(argv, capture_output=True, text=True)
+            if from_pipe:  # curl ... | sh: $0 é o shell
+                return subprocess.run(["sh"], input=harness.read_text(encoding="utf-8"), capture_output=True, text=True)
+            return subprocess.run(["sh", harness.as_posix()], capture_output=True, text=True)
         valid = dict(draft=False, prerelease=False, tag_name="v2.0.0", name="Traslado",
                      author={"login": "x", "name": "y"},
                      assets=[{"name": k, "uploader": {"login": "u"}, "digest": "sha256:" + v} for k, v in files.items()],
