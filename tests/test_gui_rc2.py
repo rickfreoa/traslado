@@ -135,6 +135,11 @@ class GUIRC2(unittest.TestCase):
             release.set()
 
     def test_preview_read_is_bounded_and_metadata_cache_contains_no_text(self):
+        # Janela visível e com tamanho real: com a raiz retirada (withdraw), o Text não recebe largura e a quebra por
+        # palavra de 128 KiB vira centenas de milhares de linhas de exibição; no macOS o cálculo passa de minutos.
+        self.root.deiconify()
+        self.root.geometry('1100x800')
+        self.root.update()
         row = self.add_result(self.result('large.txt', 'x' * (129 * 1024)))
         self.pump_until(lambda: 'Prévia truncada' in self.text())
         self.assertLess(len(self.text().replace('\n', '')), 128 * 1024 + 100)
