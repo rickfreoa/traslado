@@ -4,6 +4,7 @@
 dispara conversão de fixture pelo botão, confere resultado no disco e no preview e encerra com timeout."""
 from __future__ import annotations
 
+import faulthandler
 import importlib.util
 import json
 import os
@@ -27,6 +28,16 @@ except ImportError:
 
 import traslado
 ASSETS = Path(traslado.__file__).resolve().parent / "assets"
+
+
+
+def setUpModule():
+    # Vigia do módulo: travamento do Tk vira traceback de todas as threads e falha, em vez de consumir o job.
+    faulthandler.dump_traceback_later(600, exit=True)
+
+
+def tearDownModule():
+    faulthandler.cancel_dump_traceback_later()
 
 
 @unittest.skipIf((tk is None or App is None) and not os.environ.get("T11_EXIGE_INSTALADO"), "Tkinter indisponível neste interpretador")

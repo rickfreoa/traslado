@@ -2,12 +2,23 @@
 # Copyright (C) 2026 Ricardo Peres Freoa
 """Physical-window/DPI simulations and complete-path result accessibility."""
 from pathlib import Path
+import faulthandler
 import tkinter as tk
 from tkinter import ttk
 import unittest
 from unittest.mock import patch
 
 from traslado.gui import App
+
+
+
+def setUpModule():
+    # Vigia do módulo: travamento do Tk vira traceback de todas as threads e falha, em vez de consumir o job.
+    faulthandler.dump_traceback_later(600, exit=True)
+
+
+def tearDownModule():
+    faulthandler.cancel_dump_traceback_later()
 
 
 class GUIRc6(unittest.TestCase):
