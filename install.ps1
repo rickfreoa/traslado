@@ -16,6 +16,7 @@ param(
     [string]$FromDir = "",
     [switch]$Yes,
     [switch]$AllowOfflinePromotion,
+    [switch]$NoPromote,
     [switch]$SkipOCR,
     [string]$OCRCache = ""
 )
@@ -333,9 +334,11 @@ try {
         "--profile", $NormProfile,
         "--languages", ($LangsList -join ","),
         "--root", $RootFull,
-        "--expected-digests", $DigestsPath,
-        "--promote"
+        "--expected-digests", $DigestsPath
     )
+    # -NoPromote: instala e qualifica a candidata (candidate.json) sem tocar current.json; promoção depois,
+    # pelo Python da candidata: traslado setup --promote --release-id <id> (implantação lado a lado).
+    if (-not $NoPromote) { $SetupArgs += "--promote" }
     if ($ExtrasList.Count -gt 0) {
         $SetupArgs += @("--extras", ($ExtrasList -join ","))
     }
@@ -377,7 +380,11 @@ try {
         exit 2
     }
 
-    Write-Host "Instalação do Traslado $CleanVersion concluída e ativa em $RootFull."
+    if ($NoPromote) {
+        Write-Host "Candidata $ReleaseId do Traslado $CleanVersion instalada e qualificada em $RootFull, sem promoção."
+    } else {
+        Write-Host "Instalação do Traslado $CleanVersion concluída e ativa em $RootFull."
+    }
     exit 0
 } catch {
     Write-Host ("Erro na instalação: " + $_.Exception.Message) -ForegroundColor Red

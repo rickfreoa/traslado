@@ -17,6 +17,7 @@ ROOT=""
 FROM_DIR=""
 YES=0
 ALLOW_OFFLINE_PROMOTION=0
+NO_PROMOTE=0
 SKIP_OCR=0
 OCR_CACHE=""
 
@@ -51,6 +52,8 @@ while [ $# -gt 0 ]; do
             YES=1; shift 1 ;;
         --allow-offline-promotion|-AllowOfflinePromotion)
             ALLOW_OFFLINE_PROMOTION=1; shift 1 ;;
+        --no-promote|-NoPromote)
+            NO_PROMOTE=1; shift 1 ;;
         --skip-ocr|-SkipOCR)
             SKIP_OCR=1; shift 1 ;;
         --ocr-cache|-OCRCache)
@@ -421,8 +424,10 @@ set -- -I -m traslado setup \
     --profile "$NORM_PROFILE" \
     --languages "$LANGUAGES" \
     --root "$ROOT" \
-    --expected-digests "$DIGESTS_PATH" \
-    --promote
+    --expected-digests "$DIGESTS_PATH"
+# --no-promote: instala e qualifica a candidata (candidate.json) sem tocar current.json; promoção depois,
+# pelo Python da candidata: traslado setup --promote --release-id <id> (implantação lado a lado).
+if [ "$NO_PROMOTE" -eq 0 ]; then set -- "$@" --promote; fi
 
 if [ -n "$EXTRAS" ]; then
     set -- "$@" --extras "$EXTRAS"
@@ -466,7 +471,11 @@ if [ "$SETUP_RC" -ne 0 ]; then
     exit 2
 fi
 
-echo "Instalação do Traslado $CLEAN_VERSION concluída e ativa em $ROOT."
+if [ "$NO_PROMOTE" -eq 1 ]; then
+    echo "Candidata $RELEASE_ID do Traslado $CLEAN_VERSION instalada e qualificada em $ROOT, sem promoção."
+else
+    echo "Instalação do Traslado $CLEAN_VERSION concluída e ativa em $ROOT."
+fi
 exit 0
 }
 main "$@"
