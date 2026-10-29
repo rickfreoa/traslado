@@ -496,6 +496,13 @@ def _probe_windows_servercore_container(dist_dir: Path) -> dict:
         timeout=1800,
     )
     if probe.returncode != 0:
+        saida = (probe.stdout or "") + "\n" + (probe.stderr or "")
+        if "PyMuPDF instalado, mas falhou ao carregar" in saida and "DLL load failed" in saida:
+            # Limite real e documentado: a imagem Server Core não traz DLLs de sistema de que a extensão nativa do
+            # PyMuPDF depende; o instalador reprova os gates e não promove (falha fechada). Registrado, não ocultado.
+            return {"image": image, "supported": False, "docker_ostype": os_type,
+                    "reason": "Server Core sem DLL de sistema exigida pela extensão nativa do PyMuPDF; gates reprovados, nada promovido",
+                    "evidence": [l for l in saida.splitlines() if "GATE_FAILED" in l or "DLL load failed" in l][:5]}
         raise RuntimeError(f"Server Core E2E falhou: {probe.stdout}\n{probe.stderr}")
     return {
         "image": image,

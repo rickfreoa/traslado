@@ -40,7 +40,7 @@ class Acceptance(unittest.TestCase):
         return execute(source, output or self.root / "results", options or Options())
 
     def artifact(self, result):
-        self.assertIn(result["status"], {"complete", "partial"})
+        self.assertIn(result["status"], {"complete", "partial"}, {k: result.get(k) for k in ("status", "error_code", "error", "warning_summary")})
         root = Path(result["output"])
         self.assertTrue(root.is_dir())
         self.assertTrue((root / "manifest.json").is_file())

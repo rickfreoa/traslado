@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import gc
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -645,10 +646,11 @@ class App:
             with (Path(output) / "document.md").open("rb") as reader:
                 payload = reader.read(128 * 1024 + 1)
             text = payload[:128 * 1024].decode("utf-8", errors="replace")
-            # Linha muito longa paralisa o layout do Tk Text (no macOS, minutos para uma linha de 128 KiB).
-            limite = 4000
-            text = "\n".join(line if len(line) <= limite else line[:limite] + " […linha truncada na prévia]"
-                              for line in text.split("\n"))
+            # Sequência longa sem espaço paralisa o layout do Tk Text com quebra por palavra (no macOS, minutos):
+            # só na prévia, sequências acima de 200 caracteres ganham quebra de linha visual; o texto não muda.
+            bloco = 200
+            text = re.sub(r"\S{%d,}" % (bloco + 1),
+                          lambda m: "\n".join(m.group(0)[i:i + bloco] for i in range(0, len(m.group(0)), bloco)), text)
             if len(payload) > 128 * 1024:
                 text += "\n\n[Prévia truncada; consulte document.md.]"
             return text

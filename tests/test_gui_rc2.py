@@ -137,8 +137,8 @@ class GUIRC2(unittest.TestCase):
     def test_preview_read_is_bounded_and_metadata_cache_contains_no_text(self):
         row = self.add_result(self.result('large.txt', 'x' * (129 * 1024)))
         self.pump_until(lambda: 'Prévia truncada' in self.text())
-        self.assertLess(len(self.text()), 128 * 1024 + 100)
-        self.assertIn('linha truncada na prévia', self.text())
+        self.assertLess(len(self.text().replace('\n', '')), 128 * 1024 + 100)
+        self.assertLessEqual(max(len(linha) for linha in self.text().splitlines()), 200)  # sequência sem espaço quebrada só na prévia
         self.assertEqual(set(self.app._row_results[row]), {'source', 'status', 'output', 'error'})
 
 if __name__ == '__main__':
