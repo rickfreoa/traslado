@@ -516,18 +516,18 @@ function Get-Command { [CmdletBinding()]param($Name) if ($Name -ne 'gh') { Micro
                               ("SHA256SUMS", b"sums"), ("install.sh", b"bootstrap")):
             (tmp / name).write_bytes(content)
             files[name] = hashlib.sha256(content).hexdigest()
-        sha = "sha256sum" if shutil.which("sha256sum") else "shasum -a 256"
+        funcao_sha = source[source.index("sha256_file() {"):source.index("\n}\n", source.index("sha256_file() {")) + 3]
+        tmp_sh = tmp.as_posix()
         def run(api, from_pipe=False):
             (tmp / "api.json").write_text(json.dumps(api), encoding="utf-8")
             base = {k: v for k, v in files.items() if k != "install.sh"}
             (tmp / "digests.json").write_text(json.dumps(base, separators=(",", ":")) + "\n", encoding="utf-8")
-            prelude = (f'download_https() {{ cp "{tmp}/api.json" "$2"; }}\n'
-                       f'sha256_file() {{ {sha} "$1" | cut -d" " -f1; }}\n'
-                       f'FROM_DIR=""; CLEAN_VERSION=2.0.0; STAGE_DOWNLOADS="{tmp}"; DIGESTS_PATH="{tmp}/digests.json"\n'
-                       f'WHEEL_NAME=traslado-2.0.0-py3-none-any.whl; WHEEL_PATH="{tmp}/traslado-2.0.0-py3-none-any.whl"\n'
-                       f'PROFILE_LOCK_NAME=requirements-full.hashes.lock; PROFILE_LOCK_PATH="{tmp}/requirements-full.hashes.lock"\n'
-                       f'LEGACY_LOCK_NAME=requirements-legacy.hashes.lock; LEGACY_LOCK_PATH=""; SUMS_PATH="{tmp}/SHA256SUMS"\n')
-            argv = ["sh", "-c", prelude + bloco, "sh" if from_pipe else str(tmp / "install.sh")]
+            prelude = (f'download_https() {{ cp "{tmp_sh}/api.json" "$2"; }}\n' + funcao_sha +
+                       f'FROM_DIR=""; CLEAN_VERSION=2.0.0; STAGE_DOWNLOADS="{tmp_sh}"; DIGESTS_PATH="{tmp_sh}/digests.json"\n'
+                       f'WHEEL_NAME=traslado-2.0.0-py3-none-any.whl; WHEEL_PATH="{tmp_sh}/traslado-2.0.0-py3-none-any.whl"\n'
+                       f'PROFILE_LOCK_NAME=requirements-full.hashes.lock; PROFILE_LOCK_PATH="{tmp_sh}/requirements-full.hashes.lock"\n'
+                       f'LEGACY_LOCK_NAME=requirements-legacy.hashes.lock; LEGACY_LOCK_PATH=""; SUMS_PATH="{tmp_sh}/SHA256SUMS"\n')
+            argv = ["sh", "-c", prelude + bloco, "sh" if from_pipe else tmp_sh + "/install.sh"]
             return subprocess.run(argv, capture_output=True, text=True)
         valid = dict(draft=False, prerelease=False, tag_name="v2.0.0", name="Traslado",
                      author={"login": "x", "name": "y"},
