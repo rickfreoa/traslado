@@ -640,6 +640,12 @@ class CiGate(unittest.TestCase):
         self.assertEqual(self.gate.decidir(self.gate.execucoes(p1)), "recusar")
         self.assertEqual(self.gate.execucoes(""), [])
 
+    def test_id_so_da_execucao_que_libera(self):
+        verde, vermelha = self.execucao(7), self.execucao(9, conclusion="failure", iniciado="2026-10-26T11:00:00Z")
+        self.assertEqual(self.gate.execucao_liberada([verde]), 7)
+        self.assertIsNone(self.gate.execucao_liberada([verde, vermelha]))
+        self.assertIsNone(self.gate.execucao_liberada([self.execucao(8, status="in_progress")]))
+
     def test_cli_imprime_a_decisao(self):
         r = subprocess.run([sys.executable, "-I", str(SCRIPTS / "ci_gate.py")], input=json.dumps({"workflow_runs": [self.execucao(1)]}),
                            capture_output=True, text=True)

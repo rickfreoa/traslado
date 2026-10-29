@@ -21,6 +21,7 @@ jobs:
     environment: pypi
     permissions:
       contents: read
+      attestations: read
       id-token: write
     steps:
       - name: Obter apenas wheel e sdist da release publicada
@@ -43,5 +44,15 @@ jobs:
               assert hashlib.sha256((root/name).read_bytes()).hexdigest() == sums[name], f'Hash diverge: {name}'
               shutil.copyfile(root/name, pathlib.Path('dist')/name)
           PY
+      - name: Attestation do release.yml na tag, para cada byte a publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          for f in dist/*; do
+            gh attestation verify "$f" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref "refs/tags/$TAG"
+          done
       - name: Trusted publishing (OIDC; nenhuma senha de PyPI)
         uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4

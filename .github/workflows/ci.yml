@@ -271,7 +271,7 @@ jobs:
           T11_EXIGE_INSTALADO: '1'
           TRASLADO_REQUIRE_NATIVE_FIXTURES: '1'
         run: |
-          python -m pip install --require-hashes -r locks/requirements-full.hashes.lock
+          python -m pip install --only-binary=:all: --require-hashes -r locks/requirements-full.hashes.lock
           python -m pip install --require-hashes -r locks/requirements-legacy.hashes.lock
           python -m pip install --no-deps pacote/*.whl
           python -m unittest -v tests.test_mutation_e6 tests.test_legacy_e4

@@ -13,14 +13,13 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 jobs:
-  release:
-    name: Release em rascunho (Windows)
+  verificar:
+    # Sem permissão de escrita: build, testes e downloads não têm acesso a token OIDC nem a contents: write.
+    name: Verificação e bytes testados (Windows)
     runs-on: windows-latest
     permissions:
-      actions: read        # consultar a execução de ci.yml do mesmo commit
-      contents: write      # criar o release em rascunho
-      id-token: write      # assinatura da attestation
-      attestations: write  # gravar a attestation
+      actions: read        # consultar a execução de ci.yml do mesmo commit e baixar o pacote testado
+      contents: read
     defaults:
       run:
         shell: bash
@@ -78,21 +77,50 @@ jobs:
             fi
             sleep 30
           done
+      - name: Bytes liberados são os testados (pacote da execução liberada de ci.yml) e o rebuild é idêntico
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" | python scripts/ci_gate.py --id)
+          if [ "$ID" = "nenhuma" ] || [ -z "$ID" ]; then echo "Nenhuma execução liberada de ci.yml para $GITHUB_SHA" >&2; exit 1; fi
+          gh run download "$ID" --repo "$GITHUB_REPOSITORY" --name pacote --dir testado
+          (cd testado && sha256sum -c SHA256SUMS)
+          cmp dist/SHA256SUMS testado/SHA256SUMS || { echo "Rebuild deste job diverge do pacote testado no CI: release recusado." >&2; exit 1; }
+          python scripts/build_release.py --verificar testado/*.zip testado/*.whl testado/*.tar.gz testado/install.*
+          python scripts/versao.py --conferir --dist testado
+          python -c "import json,zipfile,sys,os; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; p=json.loads(z.read(n)); assert p['checkout_limpo'] is True and p['commit']==os.environ['GITHUB_SHA'], p.get('commit')" testado/traslado-$(python scripts/versao.py --imprimir)-windows.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: release-dry-run-ou-tag
-          path: dist/
+          name: release-bytes
+          path: testado/
           if-no-files-found: error
+
+  publicar:
+    # Só em push de tag; único job com escrita, OIDC e attestation, e nenhum passo de build ou pip.
+    name: Attestation e release em rascunho
+    needs: verificar
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write      # criar o release em rascunho
+      id-token: write      # assinatura da attestation
+      attestations: write  # gravar a attestation
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-bytes
+          path: dist
+      - name: SHA256SUMS confere
+        run: cd dist && sha256sum -c SHA256SUMS
       - name: Attestation de proveniência dos bytes distribuídos
-        if: github.event_name == 'push'
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: dist/*
       - name: Criar release em rascunho (nunca publicar)
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --draft --verify-tag --title "Traslado $VERSAO" \
-            --notes "Fonte correspondente: https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_REF_NAME . Revisar SHA256SUMS e attestation antes de publicar manualmente."
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
+            --draft --verify-tag --title "Traslado ${GITHUB_REF_NAME#v}" \
+            --notes "Fonte correspondente: https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_REF_NAME . Bytes idênticos aos testados no CI deste commit. Revisar SHA256SUMS e attestation antes de publicar manualmente."
