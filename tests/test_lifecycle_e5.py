@@ -223,11 +223,12 @@ class RevocationTests(unittest.TestCase):
             self._verify(root, "2.0.0", fetch_bytes=fb_draft, fetch_json=fj_draft, gh_cmd=False)
         self.assertIn("rascunho", str(ctx.exception))
 
-        # Caso B: Canal 1 limpo, mas Canal 2 diverge no digest do artefato
+        # Caso B: Canal 1 limpo, mas Canal 2 diverge no digest do artefato. Raiz própria: a mesma sequence gerada
+        # noutro segundo tem bytes diferentes e esbarraria, com razão, na proteção de conteúdo persistido.
         fb_dig, fj_dig = self._mock_fetchers(self._doc(sequence=5, days_valid=14), self._release_info())
         with self.assertRaises(RevocationError) as ctx:
             self._verify(
-                root,
+                self.tmp / "root_b",
                 "2.0.0",
                 {"traslado-2.0.0-py3-none-any.whl": "b" * 64},
                 fetch_bytes=fb_dig,
