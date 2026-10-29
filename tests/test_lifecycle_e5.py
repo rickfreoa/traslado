@@ -239,7 +239,7 @@ class RevocationTests(unittest.TestCase):
         # Caso C: Canal 2 limpo, mas Canal 1 lista a versão ou o SHA-256 como revogados
         fb_ver, fj_ver = self._mock_fetchers(
             self._doc(
-                sequence=5,
+                sequence=6,
                 days_valid=14,
                 revoked=[{"version": "2.0.0", "sha256": [], "reason": "CVE-teste"}],
             ),
@@ -251,7 +251,7 @@ class RevocationTests(unittest.TestCase):
 
         fb_sha, fj_sha = self._mock_fetchers(
             self._doc(
-                sequence=5,
+                sequence=7,
                 days_valid=14,
                 revoked=[{"version": None, "sha256": ["a" * 64], "reason": "wheel comprometido"}],
             ),
@@ -748,6 +748,31 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
             self.assertNotEqual(failed.returncode, 0)
             self.assertEqual((self.tmp / "uv.log").read_bytes(), uv_before)
             self.assertFalse((failed_root / "current.json").exists())
+
+        # N10: a rejected gate removes the candidate after its interpreter exits;
+        # --keep-failed retains the release for diagnosis.
+        gate_dir = self.tmp / "rejected-gate"
+        shutil.copytree(from_dir, gate_dir)
+        with zipfile.ZipFile(wheel_path) as archive:
+            entries = {name: archive.read(name) for name in archive.namelist()}
+        entries["traslado/lifecycle.py"] += b"\nrun_fixture_gate = lambda **kwargs: False\n"
+        with zipfile.ZipFile(gate_dir / wheel_path.name, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name, data in entries.items():
+                archive.writestr(name, data)
+        (gate_dir / "SHA256SUMS").write_text("".join(
+            hashlib.sha256(p.read_bytes()).hexdigest()+"  "+p.name+"\n"
+            for p in sorted(gate_dir.iterdir()) if p.name != "SHA256SUMS"), encoding="utf-8")
+        for keep in (False, True):
+            failed_root = self.tmp / ("gate-failed-"+str(keep))
+            gate_args = list(proc.args)
+            gate_args[gate_args.index("-FromDir")+1] = str(gate_dir)
+            gate_args[gate_args.index("-Root")+1] = str(failed_root)
+            if keep:
+                gate_args.append("-KeepFailed")
+            rejected = subprocess.run(gate_args, env=env, capture_output=True, timeout=120)
+            self.assertEqual(rejected.returncode, 2, rejected.stdout+rejected.stderr)
+            self.assertFalse((failed_root / "current.json").exists())
+            self.assertEqual(bool(list((failed_root / "releases").iterdir())), keep, rejected.stdout+rejected.stderr)
 
         # Extract only the real build ZIP; no external SHA256SUMS accompanies it.
         dist = self.tmp / "built"

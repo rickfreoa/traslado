@@ -32,6 +32,100 @@ REPOSITORY_URL = "https://github.com/rickfreoa/traslado"
 POWERSHELL_WIN = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
 
 
+class ShortcutError(RuntimeError):
+    """Promotion succeeded, desktop integration needs retry (exit 4)."""
+
+
+def validate_version(version: str) -> str:
+    if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+([.-][0-9A-Za-z.]+)?", version):
+        raise ValueError("Versao invalida")
+    return version
+
+
+def release_in_use(release: Path) -> bool:
+    release = release.resolve()
+    if Path(sys.executable).resolve().is_relative_to(release) or Path(sys.prefix).resolve().is_relative_to(release):
+        return True
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        pids = (wintypes.DWORD * 65536)()
+        used = wintypes.DWORD()
+        if not psapi.EnumProcesses(pids, ctypes.sizeof(pids), ctypes.byref(used)):
+            return True
+        for pid in pids[:used.value // ctypes.sizeof(wintypes.DWORD)]:
+            handle = kernel.OpenProcess(0x1000, False, pid)
+            if not handle:
+                continue
+            try:
+                size = wintypes.DWORD(32768)
+                buf = ctypes.create_unicode_buffer(size.value)
+                if kernel.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)) and Path(buf.value).resolve().is_relative_to(release):
+                    return True
+            finally:
+                kernel.CloseHandle(handle)
+    elif Path("/proc").is_dir():
+        for exe in Path("/proc").glob("[0-9]*/exe"):
+            try:
+                if exe.resolve(strict=True).is_relative_to(release):
+                    return True
+            except OSError:
+                continue
+    else:
+        # macOS process executable inventory; failure keeps releases conservatively.
+        try:
+            proc = subprocess.run(["ps", "-axo", "comm="], capture_output=True, text=True, check=True)
+            if any(Path(line.strip()).is_absolute() and Path(line.strip()).resolve().is_relative_to(release) for line in proc.stdout.splitlines()):
+                return True
+        except (OSError, subprocess.SubprocessError):
+            return True
+    return False
+
+
+def remove_unreferenced_release(root: Path, release: Path) -> bool:
+    if unsafe_link(release):
+        return False
+    root, release = Path(root).resolve(), Path(release).resolve()
+    if release.parent != root / "releases":
+        raise ValueError("Caminho de remocao de release recusado")
+    current = plat.read_current(root)
+    if (root / "current.json").exists() and current is None:
+        return False
+    current = current or {}
+    if release.name in {current.get("release_id"), current.get("previous_release_id")}:
+        return False
+    for manifest in (current, plat.read_candidate(root) or {}):
+        if manifest.get("data_root") and Path(manifest["data_root"]).resolve().is_relative_to(release):
+            return False
+    marker = root / "state/pending-removals" / (release.name + ".json")
+    if release_in_use(release):
+        plat._atomic(marker, {"release_id": release.name})
+        return False
+    try:
+        if release.exists():
+            shutil.rmtree(release)
+    except OSError:
+        plat._atomic(marker, {"release_id": release.name})
+        return False
+    marker.unlink(missing_ok=True)
+    return True
+
+
+def prune_releases(root: Path, *, pending_only: bool = False) -> None:
+    releases = Path(root) / "releases"
+    if not releases.is_dir():
+        return
+    for release in releases.iterdir():
+        if release.is_dir() and (not pending_only or (Path(root) / "state/pending-removals" / (release.name + ".json")).is_file()):
+            remove_unreferenced_release(root, release)
+
+
 def _utc_now(now: datetime | str | None = None) -> str:
     if isinstance(now, str):
         return now
@@ -91,35 +185,17 @@ def _shortcut_dirs_from_env(
 
 
 def _find_ocr_lock(release_dir: Path, from_dir: Path | None = None) -> Path:
-    candidates = [
-        release_dir / "ocr-assets.lock.json",
-        *(
-            [from_dir / "ocr-assets.lock.json", from_dir.parent / "ocr-assets.lock.json"]
-            if from_dir else []
-        ),
-        Path(__file__).resolve().parent / "assets/ocr-assets.lock.json",
-        Path(__file__).resolve().parents[2] / "ocr-assets.lock.json",
-    ]
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    raise FileNotFoundError("ocr-assets.lock.json não encontrado")
+    candidate = Path(__file__).resolve().parent / "assets/ocr-assets.lock.json"
+    if not candidate.is_file():
+        raise FileNotFoundError("Lock OCR empacotado ausente")
+    return candidate
 
 
 def _find_bootstrap_ps1(release_dir: Path, from_dir: Path | None = None) -> Path:
-    candidates = [
-        release_dir / "scripts/bootstrap_ocr.ps1",
-        *(
-            [from_dir / "scripts/bootstrap_ocr.ps1", from_dir / "bootstrap_ocr.ps1"]
-            if from_dir else []
-        ),
-        Path(__file__).resolve().parent / "assets/bootstrap_ocr.ps1",
-        Path(__file__).resolve().parents[2] / "scripts/bootstrap_ocr.ps1",
-    ]
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    raise FileNotFoundError("scripts/bootstrap_ocr.ps1 não encontrado")
+    candidate = Path(__file__).resolve().parent / "assets/bootstrap_ocr.ps1"
+    if not candidate.is_file():
+        raise FileNotFoundError("Bootstrap OCR empacotado ausente")
+    return candidate
 
 
 def _install_tessdata_from_lock(
@@ -136,7 +212,6 @@ def _install_tessdata_from_lock(
     doc_dir = destination_ocr / "doc"
     tessdata_dir.mkdir(parents=True, exist_ok=True)
     doc_dir.mkdir(parents=True, exist_ok=True)
-    fetcher = fetch_bytes or revocation.default_fetch_bytes
 
     wanted = [*(f"{lang}.traineddata" for lang in languages), "TESSDATA-LICENSE.txt"]
     for name in wanted:
@@ -147,7 +222,11 @@ def _install_tessdata_from_lock(
         if cache_dir and (cache_dir / name).is_file():
             data = (cache_dir / name).read_bytes()
         else:
-            data = fetcher(spec["url"])
+            declared = int(spec["bytes"])
+            if declared <= 0 or declared > 64 * 1024 * 1024:
+                raise ValueError(f"Tamanho OCR fora do limite: {name}")
+            limit = min(64 * 1024 * 1024, (declared * 101 + 99) // 100)
+            data = fetch_bytes(spec["url"]) if fetch_bytes else revocation.default_fetch_bytes(spec["url"], max_bytes=limit)
             if cache_dir:
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 (cache_dir / name).write_bytes(data)
@@ -526,6 +605,7 @@ def setup_release(
     extras: list[str] | str | None = None,
     languages: list[str] | str | None = None,
     no_shortcut: bool = False,
+    keep_failed: bool = False,
     promote: bool = False,
     allow_offline_promotion: bool = False,
     skip_ocr: bool = False,
@@ -549,6 +629,7 @@ def setup_release(
     env = os.environ if env is None else env
     home_path = Path(home) if home else Path(env.get("HOME") or env.get("USERPROFILE") or Path.home())
     managed = Path(root) if root is not None else plat.managed_root(platform=platform_name, env=env)
+    prune_releases(managed, pending_only=True)
     norm_profile = "Core" if str(profile).lower() == "core" else "Full"
     norm_extras = normalize_extras(extras)
     norm_langs = normalize_languages(languages)
@@ -636,17 +717,6 @@ def setup_release(
         "ocr_installed": ocr_info["ocr_installed"],
     }
     plat._atomic(release_dir / "freoa-runtime.json", runtime_cfg)
-
-    # Legacy Windows installation recognition and old shortcut removal
-    handle_legacy_windows(
-        managed,
-        version=__version__,
-        platform_name=platform_name,
-        env=env,
-        home=home_path,
-        now=now,
-        **shortcut_dirs,
-    )
 
     # (c) Doctor
     inspect_call = doctor_fn or doctor.inspect
@@ -743,10 +813,25 @@ def setup_release(
                 reasons.append("fixture reprovada")
             if revocation_status == "blocked":
                 reasons.append(f"revogação bloqueada ({revocation_error or 'sem confirmação dos dois canais'})")
+            if not keep_failed:
+                remove_unreferenced_release(managed, release_dir)
             raise ValueError("Promoção recusada: " + "; ".join(reasons))
         plat._atomic(release_dir / "release-integrity.json", release_integrity(release_dir))
         promoted = plat.promote(managed, now=now, allow_offline=offline_allowed, offline_reason=offline_reason)
-        plat.refresh_shortcuts(managed, promoted)
+        prune_releases(managed)
+        handle_legacy_windows(
+            managed,
+            version=__version__,
+            platform_name=platform_name,
+            env=env,
+            home=home_path,
+            now=now,
+            **shortcut_dirs,
+        )
+        try:
+            plat.refresh_shortcuts(managed, promoted)
+        except Exception as exc:
+            raise ShortcutError(f"Instalacao promovida; somente os atalhos falharam: {exc}. Recrie-os com: \"{python_exe}\" -I -m traslado shortcuts --root \"{managed}\"") from exc
         return promoted
 
     return candidate_data
@@ -785,7 +870,26 @@ def uninstall_managed(
 
     current = plat.read_current(managed)
     candidate = plat.read_candidate(managed)
-    data_root = current.get("data_root") if isinstance(current, dict) else candidate.get("data_root") if isinstance(candidate, dict) else None
+    valid = [m for m in (current, candidate) if isinstance(m, dict) and isinstance(m.get("data_root"), str) and m["data_root"]]
+    pending = managed / "state/pending-uninstall.json"
+    if not valid and pending.is_file():
+        saved = json.loads(pending.read_text(encoding="utf-8"))
+        valid = [{"data_root": value} for value in saved["data_roots"]]
+    if not valid:
+        raise ValueError("Desinstalacao recusada: current.json e candidate.json ilegiveis ou sem data_root; nao e seguro adivinhar os dados")
+    data_root = valid[0]["data_root"]
+    preserved = [Path(m["data_root"]).resolve() for m in valid]
+    if any(p == managed.resolve() or p in managed.resolve().parents for p in preserved):
+        raise ValueError("Desinstalacao recusada: data_root e ancestral da raiz gerenciada")
+    deferred = []
+    if platform_name == "win32" and (managed / "releases").is_dir():
+        deferred = [p.resolve() for p in (managed / "releases").iterdir() if p.is_dir() and release_in_use(p)]
+    runtime_dir = managed / "python"
+    if platform_name == "win32" and runtime_dir.is_dir() and (deferred or release_in_use(runtime_dir)):
+        deferred.append(runtime_dir.resolve())
+    if deferred:
+        plat._atomic(managed / "state/pending-uninstall.json", {"release_ids": [p.name for p in deferred], "data_roots": [str(p) for p in preserved]})
+
 
     removed_shortcuts = plat.remove_shortcuts(
         ["Traslado"],
@@ -795,8 +899,9 @@ def uninstall_managed(
     )
 
     if managed.exists():
-        data_roots = [m.get("data_root") for m in (current, candidate) if isinstance(m, dict) and m.get("data_root")]
-        preserved = [Path(p).resolve() for p in data_roots]
+        preserved += deferred
+        if deferred:
+            preserved.append((managed / "state/pending-uninstall.json").resolve())
         # Selective deletion preserves even a deeply nested data_root at its original path.
         def remove_except_data(path: Path) -> None:
             resolved = path.resolve()
@@ -818,7 +923,8 @@ def uninstall_managed(
             remove_except_data(managed)
 
     return {
-        "status": "uninstalled",
+        "status": "uninstall_pending" if deferred else "uninstalled",
+        "message": "Remocao da release em uso adiada ate a proxima execucao" if deferred else "Instalacao removida",
         "root": str(managed),
         "removed_shortcuts": [str(p) for p in removed_shortcuts],
         "data_root_preserved": data_root,
@@ -845,9 +951,12 @@ def update_release(
     json_fetcher = fetch_json or revocation.default_fetch_json
     bytes_fetcher = fetch_bytes or revocation.default_fetch_bytes
 
+    config = plat.read_current(managed)
+    if not config:
+        raise ValueError("current.json ilegivel ou ausente; update requer configuracao atual")
     try:
         if version:
-            clean_ver = version.removeprefix("v")
+            clean_ver = validate_version(version)
             rel_url = f"https://api.github.com/repos/{repo}/releases/tags/v{clean_ver}"
         else:
             rel_url = f"https://api.github.com/repos/{repo}/releases/latest"
@@ -856,7 +965,7 @@ def update_release(
         raise ValueError(f"Sem conexão com o GitHub ou falha ao consultar atualizações; nada foi alterado ({exc})") from exc
 
     tag_name = str(release_data.get("tag_name") or "")
-    target_version = tag_name.removeprefix("v")
+    target_version = validate_version(tag_name.removeprefix("v"))
     if not target_version:
         raise ValueError("Resposta da API de releases não contém tag_name válida; nada foi alterado")
 
@@ -873,7 +982,10 @@ def update_release(
     for line in sums_bytes.decode("utf-8", errors="replace").splitlines():
         parts = line.strip().split()
         if len(parts) >= 2 and re.fullmatch(r"[0-9a-fA-F]{64}", parts[0]):
-            sums_map[parts[-1].lstrip("*")] = parts[0].lower()
+            name = parts[-1].lstrip("*")
+            if name in sums_map:
+                raise ValueError("Nome duplicado em SHA256SUMS")
+            sums_map[name] = parts[0].lower()
 
     expected_script_sha = sums_map.get(script_name)
     actual_script_sha = hashlib.sha256(script_bytes).hexdigest()
@@ -912,6 +1024,7 @@ def update_release(
                 repo,
                 "--signer-workflow",
                 f"{repo}/.github/workflows/release.yml",
+                "--source-ref", f"refs/tags/v{target_version}",
             ])
             if att.returncode != 0:
                 raise ValueError(f"Attestation de {script_name} reprovada pelo gh; nada foi alterado")
@@ -927,7 +1040,25 @@ def update_release(
             if yes:
                 argv.append("--yes")
 
-        proc = runner_fn(argv)
+        flag = "-" if platform_name == "win32" else "--"
+        names = ("Profile", "Extras", "Languages", "DataRoot") if platform_name == "win32" else ("profile", "extras", "languages", "data-root")
+        for name, value in zip(names, (config["profile"], ",".join(config.get("extras", [])), ",".join(config["languages"]), config["data_root"])):
+            argv += [flag + name, value]
+        shortcuts = config.get("shortcuts", {})
+        if not shortcuts.get("enabled", True):
+            argv.append("-NoShortcut" if platform_name == "win32" else "--no-shortcut")
+        install_env = dict(env)
+        if shortcuts.get("home"):
+            install_env.update(HOME=shortcuts["home"], USERPROFILE=shortcuts["home"])
+        for key in ("desktop_dir", "start_menu_dir", "applications_dir", "icons_dir"):
+            value = shortcuts.get("dirs", {}).get(key)
+            var = "TRASLADO_SHORTCUT_" + key.upper()
+            install_env.pop(var, None)
+            if value:
+                install_env[var] = value
+        proc = run_cmd(argv, env=install_env) if run_cmd else subprocess.run(argv, env=install_env, capture_output=True, text=True, timeout=300)
+        if proc.returncode == 4:
+            raise ShortcutError("Atualizacao promovida; somente os atalhos falharam. Recrie com: traslado shortcuts --root " + str(managed))
         if proc.returncode != 0:
             detail = (getattr(proc, "stderr", "") or getattr(proc, "stdout", "") or "").strip()
             raise ValueError(f"Falha ao executar {script_name} para v{target_version}: {detail}")

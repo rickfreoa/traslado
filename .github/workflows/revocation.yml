@@ -41,14 +41,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          PRODUCT_LATEST=$(gh api repos/rickfreoa/traslado/releases/latest --jq .tag_name)
-          test "$PRODUCT_LATEST" != revocation
+          LATEST_STATUS=$(curl -sS -L -H "Authorization: Bearer $GH_TOKEN" -o /tmp/product-latest.json -w '%{http_code}' https://api.github.com/repos/rickfreoa/traslado/releases/latest)
+          case "$LATEST_STATUS" in
+            200) PRODUCT_LATEST=$(python -c "import json; print(json.load(open('/tmp/product-latest.json'))['tag_name'])"); test "$PRODUCT_LATEST" != revocation ;;
+            404) PRODUCT_LATEST=""; echo "Sem release de produto publicada; conferencia de latest dispensada" ;;
+            *) echo "Falha ao consultar latest: HTTP $LATEST_STATUS" >&2; exit 1 ;;
+          esac
           echo "PRODUCT_LATEST=$PRODUCT_LATEST" >> "$GITHUB_ENV"
           STATUS=$(curl -sS -L -o /tmp/previous-revoked.json -w '%{http_code}' \
             https://github.com/rickfreoa/traslado/releases/download/revocation/revoked.json)
           case "$STATUS" in
             200) PREV_SEQ=$(python -c "import json; s=json.load(open('/tmp/previous-revoked.json', encoding='utf-8'))['sequence']; assert type(s) is int and s > 0; print(s)") ;;
-            404) PREV_SEQ=0 ;;
+            404)
+              RELEASE_STATUS=$(curl -sS -L -H "Authorization: Bearer $GH_TOKEN" -o /tmp/revocation-release.json -w '%{http_code}' https://api.github.com/repos/rickfreoa/traslado/releases/tags/revocation)
+              case "$RELEASE_STATUS" in
+                404) PREV_SEQ=0 ;;
+                200) echo "Release revocation existe sem revoked.json; emissao recusada" >&2; exit 1 ;;
+                *) echo "Falha ao consultar release revocation: HTTP $RELEASE_STATUS" >&2; exit 1 ;;
+              esac ;;
             *) echo "Falha ao obter sequencia anterior: HTTP $STATUS" >&2; exit 1 ;;
           esac
           echo "Sequência anterior: $PREV_SEQ"
@@ -72,4 +82,8 @@ jobs:
               --title "Revogação — Traslado" \
               --notes "Canal contínuo de revogação (revoked.json) reemitido automaticamente."
           fi
-          test "$(gh api repos/rickfreoa/traslado/releases/latest --jq .tag_name)" = "$PRODUCT_LATEST"
+          if [ -n "$PRODUCT_LATEST" ]; then
+            test "$(gh api repos/rickfreoa/traslado/releases/latest --jq .tag_name)" = "$PRODUCT_LATEST"
+          else
+            echo "Sem release de produto anterior; latest nao conferido"
+          fi

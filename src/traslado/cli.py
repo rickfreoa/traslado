@@ -64,6 +64,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("gui", help="Abrir interface")
 
     setup = sub.add_parser("setup", help="Configurar release candidata, gates e promoção")
+    shortcuts = sub.add_parser("shortcuts", help="Recriar atalhos da instalacao promovida")
+    shortcuts.add_argument("--root", type=Path)
+    setup.add_argument("--keep-failed", action="store_true")
     setup.add_argument("--release-id")
     setup.add_argument("--expected-digests", type=Path)
     setup.add_argument("--check-active", action="store_true")
@@ -106,6 +109,20 @@ def main(argv: list[str] | None = None) -> int:
             from .gui import main as gui
             gui()
             return 0
+        managed = getattr(args, "root", None) or plat.managed_root()
+        if args.command in {"where", "setup", "update", "uninstall", "rollback", "shortcuts"}:
+            lifecycle.prune_releases(managed, pending_only=True)
+            if (managed / "state/pending-uninstall.json").is_file():
+                result = lifecycle.uninstall_managed(root=managed, yes=True)
+                print(json.dumps(result, ensure_ascii=False))
+                return 0
+        if args.command == "shortcuts":
+            root = args.root or plat.managed_root()
+            current = plat.read_current(root)
+            if not current:
+                raise ValueError("current.json ilegivel ou ausente")
+            plat.refresh_shortcuts(root, current)
+            return 0
         if args.command == "setup":
             if args.check_active:
                 return 0 if lifecycle.active_release_matches(args.root or plat.managed_root(), args.expected_version,
@@ -117,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
                 extras=args.extras,
                 languages=args.languages,
                 no_shortcut=args.no_shortcut,
+                keep_failed=args.keep_failed,
                 promote=bool(args.promote),
                 allow_offline_promotion=args.allow_offline_promotion,
                 skip_ocr=args.skip_ocr,
@@ -182,6 +200,9 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, ensure_ascii=False), flush=True)
         statuses = {r["status"] for r in results}
         return 2 if statuses & {"failed", "cancelled", "timeout"} else 3 if "partial" in statuses else 0
+    except lifecycle.ShortcutError as exc:
+        print(str(exc), file=sys.stderr)
+        return 4
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
