@@ -264,8 +264,12 @@ def _mark_furniture(document: Document, heights: list[tuple[float, Any]]) -> Non
 def extract(path: Path, workspace: Path, options: Options, document: Document) -> None:
     try:
         import fitz
-    except ImportError as exc:
+    except ModuleNotFoundError as exc:
+        if exc.name and exc.name.split(".")[0] not in {"fitz", "pymupdf"}:
+            raise ConversionError('missing_part', "PyMuPDF instalado, mas falhou ao carregar: " + str(exc)) from exc
         raise ConversionError('unsupported', "Instale o perfil PDF: pip install .[pdf]") from exc
+    except ImportError as exc:  # pacote presente, biblioteca nativa não carregou (DLL ausente no sistema, por exemplo)
+        raise ConversionError('missing_part', "PyMuPDF instalado, mas falhou ao carregar: " + str(exc)) from exc
     assets = workspace / "assets"
     assets.mkdir(exist_ok=True)
     workers = min(options.ocr_workers, os.cpu_count() or 1)

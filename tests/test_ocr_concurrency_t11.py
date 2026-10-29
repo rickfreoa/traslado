@@ -333,8 +333,11 @@ class OCRConcurrencyT11(unittest.TestCase):
                 except ProcessLookupError:
                     return
                 status = Path(f'/proc/{pid}/stat')
-                if status.exists() and status.read_text().split()[2] == 'Z':
-                    return  # dead, awaiting reaping by init
+                try:
+                    if status.read_text().split()[2] == 'Z':
+                        return  # dead, awaiting reaping by init
+                except (FileNotFoundError, ProcessLookupError):
+                    return  # reaped between os.kill and the read
                 time.sleep(.05)
             self.fail(f'PID {pid} survived')
 

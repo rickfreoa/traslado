@@ -644,6 +644,10 @@ class App:
             with (Path(output) / "document.md").open("rb") as reader:
                 payload = reader.read(128 * 1024 + 1)
             text = payload[:128 * 1024].decode("utf-8", errors="replace")
+            # Linha muito longa paralisa o layout do Tk Text (no macOS, minutos para uma linha de 128 KiB).
+            limite = 4000
+            text = "\n".join(line if len(line) <= limite else line[:limite] + " […linha truncada na prévia]"
+                              for line in text.split("\n"))
             if len(payload) > 128 * 1024:
                 text += "\n\n[Prévia truncada; consulte document.md.]"
             return text

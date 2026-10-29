@@ -125,7 +125,7 @@ class InstallerRC3(unittest.TestCase):
         target.parent.mkdir(parents=True)
         target.write_bytes(b'INERT_EXTERNAL_TARGET_NEVER_EXECUTED')
         proc = subprocess.run([PS, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(SOURCE / 'scripts/shortcut_windows.ps1'),
-            '-Action', 'Create', '-ShortcutPath', str(self.link), '-Target', str(target), '-WorkingDirectory', str(self.data)], capture_output=True, timeout=30, check=True)
+            '-Action', 'Create', '-ShortcutPath', str(self.link), '-Target', str(target), '-WorkingDirectory', str(self.data)], capture_output=True, timeout=120, check=True)  # WScript.Shell no runner pode passar de 30 s na primeira ativação COM
         info = json.loads(proc.stdout.decode('utf-8-sig'))
         self.assertTrue(info['recognized'])
         original_link = self.link.read_bytes()

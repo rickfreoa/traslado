@@ -130,22 +130,29 @@ class ScriptsE6(unittest.TestCase):
     def test_self_uninstall_waits_for_interpreter_exit_and_removes_root(self):
         with tempfile.TemporaryDirectory() as raw:
             managed = Path(raw)/'managed'
-            scripts = managed/'.venv/Scripts'; scripts.mkdir(parents=True)
+            dados = Path(raw)/'dados'; dados.mkdir()
+            (dados/'mantido.txt').write_text('dado do usuario', encoding='utf-8')
+            release = managed/'releases'/'2.0.0_teste'
+            scripts = release/'.venv/Scripts'; scripts.mkdir(parents=True)
             python = scripts/'python.exe'
             shutil.copyfile(sys.executable, python)
             config = Path(sys.prefix)/'pyvenv.cfg'
             if not config.is_file():
                 self.skipTest('requires venv launcher')
-            shutil.copyfile(config, managed/'.venv/pyvenv.cfg')
+            shutil.copyfile(config, release/'.venv/pyvenv.cfg')
+            (managed/'current.json').write_text(json.dumps({'schema': 2, 'release_id': release.name, 'data_root': str(dados)}), encoding='utf-8')
             env = {**os.environ, 'PYTHONPATH': str(Path(lifecycle.__file__).resolve().parents[1])}
             proc = subprocess.run([str(python), '-c', 'from traslado.lifecycle import uninstall_managed; import sys,json; from pathlib import Path; print(json.dumps(uninstall_managed(root=Path(sys.argv[1]),yes=True)))', str(managed)],
                                   env=env, capture_output=True, text=True, timeout=40)
             self.assertEqual(proc.returncode, 0, proc.stderr)
-            self.assertEqual(json.loads(proc.stdout)['status'], 'uninstall_scheduled')
+            resultado = json.loads(proc.stdout)
+            self.assertEqual(resultado['status'], 'uninstall_pending')
+            self.assertTrue(resultado['deferred_until_process_exit'], resultado)
             deadline = time.monotonic()+25
             while managed.exists() and time.monotonic()<deadline:
                 time.sleep(.1)
             self.assertFalse(managed.exists(), proc.stdout)
+            self.assertEqual((dados/'mantido.txt').read_text(encoding='utf-8'), 'dado do usuario')
 
 
 if __name__ == '__main__':

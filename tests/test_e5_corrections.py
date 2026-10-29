@@ -158,7 +158,7 @@ class CorrectionsE5(unittest.TestCase):
         self.assertIn('HTTP $STATUS', workflow)
         self.assertIn('exit 1 ;;', workflow)
         self.assertIn("--latest=false", workflow)
-        self.assertEqual(workflow.count("gh api repos/rickfreoa/traslado/releases/latest"), 2)
+        self.assertEqual(workflow.count("gh api repos/rickfreoa/traslado/releases/latest"), 1)
         self.assertLess(workflow.index("pip install --no-deps ."), workflow.index("python -I -m traslado.revocation"))
 
     def test_10_deferred_script_body(self):
@@ -237,6 +237,278 @@ class CorrectionsE5(unittest.TestCase):
         active.write_bytes(b"corrupted")
         self.assertFalse(lifecycle.active_release_matches(self.root, __version__, "Core"))
         self.assertEqual(plat.read_current(self.root)["previous_release_id"], a["release_id"])
+
+
+    def test_n2_ocr_only_from_packaged_wheel(self):
+        local = Path(self.tmp.name) / "untrusted"
+        release = self.root / "releases/test"
+        for directory in (local, release, release / "scripts"):
+            directory.mkdir(parents=True, exist_ok=True)
+            for name in ("ocr-assets.lock.json", "bootstrap_ocr.ps1"):
+                (directory / name).write_text("malicious local replacement")
+        packaged = Path(lifecycle.__file__).parent / "assets"
+        self.assertEqual(lifecycle._find_ocr_lock(release, local), packaged / "ocr-assets.lock.json")
+        self.assertEqual(lifecycle._find_bootstrap_ps1(release, local), packaged / "bootstrap_ocr.ps1")
+        for name in ("install.ps1", "install.sh"):
+            self.assertNotIn("localOcrLock", (ROOT / name).read_text())
+            self.assertNotIn("LOCAL_OCR_LOCK=", (ROOT / name).read_text())
+
+    def test_n3_update_preserves_config_both_platforms(self):
+        config = self.setup(profile="Core", extras="legacy", languages="por,fra", no_shortcut=True)
+        config["shortcuts"].update(home=str(Path(self.tmp.name) / "home"), dirs={"desktop_dir": str(self.root / "desktop")})
+        plat._atomic(self.root / "current.json", config)
+        for system, script, flags in (("win32", "install.ps1", ("-Profile", "-Extras", "-Languages", "-DataRoot", "-NoShortcut")),
+                                      ("linux", "install.sh", ("--profile", "--extras", "--languages", "--data-root", "--no-shortcut"))):
+            raw = b"installer"
+            sums = (hashlib.sha256(raw).hexdigest()+"  "+script+"\n").encode()
+            calls = []
+            def run(argv, **kwargs):
+                calls.append((argv, kwargs))
+                return subprocess.CompletedProcess(argv, 0)
+            with patch.object(revocation, "verify_promotion", return_value={"status": "ok"}):
+                lifecycle.update_release(root=self.root, platform_name=system, gh_cmd="gh-stub", env={"TRASLADO_DATA_ROOT": "bad", "TRASLADO_SHORTCUT_ICONS_DIR": "bad"},
+                    fetch_json=lambda url: {"tag_name": "v2.0.1"}, fetch_bytes=lambda url: sums if url.endswith("SHA256SUMS") else raw, run_cmd=run)
+            argv, kwargs = calls[-1]
+            for flag, expected in zip(flags, ("Core", "legacy", "por,fra", config["data_root"])):
+                self.assertEqual(argv[argv.index(flag)+1], expected)
+            self.assertIn(flags[-1], argv)
+            self.assertEqual(kwargs["env"]["TRASLADO_SHORTCUT_DESKTOP_DIR"], str(self.root / "desktop"))
+            self.assertNotIn("TRASLADO_SHORTCUT_ICONS_DIR", kwargs["env"])
+            self.assertIn("refs/tags/v2.0.1", calls[0][0])
+        # The same saved configuration also preserves enabled shortcuts.
+        config["shortcuts"]["enabled"] = True
+        plat._atomic(self.root / "current.json", config)
+        with patch.object(revocation, "verify_promotion", return_value={"status": "ok"}):
+            lifecycle.update_release(root=self.root, platform_name="linux", gh_cmd=False,
+                fetch_json=lambda url: {"tag_name": "v2.0.1"}, fetch_bytes=lambda url: sums if url.endswith("SHA256SUMS") else raw, run_cmd=run)
+        self.assertNotIn("--no-shortcut", calls[-1][0])
+
+    def test_n4_tessdata_larger_than_four_mib_and_absolute_cap(self):
+        from unittest.mock import MagicMock
+        content = b"x" * (5 * 1024 * 1024)
+        license_bytes = b"license"
+        lock = Path(self.tmp.name) / "lock.json"
+        assets = [{"name": n, "url": "https://example.invalid/"+n, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+                  for n, data in (("por.traineddata", content), ("TESSDATA-LICENSE.txt", license_bytes))]
+        lock.write_text(json.dumps({"assets": assets}))
+        seen = []
+        def open_url(req, timeout):
+            data = content if req.full_url.endswith("por.traineddata") else license_bytes
+            stream = MagicMock()
+            def read(n):
+                seen.append(n)
+                return data[:n]
+            stream.__enter__.return_value.read.side_effect = read
+            return stream
+        with patch.object(revocation.urllib.request, "urlopen", side_effect=open_url):
+            result = lifecycle._install_tessdata_from_lock(self.root / "ocr", ["por"], lock)
+        self.assertEqual((result / "por.traineddata").read_bytes(), content)
+        self.assertEqual(seen[0], (len(content)*101+99)//100 + 1)
+        assets[0]["bytes"] = 64*1024*1024 + 1
+        lock.write_text(json.dumps({"assets": assets}))
+        with self.assertRaisesRegex(ValueError, "limite"), patch.object(revocation.urllib.request, "urlopen") as fetch:
+            lifecycle._install_tessdata_from_lock(self.root / "ocr2", ["por"], lock)
+        fetch.assert_not_called()
+
+    def test_n5_uninstall_refuses_unknown_data_and_ancestor(self):
+        self.root.mkdir()
+        for name in ("current.json", "candidate.json"):
+            (self.root / name).write_text("invalid json")
+        with self.assertRaisesRegex(ValueError, "ilegiveis"):
+            lifecycle.uninstall_managed(root=self.root, yes=True)
+        self.assertTrue(self.root.exists())
+        plat._atomic(self.root / "current.json", {"data_root": str(self.root.parent)})
+        with self.assertRaisesRegex(ValueError, "ancestral"):
+            lifecycle.uninstall_managed(root=self.root, yes=True)
+        self.assertTrue((self.root / "current.json").exists())
+
+    def test_n5_windows_uninstall_deferred_until_later_execution(self):
+        from traslado import cli
+        current = self.setup()
+        release = self.root / "releases" / current["release_id"]
+        with patch.object(lifecycle, "release_in_use", return_value=True):
+            result = lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32")
+        self.assertEqual(result["status"], "uninstall_pending")
+        self.assertTrue(release.is_dir())
+        self.assertTrue((self.root / "state/pending-uninstall.json").is_file())
+        with patch.object(lifecycle, "release_in_use", return_value=False):
+            self.assertEqual(cli.main(["where", "--root", str(self.root)]), 0)
+        self.assertFalse(release.exists())
+        self.assertTrue(Path(current["data_root"]).exists())
+
+    def test_n6_legacy_untouched_on_rejected_gates_and_without_promotion(self):
+        with patch.object(lifecycle, "handle_legacy_windows") as legacy:
+            with self.assertRaises(ValueError):
+                self.setup(fixture_fn=lambda: False)
+            legacy.assert_not_called()
+            self.setup(promote=False)
+            legacy.assert_not_called()
+            def after(*args, **kw):
+                self.assertIsNotNone(plat.read_current(self.root))
+            legacy.side_effect = after
+            self.setup()
+            legacy.assert_called_once()
+
+    def test_n7_shortcut_failure_reports_promoted_and_retry_command(self):
+        from traslado import cli
+        with patch.object(plat, "refresh_shortcuts", side_effect=OSError("desktop denied")):
+            with self.assertRaisesRegex(lifecycle.ShortcutError, "promovida.*shortcuts --root"):
+                self.setup(no_shortcut=False)
+        current = plat.read_current(self.root)
+        self.assertEqual(current["release_id"], "2.0.0_a")
+        with patch.object(lifecycle, "setup_release", side_effect=lifecycle.ShortcutError("promovida; atalhos")):
+            self.assertEqual(cli.main(["setup"]), 4)
+        with patch.object(plat, "refresh_shortcuts") as refresh:
+            self.assertEqual(cli.main(["shortcuts", "--root", str(self.root)]), 0)
+            refresh.assert_called_once()
+
+    def test_n8_workflow_first_issue_only_when_release_absent(self):
+        workflow = (ROOT / ".github/workflows/revocation.yml").read_text()
+        self.assertIn('case "$RELEASE_STATUS" in\n                404) PREV_SEQ=0', workflow)
+        self.assertIn('200) echo "Release revocation existe sem revoked.json; emissao recusada" >&2; exit 1', workflow)
+        self.assertIn('404) PRODUCT_LATEST="";', workflow)
+        self.assertIn('if [ -n "$PRODUCT_LATEST" ]; then', workflow)
+        self.assertIn('latest nao conferido', workflow)
+
+    def test_n9_sequence_content_and_gh_ref(self):
+        from tests.test_lifecycle_e5 import _iso_offset
+        doc = dict(schema=revocation.SCHEMA_REVOKED, sequence=1, issued_at=_iso_offset(-1), expires_at=_iso_offset(7), revoked=[])
+        raw = json.dumps(doc).encode()
+        release = dict(draft=False, prerelease=False, tag_name=f"v{__version__}", assets=[{"name": k, "digest": "sha256:"+v} for k,v in DIGESTS.items()])
+        commands = []
+        def run(argv):
+            commands.append(argv)
+            return subprocess.CompletedProcess(argv, 0)
+        def verify(data):
+            return revocation.verify_promotion(self.root, __version__, DIGESTS, gh_cmd="gh-stub", run_cmd=run,
+                fetch_bytes=lambda url: data, fetch_json=lambda url: release)
+        verify(raw)
+        state = (self.root / "state/revocation.json").read_bytes()
+        self.assertEqual(verify(raw)["status"], "ok")
+        doc["revoked"] = [{"version": "1.0.0"}]
+        with self.assertRaisesRegex(ValueError, "Mesma sequence"):
+            verify(json.dumps(doc).encode())
+        self.assertEqual(json.loads(state)["revoked_sha256"], revocation.read_revocation_state(self.root)["revoked_sha256"])
+        self.assertEqual(commands[0][-2:], ["--source-ref", "refs/heads/main"])
+        cert = synthetic_certificate_bundle("https://github.com/rickfreoa/traslado/.github/workflows/revocation.yml@refs/heads/main")
+        raw_cert = base64.b64decode(cert["bundle"]["verificationMaterial"]["certificate"]["rawBytes"])
+        for invalid in (raw_cert[:-1], raw_cert+b"garbage", b"\x30\x80\x00\x00"):
+            cert["bundle"]["verificationMaterial"]["certificate"]["rawBytes"] = base64.b64encode(invalid).decode()
+            self.assertFalse(revocation._bundle_matches_identity(cert, revocation.DEFAULT_REPO))
+        self.assertNotIn("_test_decode_cert", (ROOT / "src/traslado/revocation.py").read_text())
+        self.assertNotIn("docx_formatting_partial", (ROOT / "src/traslado/worker.py").read_text())
+
+    def test_n10_failed_cleanup_keep_and_prune_in_use(self):
+        with self.assertRaises(ValueError):
+            self.setup("bad", fixture_fn=lambda: False)
+        self.assertFalse((self.root / "releases/bad").exists())
+        with self.assertRaises(ValueError):
+            self.setup("keep", fixture_fn=lambda: False, keep_failed=True)
+        self.assertTrue((self.root / "releases/keep").exists())
+        self.setup("a")
+        self.setup("b")
+        with patch.object(lifecycle, "release_in_use", side_effect=lambda path: path.name == "a"):
+            self.setup("c")
+        self.assertTrue((self.root / "releases/a").exists())
+        self.assertTrue((self.root / "state/pending-removals/a.json").is_file())
+        with patch.object(lifecycle, "release_in_use", return_value=False):
+            lifecycle.prune_releases(self.root, pending_only=True)
+        self.assertFalse((self.root / "releases/a").exists())
+        self.assertTrue((self.root / "releases/b").exists())
+        self.assertTrue((self.root / "releases/c").exists())
+
+    @unittest.skipUnless(os.name == "nt", "PowerShell Windows")
+    def test_n1_n9_bootstrap_remote_api_before_uv_and_install(self):
+        artifacts = Path(self.tmp.name) / "assets"
+        artifacts.mkdir()
+        files = {WHEEL: b"wheel", "requirements-full.hashes.lock": b"full lock", "requirements-core.hashes.lock": b"core lock"}
+        files["SHA256SUMS"] = "".join(hashlib.sha256(v).hexdigest()+"  "+k+"\n" for k,v in files.items()).encode()
+        for name, value in files.items():
+            (artifacts / name).write_bytes(value)
+        api = dict(draft=False, prerelease=False, tag_name=f"v{__version__}", assets=[{"name": k, "digest": "sha256:"+hashlib.sha256(v).hexdigest()} for k,v in files.items()])
+        api["assets"].append({"name": "install.ps1", "digest": "sha256:"+hashlib.sha256((ROOT / "install.ps1").read_bytes()).hexdigest()})
+        metadata = Path(self.tmp.name) / "api.json"
+        uvlog = Path(self.tmp.name) / "uv-called"
+        uv = Path(self.tmp.name) / "uv.cmd"
+        uv.write_text('@echo off\r\necho called >> "%UV_LOG%"\r\nexit /b 1\r\n')
+        wrapper = Path(self.tmp.name) / "remote.ps1"
+        wrapper.write_text('''function Invoke-WebRequest { param($Uri, $OutFile, [switch]$UseBasicParsing) Copy-Item -LiteralPath (Join-Path $env:ASSETS ($Uri.Split('/')[-1])) -Destination $OutFile }
+function Invoke-RestMethod { param($Uri, $Headers) if ($env:API_FAIL -eq '1') { throw 'API offline' }; Get-Content -Raw $env:API_FILE | ConvertFrom-Json }
+function Get-Command { [CmdletBinding()]param($Name) if ($Name -ne 'gh') { Microsoft.PowerShell.Core\\Get-Command $Name } }
+& ''' + "'"+str(ROOT / "install.ps1")+"' @args\nexit $LASTEXITCODE\n")
+        env = dict(os.environ, ASSETS=str(artifacts), API_FILE=str(metadata), UV_LOG=str(uvlog), TRASLADO_TEST_UV=str(uv), TRASLADO_PROMOCAO_OFFLINE="teste")
+        cases = ["valid", "offline", "draft", "prerelease", "tag", *files, "install.ps1", "missing", "duplicate-sums", "version", "test-uv-outside-test"]
+        for case in cases:
+            with self.subTest(case=case):
+                changed = json.loads(json.dumps(api))
+                (artifacts / "SHA256SUMS").write_bytes(files["SHA256SUMS"])
+                if uvlog.exists(): uvlog.unlink()
+                if case in ("draft", "prerelease"): changed[case] = True
+                if case == "tag": changed["tag_name"] = "v1.0.0"
+                if case in [*files, "install.ps1"]:
+                    next(a for a in changed["assets"] if a["name"] == case)["digest"] = "sha256:"+"0"*64
+                if case == "missing": changed["assets"] = []
+                if case == "duplicate-sums":
+                    (artifacts / "SHA256SUMS").write_bytes(files["SHA256SUMS"]+files["SHA256SUMS"])
+                metadata.write_text(json.dumps(changed))
+                root = Path(self.tmp.name) / ("remote-"+case)
+                argv = [str(lifecycle.POWERSHELL_WIN), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper), "-Root", str(root), "-Profile", "Core" if case == "requirements-core.hashes.lock" else "Full"]
+                if case == "version": argv += ["-Version", "../escape"]
+                proc = subprocess.run(argv, env=dict(env, API_FAIL="1" if case == "offline" else "0", TRASLADO_PROMOCAO_OFFLINE="rascunho" if case == "test-uv-outside-test" else "teste"), capture_output=True, timeout=30)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout+proc.stderr)
+                self.assertEqual(uvlog.exists(), case == "valid", proc.stdout+proc.stderr)
+                self.assertFalse((root / "current.json").exists())
+        # Cross-platform bootstrap enforces the same order and input guards.
+        for name in ("install.sh", "install.ps1"):
+            source = (ROOT / name).read_text()
+            self.assertLess(source.index("releases/tags/v"), source.index("# 1. Obter uv"))
+            self.assertIn("Nome duplicado em SHA256SUMS", source)
+            self.assertIn("--source-ref", source)
+            self.assertIn("TRASLADO_PROMOCAO_OFFLINE", source[source.index("# 1. Obter uv"):source.index("# 4. Criar")])
+
+
+    def test_n1_shell_api_parser_rejects_each_digest_and_release_state(self):
+        source = (ROOT / "install.sh").read_text()
+        validator = source.split("<<'API_VERIFY' || exit 1\n", 1)[1].split("\nAPI_VERIFY", 1)[0]
+        script = Path(self.tmp.name) / "install.sh"
+        script.write_bytes(b"bootstrap")
+        digests = dict(DIGESTS, SHA256SUMS="c"*64, **{"install.sh": hashlib.sha256(script.read_bytes()).hexdigest()})
+        api_path = Path(self.tmp.name) / "api.json"
+        digests_path = Path(self.tmp.name) / "digests.json"
+        valid = dict(draft=False, prerelease=False, tag_name="v2.0.0", assets=[{"name": k, "digest": "sha256:"+v} for k,v in digests.items()])
+        for case in ("valid", "draft", "prerelease", "tag", "missing", *digests):
+            api = json.loads(json.dumps(valid))
+            if case in ("draft", "prerelease"): api[case] = True
+            if case == "tag": api["tag_name"] = "v1.0.0"
+            if case == "missing": api["assets"] = []
+            if case in digests: next(a for a in api["assets"] if a["name"] == case)["digest"] = "sha256:"+"0"*64
+            api_path.write_text(json.dumps(api))
+            digests_path.write_text(json.dumps({k:v for k,v in digests.items() if k != "install.sh"}))
+            with self.subTest(case=case), patch.object(sys, "argv", ["-", str(api_path), str(digests_path), "2.0.0", str(script)]):
+                if case == "valid":
+                    exec(compile(validator, "install.sh/API_VERIFY", "exec"), {})
+                    self.assertEqual(json.loads(digests_path.read_text()), digests)
+                else:
+                    with self.assertRaises(ValueError):
+                        exec(compile(validator, "install.sh/API_VERIFY", "exec"), {})
+
+    @unittest.skipUnless(os.name == "nt", "Windows process inventory")
+    def test_n5_n10_detect_running_release_process(self):
+        release = self.root / "releases/running"
+        subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(release / ".venv")], check=True, capture_output=True)
+        python = release / ".venv/Scripts/python.exe"
+        process = subprocess.Popen([str(python), "-c", "import sys,time; print('ready', flush=True); time.sleep(30)"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            self.assertEqual(process.stdout.readline().strip(), b"ready")
+            self.assertTrue(lifecycle.release_in_use(release))
+            self.assertFalse(lifecycle.remove_unreferenced_release(self.root, release))
+            self.assertTrue((self.root / "state/pending-removals/running.json").exists())
+        finally:
+            process.terminate()
+            process.communicate(timeout=10)
+        self.assertFalse(lifecycle.release_in_use(release))
+        lifecycle.prune_releases(self.root, pending_only=True)
+        self.assertFalse(release.exists())
 
 
 @unittest.skipUnless(os.name == "nt" and os.environ.get("TRASLADO_E2E_REAL") == "1",

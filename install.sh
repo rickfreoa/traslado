@@ -11,6 +11,8 @@ PROFILE="Full"
 EXTRAS=""
 LANGUAGES="por,eng,spa,ita,fra,deu"
 NO_SHORTCUT=0
+KEEP_FAILED=0
+DATA_ROOT=""
 ROOT=""
 FROM_DIR=""
 YES=0
@@ -37,6 +39,10 @@ while [ $# -gt 0 ]; do
             LANGUAGES="$2"; shift 2 ;;
         --no-shortcut|-NoShortcut)
             NO_SHORTCUT=1; shift 1 ;;
+        --keep-failed|-KeepFailed)
+            KEEP_FAILED=1; shift ;;
+        --data-root|-DataRoot)
+            DATA_ROOT="$2"; shift 2 ;;
         --root|-Root)
             ROOT="$2"; shift 2 ;;
         --from-dir|-FromDir)
@@ -55,7 +61,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-CLEAN_VERSION="${VERSION#v}"
+case "$VERSION" in *[!0-9A-Za-z.-]*|'') echo "Version invalida" >&2; exit 2 ;; esac
+printf '%s\n' "$VERSION" | LC_ALL=C grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.]+)?$' || { echo "Version invalida" >&2; exit 2; }
+CLEAN_VERSION="$VERSION"
 case "$PROFILE" in
     Core|core) NORM_PROFILE="Core"; PROFILE_LOWER="core" ;;
     Full|full) NORM_PROFILE="Full"; PROFILE_LOWER="full" ;;
@@ -78,21 +86,21 @@ ROOT="$(CDPATH= cd -- "$ROOT" && pwd)"
 
 sha256_file() {
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum "$1" | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
+        sha256sum "$1" | awk '{print tolower($1)}'
     elif command -v shasum >/dev/null 2>&1; then
-        shasum -a 256 "$1" | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
+        shasum -a 256 "$1" | awk '{print tolower($1)}'
     else
-        openssl dgst -sha256 "$1" | sed 's/^.*= *//' | tr '[:upper:]' '[:lower:]'
+        openssl dgst -sha256 "$1" | awk '{print tolower($NF)}'
     fi
 }
 
 sha256_string() {
     if command -v sha256sum >/dev/null 2>&1; then
-        printf "%s" "$1" | sha256sum | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
+        printf "%s" "$1" | sha256sum | awk '{print tolower($1)}'
     elif command -v shasum >/dev/null 2>&1; then
-        printf "%s" "$1" | shasum -a 256 | { read -r h _; printf "%s\n" "$h" | tr '[:upper:]' '[:lower:]'; }
+        printf "%s" "$1" | shasum -a 256 | awk '{print tolower($1)}'
     else
-        printf "%s" "$1" | openssl dgst -sha256 | sed 's/^.*= *//' | tr '[:upper:]' '[:lower:]'
+        printf "%s" "$1" | openssl dgst -sha256 | awk '{print tolower($NF)}'
     fi
 }
 
@@ -141,62 +149,6 @@ fi
 # Fresh candidate every time; mkdir below refuses collisions.
 RELEASE_ID="${CLEAN_VERSION}_$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
 
-# 1. Obter uv fixado por versão e SHA-256
-if [ -n "${TRASLADO_TEST_UV:-}" ] && [ -x "${TRASLADO_TEST_UV}" ]; then
-    UV_EXE="$TRASLADO_TEST_UV"
-else
-    UV_DIR="$ROOT/tools/uv-$UV_VERSION"
-    if [ -x "$UV_DIR/uv" ]; then
-        UV_EXE="$UV_DIR/uv"
-    else
-        case "$OS_NAME:$ARCH_NAME" in
-            Linux:x86_64|Linux:amd64)
-                UV_PLATFORM="x86_64-unknown-linux-gnu"
-                EXPECTED_UV_HASH="$UV_HASH_LINUX_X64" ;;
-            Linux:aarch64|Linux:arm64)
-                UV_PLATFORM="aarch64-unknown-linux-gnu"
-                EXPECTED_UV_HASH="$UV_HASH_LINUX_ARM64" ;;
-            Darwin:arm64|Darwin:aarch64)
-                UV_PLATFORM="aarch64-apple-darwin"
-                EXPECTED_UV_HASH="$UV_HASH_DARWIN_ARM64" ;;
-            Darwin:x86_64)
-                UV_PLATFORM="x86_64-apple-darwin"
-                EXPECTED_UV_HASH="$UV_HASH_DARWIN_X64" ;;
-            *)
-                echo "Plataforma não suportada pelo instalador: $OS_NAME / $ARCH_NAME" >&2
-                exit 2 ;;
-        esac
-        for tool in tar gzip; do
-            if ! command -v "$tool" >/dev/null 2>&1; then
-                echo "Pré-requisito ausente: $tool (necessário para descompactar o uv). Instale-o pelo gerenciador do sistema e repita." >&2
-                exit 2
-            fi
-        done
-        UV_ARCHIVE="uv-$UV_PLATFORM.tar.gz"
-        UV_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/$UV_ARCHIVE"
-        mkdir -p "$UV_DIR"
-        echo "Baixando uv $UV_VERSION ($UV_PLATFORM)..."
-        download_https "$UV_URL" "$UV_DIR/$UV_ARCHIVE"
-        ACTUAL_UV_HASH="$(sha256_file "$UV_DIR/$UV_ARCHIVE")"
-        if [ "$ACTUAL_UV_HASH" != "$EXPECTED_UV_HASH" ]; then
-            rm -f "$UV_DIR/$UV_ARCHIVE"
-            echo "SHA-256 do uv divergente: esperado $EXPECTED_UV_HASH, obtido $ACTUAL_UV_HASH" >&2
-            exit 1
-        fi
-        tar -xzf "$UV_DIR/$UV_ARCHIVE" -C "$UV_DIR"
-        rm -f "$UV_DIR/$UV_ARCHIVE"
-        if [ -x "$UV_DIR/uv" ]; then
-            UV_EXE="$UV_DIR/uv"
-        elif [ -x "$UV_DIR/uv-$UV_PLATFORM/uv" ]; then
-            mv "$UV_DIR/uv-$UV_PLATFORM/uv" "$UV_DIR/uv"
-            UV_EXE="$UV_DIR/uv"
-        else
-            echo "Binário uv não encontrado após extração." >&2
-            exit 1
-        fi
-    fi
-fi
-
 # 2. Obter e conferir artefatos (SHA256SUMS, wheel e locks)
 WHEEL_NAME="traslado-$CLEAN_VERSION-py3-none-any.whl"
 PROFILE_LOCK_NAME="requirements-$PROFILE_LOWER.hashes.lock"
@@ -209,14 +161,8 @@ check_sum_entry() {
     sums_file="$1"
     entry_name="$2"
     file_path="$3"
-    expected=""
-    while read -r sum name _; do
-        clean_name="${name#\*}"
-        if [ "$clean_name" = "$entry_name" ]; then
-            expected="$(printf "%s" "$sum" | tr '[:upper:]' '[:lower:]')"
-            break
-        fi
-    done < "$sums_file"
+    awk 'NF >= 2 {n=$NF; sub(/^\*/, "", n); if (seen[n]++) exit 1}' "$sums_file" || { echo "Nome duplicado em SHA256SUMS" >&2; exit 1; }
+    expected="$(awk -v n="$entry_name" '$NF == n || $NF == ("*" n) {print tolower($1)}' "$sums_file" | head -n 1)"
     if [ -z "$expected" ]; then
         echo "Entrada $entry_name ausente em SHA256SUMS" >&2
         exit 1
@@ -279,17 +225,99 @@ DIGESTS_PATH="$STAGE_DOWNLOADS/verified-$RELEASE_ID.json"
     printf '}\n'
 } > "$DIGESTS_PATH"
 
+if [ -z "$FROM_DIR" ]; then
+    # Parse the independent API response before obtaining uv or installing anything.
+    API_JSON="$STAGE_DOWNLOADS/release-api.json"
+    download_https "https://api.github.com/repos/rickfreoa/traslado/releases/tags/v$CLEAN_VERSION" "$API_JSON"
+    API_PY=$(command -v python3 || command -v python || true)
+    [ -n "$API_PY" ] || { echo "Python necessario para autenticar JSON da API antes de instalar" >&2; exit 1; }
+    "$API_PY" - "$API_JSON" "$DIGESTS_PATH" "$CLEAN_VERSION" "$0" <<'API_VERIFY' || exit 1
+import hashlib, json, pathlib, sys
+api_path, digest_path, version, script = sys.argv[1:]
+api = json.loads(pathlib.Path(api_path).read_text(encoding="utf-8"))
+if not (api.get("draft") is False and api.get("prerelease") is False and api.get("tag_name") == "v" + version):
+    raise ValueError("Release API nao publicada")
+digests = json.loads(pathlib.Path(digest_path).read_text(encoding="utf-8"))
+assets = api["assets"]
+if any(a.get("name") == "install.sh" for a in assets):
+    digests["install.sh"] = hashlib.sha256(pathlib.Path(script).read_bytes()).hexdigest()
+for name, digest in digests.items():
+    matches = [a for a in assets if a.get("name") == name]
+    if len(matches) != 1 or matches[0].get("digest") != "sha256:" + digest:
+        raise ValueError("Digest API divergente ou asset ausente: " + name)
+pathlib.Path(digest_path).write_text(json.dumps(digests), encoding="utf-8")
+API_VERIFY
+fi
+
 # 3. Verificação de attestation (gh)
 if command -v gh >/dev/null 2>&1; then
     echo "Verificando attestation criptográfica com gh..."
-    for artifact in "$WHEEL_PATH" "$PROFILE_LOCK_PATH" "$LEGACY_LOCK_PATH" "$SUMS_PATH"; do
+    SELF_ARTIFACT=""
+    if [ -z "$FROM_DIR" ] && grep -q '"install.sh"' "$DIGESTS_PATH"; then SELF_ARTIFACT="$0"; fi
+    for artifact in "$WHEEL_PATH" "$PROFILE_LOCK_PATH" "$LEGACY_LOCK_PATH" "$SUMS_PATH" "$SELF_ARTIFACT"; do
         [ -n "$artifact" ] || continue
-        gh attestation verify "$artifact" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml || exit 1
+        gh attestation verify "$artifact" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref refs/tags/v$CLEAN_VERSION || exit 1
     done
 else
     echo "Aviso: verificação automática via GitHub CLI (gh) não executada neste modo."
-    echo "O controle principal de autenticidade é manual:"
-    echo "  gh attestation verify \"$WHEEL_PATH\" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml"
+    echo "Modo remoto: digests conferidos na API; modo local: promocao exige excecao offline explicita."
+    echo "  gh attestation verify \"$WHEEL_PATH\" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref refs/tags/v$CLEAN_VERSION"
+fi
+
+# 1. Obter uv fixado por versão e SHA-256
+if [ "${TRASLADO_PROMOCAO_OFFLINE:-}" = "teste" ] && [ -n "${TRASLADO_TEST_UV:-}" ] && [ -x "${TRASLADO_TEST_UV}" ]; then
+    UV_EXE="$TRASLADO_TEST_UV"
+else
+    UV_DIR="$ROOT/tools/uv-$UV_VERSION"
+    if [ -x "$UV_DIR/uv" ]; then
+        UV_EXE="$UV_DIR/uv"
+    else
+        case "$OS_NAME:$ARCH_NAME" in
+            Linux:x86_64|Linux:amd64)
+                UV_PLATFORM="x86_64-unknown-linux-gnu"
+                EXPECTED_UV_HASH="$UV_HASH_LINUX_X64" ;;
+            Linux:aarch64|Linux:arm64)
+                UV_PLATFORM="aarch64-unknown-linux-gnu"
+                EXPECTED_UV_HASH="$UV_HASH_LINUX_ARM64" ;;
+            Darwin:arm64|Darwin:aarch64)
+                UV_PLATFORM="aarch64-apple-darwin"
+                EXPECTED_UV_HASH="$UV_HASH_DARWIN_ARM64" ;;
+            Darwin:x86_64)
+                UV_PLATFORM="x86_64-apple-darwin"
+                EXPECTED_UV_HASH="$UV_HASH_DARWIN_X64" ;;
+            *)
+                echo "Plataforma não suportada pelo instalador: $OS_NAME / $ARCH_NAME" >&2
+                exit 2 ;;
+        esac
+        for tool in tar gzip; do
+            if ! command -v "$tool" >/dev/null 2>&1; then
+                echo "Pré-requisito ausente: $tool (necessário para descompactar o uv). Instale-o pelo gerenciador do sistema e repita." >&2
+                exit 2
+            fi
+        done
+        UV_ARCHIVE="uv-$UV_PLATFORM.tar.gz"
+        UV_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/$UV_ARCHIVE"
+        mkdir -p "$UV_DIR"
+        echo "Baixando uv $UV_VERSION ($UV_PLATFORM)..."
+        download_https "$UV_URL" "$UV_DIR/$UV_ARCHIVE"
+        ACTUAL_UV_HASH="$(sha256_file "$UV_DIR/$UV_ARCHIVE")"
+        if [ "$ACTUAL_UV_HASH" != "$EXPECTED_UV_HASH" ]; then
+            rm -f "$UV_DIR/$UV_ARCHIVE"
+            echo "SHA-256 do uv divergente: esperado $EXPECTED_UV_HASH, obtido $ACTUAL_UV_HASH" >&2
+            exit 1
+        fi
+        tar -xzf "$UV_DIR/$UV_ARCHIVE" -C "$UV_DIR"
+        rm -f "$UV_DIR/$UV_ARCHIVE"
+        if [ -x "$UV_DIR/uv" ]; then
+            UV_EXE="$UV_DIR/uv"
+        elif [ -x "$UV_DIR/uv-$UV_PLATFORM/uv" ]; then
+            mv "$UV_DIR/uv-$UV_PLATFORM/uv" "$UV_DIR/uv"
+            UV_EXE="$UV_DIR/uv"
+        else
+            echo "Binário uv não encontrado após extração." >&2
+            exit 1
+        fi
+    fi
 fi
 
 # 4. Criar .venv com Python 3.13 gerenciado
@@ -297,15 +325,7 @@ RELEASE_DIR="$ROOT/releases/$RELEASE_ID"
 mkdir -p "$ROOT/releases"
 mkdir "$RELEASE_DIR" || exit 2
 
-if [ -n "$FROM_DIR" ]; then
-    LOCAL_OCR_LOCK="$(find_local "$FROM_DIR" "ocr-assets.lock.json" "../ocr-assets.lock.json" || true)"
-    if [ -n "$LOCAL_OCR_LOCK" ]; then
-        cp "$LOCAL_OCR_LOCK" "$RELEASE_DIR/ocr-assets.lock.json"
-    fi
-fi
-
 export UV_PYTHON_INSTALL_DIR="$ROOT/python"
-export UV_CACHE_DIR="$ROOT/state/uv-cache"
 mkdir -p "$UV_PYTHON_INSTALL_DIR"
 
 VENV_DIR="$RELEASE_DIR/.venv"
@@ -337,6 +357,8 @@ set -- -I -m traslado setup \
 if [ -n "$EXTRAS" ]; then
     set -- "$@" --extras "$EXTRAS"
 fi
+if [ -n "$DATA_ROOT" ]; then set -- "$@" --data-root "$DATA_ROOT"; fi
+if [ "$KEEP_FAILED" -eq 1 ]; then set -- "$@" --keep-failed; fi
 if [ "$NO_SHORTCUT" -eq 1 ]; then
     set -- "$@" --no-shortcut
 fi
@@ -354,8 +376,23 @@ if [ -n "$OCR_CACHE" ]; then
 fi
 
 echo "Executando verificação de gates e configuração (traslado setup)..."
-if ! "$VENV_PYTHON" "$@"; then
-    echo "Os gates de verificação reprovaram a instalação candidata; current.json não foi alterado." >&2
+SETUP_RC=0
+"$VENV_PYTHON" "$@" || SETUP_RC=$?
+if [ "$SETUP_RC" -eq 4 ]; then
+    echo "Instalacao promovida; somente os atalhos falharam. Recrie-os com: '$VENV_PYTHON' -I -m traslado shortcuts --root '$ROOT'" >&2
+    exit 4
+fi
+if [ "$SETUP_RC" -ne 0 ]; then
+    if [ "$KEEP_FAILED" -eq 0 ]; then
+        # Run cleanup outside the candidate after its setup process has exited.
+        if CLEANUP_PY=$("$VENV_PYTHON" -I -c 'import sys; print(sys._base_executable)') &&
+           CLEANUP_SITE=$("$VENV_PYTHON" -I -c 'import pathlib,traslado; print(pathlib.Path(traslado.__file__).parent.parent)'); then
+            "$CLEANUP_PY" -I -c 'import sys,pathlib; sys.path.insert(0,sys.argv[1]); from traslado.lifecycle import remove_unreferenced_release; remove_unreferenced_release(pathlib.Path(sys.argv[2]),pathlib.Path(sys.argv[3]))' "$CLEANUP_SITE" "$ROOT" "$RELEASE_DIR" || echo "Limpeza pendente para a proxima execucao." >&2
+        else
+            echo "Limpeza pendente para a proxima execucao." >&2
+        fi
+    fi
+    echo "Setup falhou; consulte o diagnostico acima para o estado da instalacao." >&2
     exit 2
 fi
 

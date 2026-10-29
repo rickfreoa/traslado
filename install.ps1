@@ -10,6 +10,8 @@ param(
     [string]$Extras = "",
     [string]$Languages = "por,eng,spa,ita,fra,deu",
     [switch]$NoShortcut,
+    [switch]$KeepFailed,
+    [string]$DataRoot = "",
     [string]$Root = "",
     [string]$FromDir = "",
     [switch]$Yes,
@@ -76,6 +78,7 @@ function Read-SumsMap([string]$SumsFile) {
         $parts = $trimmed -split '\s+'
         if ($parts.Count -ge 2 -and $parts[0] -match '^[0-9a-fA-F]{64}$') {
             $name = $parts[$parts.Count - 1].TrimStart('*')
+            if ($map.ContainsKey($name)) { throw "Nome duplicado em SHA256SUMS: $name" }
             $map[$name] = $parts[0].ToLowerInvariant()
         }
     }
@@ -93,7 +96,8 @@ function Find-LocalArtifact([string]$BaseDir, [string[]]$RelativeCandidates) {
 }
 
 try {
-    $CleanVersion = $Version.TrimStart('v')
+    if ($Version -match "[\r\n]" -or $Version -cnotmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.]+)?$') { throw "Version invalida" }
+    $CleanVersion = $Version
     $NormProfile = if ($Profile.ToLowerInvariant() -eq "core") { "Core" } else { "Full" }
     $ProfileLower = $NormProfile.ToLowerInvariant()
     $ExtrasList = @($Extras -split '[,+]' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ } | Sort-Object -Unique)
@@ -130,42 +134,6 @@ try {
                 exit 0
             }
         } catch {}
-    }
-
-    # 1. Obter uv fixado por versão e SHA-256
-    $UvExe = $null
-    if ($env:TRASLADO_TEST_UV -and (Test-Path -LiteralPath $env:TRASLADO_TEST_UV -PathType Leaf)) {
-        $UvExe = (Resolve-Path -LiteralPath $env:TRASLADO_TEST_UV).Path
-    } else {
-        $UvDir = Join-Path $RootFull "tools\uv-$UvVersion"
-        $CandidateUv = Join-Path $UvDir "uv.exe"
-        if (Test-Path -LiteralPath $CandidateUv -PathType Leaf) {
-            $UvExe = $CandidateUv
-        } else {
-            $PlatformKey = "x86_64-pc-windows-msvc"
-            $ExpectedUvHash = $UvHashes[$PlatformKey]
-            $UvArchiveName = "uv-$PlatformKey.zip"
-            $UvUrl = "https://github.com/astral-sh/uv/releases/download/$UvVersion/$UvArchiveName"
-            New-Item -ItemType Directory -Path $UvDir -Force | Out-Null
-            $UvArchivePath = Join-Path $UvDir $UvArchiveName
-            Write-Host "Baixando uv $UvVersion ($PlatformKey)..."
-            Save-HttpsFile $UvUrl $UvArchivePath
-            $ActualUvHash = Get-FileSha256Hex $UvArchivePath
-            if ($ActualUvHash -ne $ExpectedUvHash) {
-                Remove-Item -LiteralPath $UvArchivePath -Force -ErrorAction SilentlyContinue
-                throw "SHA-256 do uv divergente: esperado $ExpectedUvHash, obtido $ActualUvHash"
-            }
-            Add-Type -AssemblyName System.IO.Compression.FileSystem
-            [IO.Compression.ZipFile]::ExtractToDirectory($UvArchivePath, $UvDir)
-            Remove-Item -LiteralPath $UvArchivePath -Force -ErrorAction SilentlyContinue
-            if (-not (Test-Path -LiteralPath $CandidateUv -PathType Leaf)) {
-                $foundUv = Get-ChildItem -LiteralPath $UvDir -Filter "uv.exe" -Recurse | Select-Object -First 1
-                if (-not $foundUv) { throw "uv.exe não encontrado após extração" }
-                $UvExe = $foundUv.FullName
-            } else {
-                $UvExe = $CandidateUv
-            }
-        }
     }
 
     # 2. Obter e autenticar artefatos da release (SHA256SUMS, wheel e locks)
@@ -252,19 +220,68 @@ try {
     $DigestsPath = Join-Path $StageDownloads ("verified-" + $ReleaseId + ".json")
     $VerifiedDigests | ConvertTo-Json | Set-Content -LiteralPath $DigestsPath -Encoding UTF8
 
+    if (-not $FromDir) {
+        $api = Invoke-RestMethod -Uri "https://api.github.com/repos/rickfreoa/traslado/releases/tags/v$CleanVersion" -Headers @{Accept="application/vnd.github+json"; "User-Agent"="Traslado-Bootstrap"}
+        if ($api.draft -isnot [bool] -or $api.prerelease -isnot [bool] -or $api.draft -ne $false -or $api.prerelease -ne $false -or $api.tag_name -cne "v$CleanVersion") { throw "Release API nao publicada ou tag divergente" }
+        $selfAsset = @($api.assets | Where-Object { $_.name -ceq "install.ps1" })
+        if ($selfAsset.Count -gt 0) { $VerifiedDigests["install.ps1"] = Get-FileSha256Hex $PSCommandPath }
+        foreach ($name in $VerifiedDigests.Keys) {
+            $assets = @($api.assets | Where-Object { $_.name -ceq $name })
+            if ($assets.Count -ne 1 -or $assets[0].digest -cne ("sha256:" + $VerifiedDigests[$name])) { throw "Digest API divergente ou asset ausente: $name" }
+        }
+        $VerifiedDigests | ConvertTo-Json | Set-Content -LiteralPath $DigestsPath -Encoding UTF8
+    }
+
     # 3. Verificação de attestation (gh)
     $GhCmd = Get-Command gh -ErrorAction SilentlyContinue
     if ($GhCmd) {
         Write-Host "Verificando attestation criptográfica com gh..."
-        foreach ($artifact in @($WheelPath, $ProfileLockPath, $LegacyLockPath, $SumsPath)) {
+        $SelfArtifact = if (-not $FromDir -and $selfAsset.Count -gt 0) { $PSCommandPath } else { $null }
+        foreach ($artifact in @($WheelPath, $ProfileLockPath, $LegacyLockPath, $SumsPath, $SelfArtifact)) {
             if (-not $artifact) { continue }
-            & $GhCmd.Source attestation verify $artifact --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+            & $GhCmd.Source attestation verify $artifact --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref "refs/tags/v$CleanVersion"
             if ($LASTEXITCODE -ne 0) { throw "Attestation reprovada para $artifact" }
         }
     } else {
         Write-Host "Aviso: verificação automática via GitHub CLI (gh) não executada neste modo."
-        Write-Host "O controle principal de autenticidade é manual:"
-        Write-Host "  gh attestation verify `"$WheelPath`" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml"
+        Write-Host "Modo remoto: digests conferidos na API; modo local: promocao exige excecao offline explicita."
+        Write-Host "  gh attestation verify `"$WheelPath`" --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref refs/tags/v$CleanVersion"
+    }
+
+    # 1. Obter uv fixado por versão e SHA-256
+    $UvExe = $null
+    if ($env:TRASLADO_PROMOCAO_OFFLINE -eq "teste" -and $env:TRASLADO_TEST_UV -and (Test-Path -LiteralPath $env:TRASLADO_TEST_UV -PathType Leaf)) {
+        $UvExe = (Resolve-Path -LiteralPath $env:TRASLADO_TEST_UV).Path
+    } else {
+        $UvDir = Join-Path $RootFull "tools\uv-$UvVersion"
+        $CandidateUv = Join-Path $UvDir "uv.exe"
+        if (Test-Path -LiteralPath $CandidateUv -PathType Leaf) {
+            $UvExe = $CandidateUv
+        } else {
+            $PlatformKey = "x86_64-pc-windows-msvc"
+            $ExpectedUvHash = $UvHashes[$PlatformKey]
+            $UvArchiveName = "uv-$PlatformKey.zip"
+            $UvUrl = "https://github.com/astral-sh/uv/releases/download/$UvVersion/$UvArchiveName"
+            New-Item -ItemType Directory -Path $UvDir -Force | Out-Null
+            $UvArchivePath = Join-Path $UvDir $UvArchiveName
+            Write-Host "Baixando uv $UvVersion ($PlatformKey)..."
+            Save-HttpsFile $UvUrl $UvArchivePath
+            $ActualUvHash = Get-FileSha256Hex $UvArchivePath
+            if ($ActualUvHash -ne $ExpectedUvHash) {
+                Remove-Item -LiteralPath $UvArchivePath -Force -ErrorAction SilentlyContinue
+                throw "SHA-256 do uv divergente: esperado $ExpectedUvHash, obtido $ActualUvHash"
+            }
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            [IO.Compression.ZipFile]::ExtractToDirectory($UvArchivePath, $UvDir)
+            Remove-Item -LiteralPath $UvArchivePath -Force -ErrorAction SilentlyContinue
+            if (-not (Test-Path -LiteralPath $CandidateUv -PathType Leaf)) {
+                $foundUv = Get-ChildItem -LiteralPath $UvDir -Filter "uv.exe" -Recurse | Select-Object -First 1
+                if (-not $foundUv) { throw "uv.exe não encontrado após extração" }
+                $UvExe = $foundUv.FullName
+            } else {
+                $UvExe = $CandidateUv
+            }
+        }
     }
 
     # 4. Criar ambiente virtual Python 3.13 gerenciado na release candidata
@@ -273,19 +290,6 @@ try {
     $ReleaseDir = Join-Path $ReleasesDir $ReleaseId
     if (Test-Path -LiteralPath $ReleaseDir) { throw "Release ja existe: $ReleaseDir" }
     New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
-
-    if ($EffectiveFromDir) {
-        $localOcrLock = Find-LocalArtifact $EffectiveFromDir @("ocr-assets.lock.json", "..\ocr-assets.lock.json")
-        if ($localOcrLock) {
-            Copy-Item -LiteralPath $localOcrLock -Destination (Join-Path $ReleaseDir "ocr-assets.lock.json") -Force
-        }
-        $localBootstrap = Find-LocalArtifact $EffectiveFromDir @("scripts\bootstrap_ocr.ps1", "bootstrap_ocr.ps1", "..\scripts\bootstrap_ocr.ps1")
-        if ($localBootstrap) {
-            $scriptsDest = Join-Path $ReleaseDir "scripts"
-            New-Item -ItemType Directory -Path $scriptsDest -Force | Out-Null
-            Copy-Item -LiteralPath $localBootstrap -Destination (Join-Path $scriptsDest "bootstrap_ocr.ps1") -Force
-        }
-    }
 
     $PythonInstallDir = Join-Path $RootFull "python"
     New-Item -ItemType Directory -Path $PythonInstallDir -Force | Out-Null
@@ -329,6 +333,8 @@ try {
     if ($ExtrasList.Count -gt 0) {
         $SetupArgs += @("--extras", ($ExtrasList -join ","))
     }
+    if ($DataRoot) { $SetupArgs += @("--data-root", $DataRoot) }
+    if ($KeepFailed) { $SetupArgs += "--keep-failed" }
     if ($NoShortcut) {
         $SetupArgs += "--no-shortcut"
     }
@@ -347,8 +353,21 @@ try {
 
     Write-Host "Executando verificação de gates e configuração (traslado setup)..."
     & $VenvPython @SetupArgs
+    if ($LASTEXITCODE -eq 4) {
+        Write-Host "Instalacao promovida; somente os atalhos falharam. Recrie-os com: & '$VenvPython' -I -m traslado shortcuts --root '$RootFull'"
+        exit 4
+    }
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Os gates de verificação reprovaram a instalação candidata; current.json não foi alterado."
+        if (-not $KeepFailed) {
+            # The candidate interpreter has exited. Clean from its base interpreter,
+            # outside the release, so Windows can remove the candidate executable.
+            try {
+                $CleanupRuntime = (& $VenvPython -I -c "import json,sys,pathlib,traslado; print(json.dumps([sys._base_executable,str(pathlib.Path(traslado.__file__).parent.parent)]))") | ConvertFrom-Json
+                & $CleanupRuntime[0] -I -c "import sys,pathlib; sys.path.insert(0,sys.argv[1]); from traslado.lifecycle import remove_unreferenced_release; remove_unreferenced_release(pathlib.Path(sys.argv[2]),pathlib.Path(sys.argv[3]))" $CleanupRuntime[1] $RootFull $ReleaseDir
+                if ($LASTEXITCODE -ne 0) { Write-Host "Limpeza pendente; marcador preservado para a proxima execucao." }
+            } catch { Write-Host "Limpeza pendente; marcador preservado para a proxima execucao." }
+        }
+        Write-Error "Setup falhou; consulte o diagnostico acima para o estado da instalacao."
         exit 2
     }
 

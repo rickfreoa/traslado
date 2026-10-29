@@ -55,15 +55,15 @@ def _parse_utc(value: object) -> datetime:
         raise RevocationError(f"Timestamp UTC inválido: {value!r}") from exc
 
 
-def default_fetch_bytes(url: str, timeout: int = 30) -> bytes:
+def default_fetch_bytes(url: str, timeout: int = 30, *, max_bytes: int = 4 * 1024 * 1024) -> bytes:
     if not url.startswith("https://"):
         raise RevocationError(f"URL não HTTPS recusada: {url}")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/octet-stream, application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = resp.read(4 * 1024 * 1024 + 1)
-            if len(data) > 4 * 1024 * 1024:
-                raise RevocationError("Resposta HTTP excede 4 MiB")
+            data = resp.read(max_bytes + 1)
+            if len(data) > max_bytes:
+                raise RevocationError(f"Resposta HTTP excede {max_bytes} bytes")
             return data
     except (urllib.error.URLError, OSError) as exc:
         raise RevocationError(f"Falha de rede ao consultar {url}: {exc}") from exc
@@ -150,9 +150,6 @@ def _bundle_matches_identity(entry: dict, repo: str, workflow: str = REVOCATION_
                              ref: str = REVOCATION_REF) -> bool:
     if not isinstance(entry, dict):
         return False
-    # Presence/declared identity only: OpenSSL parses the certificate's SAN URI.
-    # No trust chain, signature or transparency verification is claimed here.
-    import ssl
     expected_uri = f"https://github.com/{repo}/{workflow.lstrip('/')}@{ref}"
     bundle = entry.get("bundle") if isinstance(entry.get("bundle"), dict) else entry
     vm = bundle.get("verificationMaterial")
@@ -167,13 +164,70 @@ def _bundle_matches_identity(entry: dict, repo: str, workflow: str = REVOCATION_
         return False
     try:
         der = base64.b64decode(certificate["rawBytes"], validate=True)
-        with tempfile.TemporaryDirectory(prefix="traslado-cert-") as tmp:
-            path = Path(tmp) / "certificate.pem"
-            path.write_text(ssl.DER_cert_to_PEM_cert(der), encoding="ascii")
-            decoded = ssl._ssl._test_decode_cert(str(path))
-        return ("URI", expected_uri) in decoded.get("subjectAltName", ())
-    except (KeyError, ValueError, TypeError, OSError, ssl.SSLError):
+        return expected_uri in _certificate_san_uris(der)
+    except (KeyError, ValueError, TypeError, UnicodeError):
         return False
+
+
+def _der_items(data: bytes) -> list[tuple[int, bytes]]:
+    items = []
+    pos = 0
+    while pos < len(data):
+        if pos + 2 > len(data):
+            raise ValueError("DER truncado")
+        tag, size = data[pos:pos+2]
+        pos += 2
+        if tag & 31 == 31:
+            raise ValueError("Tag DER nao suportada")
+        if size & 128:
+            count = size & 127
+            if not count or count > 4 or pos + count > len(data) or data[pos] == 0:
+                raise ValueError("Comprimento DER invalido")
+            size = int.from_bytes(data[pos:pos+count], "big")
+            pos += count
+            if size < 128:
+                raise ValueError("DER nao canonico")
+        if pos + size > len(data):
+            raise ValueError("DER truncado")
+        items.append((tag, data[pos:pos+size]))
+        pos += size
+    return items
+
+
+def _der_sequence(data: bytes) -> list[tuple[int, bytes]]:
+    items = _der_items(data)
+    if len(items) != 1 or items[0][0] != 0x30:
+        raise ValueError("SEQUENCE DER esperada")
+    return _der_items(items[0][1])
+
+
+def _certificate_san_uris(der: bytes) -> list[str]:
+    # Parse only X.509 structure and SAN; this checks declared identity, not trust.
+    cert = _der_sequence(der)
+    if [t for t, _ in cert] != [0x30, 0x30, 0x03]:
+        raise ValueError("Certificado invalido")
+    tbs = _der_items(cert[0][1])
+    if len(tbs) < 7 or tbs[0][0] != 0xa0:
+        raise ValueError("Certificado v3 esperado")
+    extensions = [v for t, v in tbs[7:] if t == 0xa3]
+    if len(extensions) != 1:
+        raise ValueError("Extensoes ausentes ou duplicadas")
+    uris = []
+    seen = set()
+    for tag, value in _der_sequence(extensions[0]):
+        fields = _der_items(value)
+        if tag != 0x30 or len(fields) not in (2, 3) or fields[0][0] != 6 or fields[-1][0] != 4:
+            raise ValueError("Extensao invalida")
+        oid = fields[0][1]
+        if oid in seen or (len(fields) == 3 and fields[1] != (1, b"\xff")):
+            raise ValueError("Extensao duplicada ou invalida")
+        seen.add(oid)
+        if oid == b"\x55\x1d\x11":
+            for kind, name in _der_sequence(fields[-1][1]):
+                if kind == 0x86:
+                    uris.append(name.decode("ascii"))
+    return uris
+
 
 
 
@@ -208,6 +262,7 @@ def verify_revoked_attestation(
                 repo,
                 "--signer-workflow",
                 signer_workflow,
+                "--source-ref", REVOCATION_REF,
             ])
             if proc.returncode != 0:
                 detail = (getattr(proc, "stderr", "") or getattr(proc, "stdout", "") or "").strip()
@@ -311,6 +366,9 @@ def verify_promotion(
         raise RevocationError(f"revoked.json não é JSON válido: {exc}") from exc
 
     validate_revoked_document(doc, previous_sequence=prev_seq, now=now_dt)
+
+    if prev_state and doc["sequence"] == prev_seq and prev_state.get("revoked_sha256") != hashlib.sha256(raw_revoked).hexdigest():
+        raise RevocationError("Mesma sequence com conteudo diferente do persistido")
 
     # Persist monotonic sequence state as soon as revoked.json is authenticated and valid.
     new_state = {

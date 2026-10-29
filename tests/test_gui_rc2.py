@@ -133,6 +133,7 @@ class GUIRC2(unittest.TestCase):
         row = self.add_result(self.result('large.txt', 'x' * (129 * 1024)))
         self.pump_until(lambda: 'Prévia truncada' in self.text())
         self.assertLess(len(self.text()), 128 * 1024 + 100)
+        self.assertIn('linha truncada na prévia', self.text())
         self.assertEqual(set(self.app._row_results[row]), {'source', 'status', 'output', 'error'})
 
 if __name__ == '__main__':
