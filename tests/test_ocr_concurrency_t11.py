@@ -140,7 +140,8 @@ class OCRConcurrencyT11(unittest.TestCase):
                 with patch.object(safety.subprocess, 'Popen', wraps=subprocess.Popen) as popen:
                     safety.run_bounded([sys.executable, '-c', script], self.root, 10, log, env=given)
                 # Popen é do módulo subprocess, global: outra thread viva da suíte pode chamá-lo; vale a chamada deste argv.
-                nossas = [c for c in popen.call_args_list if c.args and c.args[0] == [sys.executable, '-c', script]]
+                # No Linux, run_bounded antepõe um shim de RLIMIT_AS; o argv do teste fica no fim.
+                nossas = [c for c in popen.call_args_list if c.args and list(c.args[0][-3:]) == [sys.executable, '-c', script]]
                 self.assertEqual(len(nossas), 1, popen.call_args_list)
                 self.assertEqual(nossas[0].kwargs['env'], given)
                 received = json.loads(log.read_text())

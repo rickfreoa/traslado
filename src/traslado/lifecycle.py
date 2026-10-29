@@ -480,12 +480,16 @@ def run_fixture_gate(
                 return False
             if (not isinstance(res, dict) or res.get("status") not in {"complete", "partial"}
                     or "error_code" in res or not res.get("output")):
+                resumo = {k: res.get(k) for k in ("status", "error_code", "error", "warning_summary")} if isinstance(res, dict) else res
+                print(f"FIXTURE_GATE_FAILED {fixture.name}: {resumo!r}", file=sys.stderr)
                 return False
             out_path = Path(res["output"])
             required = ["document.md", "document.json", "manifest.json", "LEIA-AVISOS.txt"]
             if chunks:
                 required.append("chunks/chunks.jsonl")
-            if not all((out_path / name).is_file() for name in required):
+            ausentes = [name for name in required if not (out_path / name).is_file()]
+            if ausentes:
+                print(f"FIXTURE_GATE_FAILED {fixture.name}: arquivos ausentes {ausentes}", file=sys.stderr)
                 return False
     return True
 
@@ -662,7 +666,8 @@ def setup_release(
             languages=norm_langs,
             ocr_installed=ocr_info["ocr_installed"],
         )
-    except Exception:
+    except Exception as exc:
+        print(f"DOCTOR_GATE_FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
         doctor_ok = False
 
     # (d) Conversão de fixture embutida
@@ -675,7 +680,8 @@ def setup_release(
                 tesseract=ocr_info["ocr"]["tesseract"],
                 tessdata=ocr_info["tessdata"],
             )
-    except Exception:
+    except Exception as exc:
+        print(f"FIXTURE_GATE_FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
         fixture_ok = False
 
     # (e) / (f) Revogação e candidate.json
