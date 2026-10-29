@@ -5,10 +5,13 @@ from __future__ import annotations
 import hashlib
 import codecs
 import os
+from .errors import ConversionError, ConversionTimeout
+
 from .pathguard import unsafe_link
 from pathlib import Path, PurePosixPath
 import stat
 import subprocess
+import sys
 import time
 import zipfile
 from typing import Callable
@@ -16,8 +19,9 @@ from typing import Callable
 from .model import Options
 
 
-class Cancelled(RuntimeError):
-    pass
+class Cancelled(ConversionError):
+    def __init__(self, message):
+        super().__init__("cancelled", message)
 
 
 class SnapshotLock:
@@ -70,19 +74,19 @@ def check_archive(path: Path, options: Options) -> None:
     with zipfile.ZipFile(path) as archive:
         infos = archive.infolist()
         if len(infos) > 20000 or sum(x.file_size for x in infos) > options.max_archive_bytes:
-            raise ValueError("Arquivo Office excede o limite de descompressão")
+            raise ConversionError('resource_limit', "Arquivo Office excede o limite de descompressão")
         names: set[str] = set()
         for info in infos:
             name = info.filename.replace("\\", "/")
             if name in names:
-                raise ValueError("Membro ZIP duplicado")
+                raise ConversionError('malformed', "Membro ZIP duplicado")
             names.add(name)
             if PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts or ":" in name:
-                raise ValueError("Caminho ZIP inseguro")
+                raise ConversionError('malformed', "Caminho ZIP inseguro")
             if stat.S_ISLNK(info.external_attr >> 16):
-                raise ValueError("Link ZIP não permitido")
+                raise ConversionError('malformed', "Link ZIP não permitido")
             if info.file_size > 10 * 1024 * 1024 and info.file_size / max(info.compress_size, 1) > 500:
-                raise ValueError("Taxa de compressão Office excessiva")
+                raise ConversionError('resource_limit', "Taxa de compressão Office excessiva")
             if name.lower().endswith((".xml", ".rels")):
                 with archive.open(info) as stream:
                     first = stream.read(64 * 1024)
@@ -92,7 +96,7 @@ def check_archive(path: Path, options: Options) -> None:
                     elif first.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
                         encoding = "utf-16"
                     elif b"\0" in first:
-                        raise ValueError("XML sem BOM ou codificação não suportada")
+                        raise ConversionError('malformed', "XML sem BOM ou codificação não suportada")
                     decoder = codecs.getincrementaldecoder(encoding)(errors="strict")
                     tail = ""
                     chunk = first
@@ -100,9 +104,9 @@ def check_archive(path: Path, options: Options) -> None:
                         try:
                             combined = (tail + decoder.decode(chunk)).lower()
                         except UnicodeError as exc:
-                            raise ValueError("Codificação XML não suportada") from exc
+                            raise ConversionError('malformed', "Codificação XML não suportada") from exc
                         if "<!doctype" in combined or "<!entity" in combined:
-                            raise ValueError("DTD ou entidades XML não permitidos")
+                            raise ConversionError('malformed', "DTD ou entidades XML não permitidos")
                         tail = combined[-16:]
                         chunk = stream.read(64 * 1024)
                     decoder.decode(b"", final=True)
@@ -113,9 +117,14 @@ def kill_tree(proc: subprocess.Popen) -> None:
         if proc.poll() is not None:
             return  # the Windows Job Object owns descendants on normal exit
         taskkill = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32/taskkill.exe"
-        subprocess.run([str(taskkill), "/PID", str(proc.pid), "/T", "/F"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            subprocess.run([str(taskkill), "/PID", str(proc.pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                           timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+        except (subprocess.TimeoutExpired, OSError):
+            # taskkill lento (host carregado) não pode mascarar o erro original nem deixar o filho vivo:
+            # segue para proc.kill() abaixo; o Job Object, quando presente, encerra os descendentes ao fechar.
+            pass
     else:
         import signal
         # The session/group may still have descendants after its leader exits.
@@ -136,20 +145,70 @@ def kill_tree(proc: subprocess.Popen) -> None:
         proc.wait(timeout=10)
 
 
+def group_processes(pgid: int) -> list[tuple[int, int]]:
+    """(pid, RSS bytes) of live group members; exited zombies use no RSS."""
+    if sys.platform == 'linux':
+        members = []
+        for folder in Path('/proc').iterdir():
+            if not folder.name.isdigit():
+                continue
+            try:
+                fields = (folder / 'stat').read_text().rsplit(')', 1)[1].split()
+                if int(fields[2]) == pgid and fields[0] != 'Z':
+                    rss = int((folder / 'statm').read_text().split()[1]) * os.sysconf('SC_PAGE_SIZE')
+                    members.append((int(folder.name), rss))
+            except (OSError, ValueError, IndexError):
+                continue
+        return members
+    output = subprocess.check_output(['ps', '-A', '-o', 'pid=,pgid=,rss=,stat='], text=True)
+    members = []
+    for line in output.splitlines():
+        try:
+            p, g, r, state = line.split(None, 3)
+            if int(g) == pgid and not state.startswith('Z'):
+                members.append((int(p), int(r) * 1024))
+        except (OSError, ValueError, IndexError):
+            continue
+    return members
+
+
+def _directory_bytes(root):
+    total = 0
+    for path in root.rglob('*'):
+        try:
+            if path.is_file():
+                total += path.stat().st_size
+        except FileNotFoundError:
+            continue
+    return total
+
+
 def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
                 cancel: Callable[[], bool] | None = None, env: dict | None = None,
                 max_log_bytes: int = 4 * 1024 * 1024,
                 max_memory_bytes: int = 2 * 1024 * 1024 * 1024,
                 budget_root: Path | None = None, max_directory_bytes: int | None = None,
                 on_poll: Callable[[], None] | None = None,
-                share_session: bool = False) -> int:
+                share_session: bool = False, measurements: dict | None = None) -> int:
     kwargs = ({"creationflags": subprocess.CREATE_NO_WINDOW | 0x4} if os.name == "nt"
               else {"start_new_session": not share_session})
     job = None
+    if sys.platform == 'linux':
+        # exec wrapper is safe when OCR launches from worker threads; preexec_fn is not.
+        wrapper = ('import os,resource,sys; n=int(sys.argv[1]); '
+                   'hard=resource.getrlimit(resource.RLIMIT_AS)[1]; '
+                   'n=min(n,hard) if hard!=resource.RLIM_INFINITY else n; '
+                   'resource.setrlimit(resource.RLIMIT_AS,(n,n)); os.execvpe(sys.argv[2],sys.argv[2:],os.environ)')
+        argv = [sys.executable, '-c', wrapper, str(max_memory_bytes), *argv]
     if os.name == "nt":
         from .windows_job import WindowsJob
         job = WindowsJob(max_memory_bytes)
     started = time.monotonic()
+    last_memory_poll = -float('inf')
+    peak = 0
+    if measurements is not None:
+        measurements.update(limit_bytes=max_memory_bytes, peak_bytes=0, detected_after_s=None,
+                            rlimit_applied=sys.platform == 'linux')
     with log.open("wb") as stream:
         proc = None
         try:
@@ -159,37 +218,58 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
             if job:
                 job.assign_and_resume(proc)
             while proc.poll() is None:
+                if time.monotonic() - last_memory_poll >= .25:
+                    last_memory_poll = time.monotonic()
+                    if job:
+                        peak = max(peak, job.peak_memory())
+                    elif not share_session:
+                        rss = sum(rss for _, rss in group_processes(proc.pid))
+                        peak = max(peak, rss)
+                        if rss > max_memory_bytes:
+                            if measurements is not None:
+                                measurements['detected_after_s'] = time.monotonic() - started
+                            raise ConversionError('resource_limit', 'Limite de memória excedido (monitorado)')
                 if on_poll:
                     on_poll()
                 if cancel and cancel():
                     raise Cancelled("Conversão cancelada")
                 if time.monotonic() - started > timeout:
-                    raise TimeoutError("Tempo limite excedido")
+                    if measurements is not None:
+                        measurements['detected_after_s'] = time.monotonic() - started
+                    raise ConversionTimeout("Tempo limite excedido")
                 if log.stat().st_size > max_log_bytes:
-                    raise ValueError("Log excede o limite")
+                    raise ConversionError('resource_limit', "Log excede o limite")
                 if budget_root and max_directory_bytes:
-                    total = 0
-                    for path in budget_root.rglob("*"):
-                        try:
-                            if path.is_file():
-                                total += path.stat().st_size
-                        except FileNotFoundError:
-                            continue
-                        if total > max_directory_bytes:
-                            raise ValueError("Arquivos temporários excedem limite de saída")
+                    total = _directory_bytes(budget_root)
+                    # PDF's page rasters are siblings of package inside the private
+                    # staging directory. Include only that job's OCR directories.
+                    for folder in budget_root.parent.glob('.freoa-ocr-page-*'):
+                        total += _directory_bytes(folder)
+                    if total > max_directory_bytes:
+                        raise ConversionError('resource_limit', "Arquivos temporários excedem limite de saída")
                 time.sleep(0.05)
             if log.stat().st_size > max_log_bytes:
-                raise ValueError("Log excede o limite")
+                raise ConversionError('resource_limit', "Log excede o limite")
+            if budget_root and max_directory_bytes:
+                total = _directory_bytes(budget_root) + sum(_directory_bytes(p) for p in budget_root.parent.glob('.freoa-ocr-page-*'))
+                if total > max_directory_bytes:
+                    raise ConversionError('resource_limit', "Arquivos temporários excedem limite de saída")
             return proc.returncode
         finally:
             if job:
+                peak = max(peak, job.peak_memory())
+                if measurements is not None:
+                    measurements['job_pids'] = job.process_ids()
                 job.close()  # kills descendants even if the original process exited normally
             if proc:
                 kill_tree(proc)
+            if measurements is not None:
+                measurements.update(peak_bytes=peak, elapsed_s=time.monotonic() - started,
+                                    pid=proc.pid if proc else None)
 
 
 def safe_child(root: Path, name: str) -> Path:
     path = root / name
     if path.resolve().parent != root.resolve() or path.is_symlink():
-        raise ValueError("Saída insegura")
+        raise ConversionError('malformed', "Saída insegura")
     return path

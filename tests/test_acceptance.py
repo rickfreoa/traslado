@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Independent synthetic acceptance oracles; no customer documents or downloads."""
 from __future__ import annotations
 
@@ -38,7 +40,7 @@ class Acceptance(unittest.TestCase):
         return execute(source, output or self.root / "results", options or Options())
 
     def artifact(self, result):
-        self.assertIn(result["status"], {"complete", "partial"})
+        self.assertIn(result["status"], {"complete", "partial"}, {k: result.get(k) for k in ("status", "error_code", "error", "warning_summary")})
         root = Path(result["output"])
         self.assertTrue(root.is_dir())
         self.assertTrue((root / "manifest.json").is_file())
@@ -68,11 +70,18 @@ class Acceptance(unittest.TestCase):
         import fitz
         from PIL import Image, ImageDraw, ImageFont
         image = Image.new("RGB", (1600, 900), "white")
-        font_path = Path(os.environ.get("SystemRoot", "C:/Windows")) / "Fonts/arial.ttf"
-        try:
-            font = ImageFont.truetype(str(font_path), 42)
-        except OSError:
-            font = ImageFont.truetype("DejaVuSans.ttf", 42)
+        candidatas = [Path(os.environ.get("SystemRoot", "C:/Windows")) / "Fonts/arial.ttf",
+                      Path("/System/Library/Fonts/Supplemental/Arial.ttf"), Path("/Library/Fonts/Arial.ttf"),
+                      Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"), Path("DejaVuSans.ttf")]
+        font = None
+        for candidata in candidatas:
+            try:
+                font = ImageFont.truetype(str(candidata), 42)
+                break
+            except OSError:
+                continue
+        if font is None:
+            font = ImageFont.load_default(size=42)
         draw = ImageDraw.Draw(image)
         expected = ["CONTRATO DE SERVICOS", "Valor total: 12345 reais.", "Prazo: 30 dias."]
         for index, text in enumerate(expected):

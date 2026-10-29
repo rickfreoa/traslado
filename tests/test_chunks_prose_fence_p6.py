@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """P6-7: em prosa extraída de PDF/OCR (pymupdf, tesseract) a cerca só pareia dentro do próprio bloco.
 
 Caso real: ruído de OCR iniciado em `~~~` abria uma cerca fechada centenas de páginas adiante e gerava
@@ -75,9 +77,14 @@ class ProseFenceTests(unittest.TestCase):
             spans = [(r["char_start"], r["char_end"]) for r in refs]
             tempos = []
             for _ in range(3):
-                t = time.perf_counter()
-                chunks._protected(md, [], blocks=spans, unclosed=[], confined=spans)
-                tempos.append(time.perf_counter() - t)
+                # Batch CPU time avoids scheduler delays and clock quantization
+                # on a busy host, while preserving the 4x-versus-8x criterion.
+                t = time.process_time()
+                runs = 0
+                while time.process_time() - t < .125:
+                    chunks._protected(md, [], blocks=spans, unclosed=[], confined=spans)
+                    runs += 1
+                tempos.append((time.process_time() - t) / runs)
             ch = generate_chunks(d, md, size_chars=6000, overlap_chars=600)
             self.assertLessEqual(max(c["char_count"] for c in ch), 6000)
             return min(tempos)

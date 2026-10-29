@@ -22,7 +22,9 @@ Estes contratos valem para toda a série 2.x. Mudança incompatível só na 3.0.
 | Linux | `$XDG_DATA_HOME/traslado`, ou `~/.local/share/traslado` | — |
 | macOS | `~/Library/Application Support/Traslado` | — |
 
-Estrutura: `current.json`, `candidate.json` (opcional), `releases/<release_id>/` (imutável enquanto referenciado), `state/` (estado do cliente, por exemplo `revocation.json`), `logs/`.
+Estrutura: `current.json`, `candidate.json` (opcional), `releases/<release_id>/` (imutável enquanto referenciado), `state/` (estado do cliente, por exemplo `revocation.json`, `uv-cache/`, `pending-uninstall.json`, `pending-removals/`), `logs/`. Nada do ciclo de vida é gravado fora da raiz, salvo atalhos e o `data_root` do usuário.
+
+Instaladores: sem opção, instalam e promovem; com `-NoPromote`/`--no-promote`, deixam a candidata qualificada em `candidate.json` e `current.json` intacto.
 
 ### 2.1 `current.json` e `candidate.json` (schema_version 2)
 
@@ -70,7 +72,7 @@ Saída em stdout, UTF-8, um objeto:
 
 ## 3. Erros tipados
 
-Cada resultado de arquivo em stdout (`convert`) com `status` em `failed | partial | cancelled | timeout` traz `error_code`, além do campo `error` (texto livre, já existente). Valores estáveis:
+Cada resultado de arquivo em stdout (`convert`) com `status` em `failed | cancelled | timeout` traz `error_code`, além do campo `error` (texto livre, já existente). Valores estáveis:
 
 | `error_code` | Quando |
 |---|---|
@@ -84,6 +86,8 @@ Cada resultado de arquivo em stdout (`convert`) com `status` em `failed | partia
 | `timeout` | prazo do trabalho ou do OCR excedido |
 | `cancelled` | cancelamento pelo usuário |
 | `internal` | qualquer outra exceção (sempre um defeito a corrigir; a suíte exige que nenhuma fixture caia aqui) |
+
+`partial` só traz `error_code` quando há problema localizado; avisos de fidelidade não geram código.
 
 `partial` pode trazer `error_code` do primeiro problema localizado. Erro antes de qualquer arquivo (uso, configuração) sai em stderr como `{"status": "failed", "error": "...", "error_code": "..."}`. `manifest.json` e `document.json` não ganham campo por causa disto quando a conversão é `ok`.
 
@@ -99,7 +103,7 @@ A Biblioteca trata aviso desconhecido como motivo para manter a obra em revisão
 
 ## 5. Motor experimental (extra `legacy`)
 
-- Formatos: `.doc`, `.xls`, `.ppt`, `.rtf`, `.odt`, `.ods`, `.odp`, `.epub` (e os que o anydoc reconhecer por assinatura).
+- Formatos: `.doc`, `.ppt`, `.rtf`, `.odt`, `.ods`, `.odp`, `.epub` (e os que o anydoc reconhecer por assinatura); o anydoc 0.2.4 não lê .xls.
 - Só roda com o extra `legacy` instalado e com `--engine legacy` (CLI) ou `legacy = true` (TOML); nunca substitui saída existente; o resultado leva `submotor: anydoc`, `experimental: true`, `fidelity: unverified` em `document.json` e no `manifest.json`.
 
 ## 6. `revoked.json`

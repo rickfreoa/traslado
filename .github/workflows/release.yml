@@ -1,9 +1,23 @@
 name: Release
 
-# Em push de tag v*: build em checkout limpo, SHA256SUMS, attestation e release EM RASCUNHO. Nunca publica.
+# Em push de tag v*: build em checkout limpo, SHA256SUMS, attestation e release EM RASCUNHO. Nunca publica o release.
+# PyPI fica neste mesmo workflow porque o trusted publisher cadastrado no PyPI aponta release.yml + environment pypi:
+# roda só depois da publicação manual do release (release: published) ou por despacho com tag e confirmação.
 on:
   push:
     tags: ["v*"]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      pypi_tag:
+        description: 'Somente PyPI: tag v* de release já publicada (vazio = ensaio de build, sem publicar nada)'
+        required: false
+        default: ''
+      confirmacao:
+        description: 'Para PyPI, digite PUBLICAR'
+        required: false
+        default: ''
 
 permissions: {}
 
@@ -12,14 +26,14 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 jobs:
-  release:
-    name: Release em rascunho (Windows)
+  verificar:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.pypi_tag == '')
+    # Sem permissão de escrita: build, testes e downloads não têm acesso a token OIDC nem a contents: write.
+    name: Verificação e bytes testados (Windows)
     runs-on: windows-latest
     permissions:
-      actions: read        # consultar a execução de ci.yml do mesmo commit
-      contents: write      # criar o release em rascunho
-      id-token: write      # assinatura da attestation
-      attestations: write  # gravar a attestation
+      actions: read        # consultar a execução de ci.yml do mesmo commit e baixar o pacote testado
+      contents: read
     defaults:
       run:
         shell: bash
@@ -31,6 +45,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Tag igual a v + versão
+        if: github.event_name == 'push'
         run: |
           VERSAO=$(python -c "import re,pathlib; print(re.search(r'^__version__ = \"([^\"]+)\"', pathlib.Path('src/traslado/__init__.py').read_text(encoding='utf-8'), re.M)[1])")
           echo "VERSAO=$VERSAO" >> "$GITHUB_ENV"
@@ -38,6 +53,7 @@ jobs:
             echo "Tag $GITHUB_REF_NAME diverge da versão v$VERSAO" >&2
             exit 1
           fi
+      - run: python scripts/versao.py --conferir
       - name: Inventário de terceiros (A8)
         run: python scripts/inventario.py
       - name: Testes de release e de inventário
@@ -47,11 +63,13 @@ jobs:
       - name: Build em checkout limpo (sem --permitir-sujo)
         run: python scripts/build_release.py
       - name: Nenhum byte de PyMuPDF/MuPDF no ZIP nem no wheel
-        run: python scripts/build_release.py --verificar dist/*.zip dist/*.whl
+        run: |
+          python scripts/build_release.py --verificar dist/*.zip dist/*.whl dist/*.tar.gz dist/install.*
+          python scripts/versao.py --conferir --dist dist
       - name: SHA256SUMS confere e o payload registra checkout limpo
         run: |
           (cd dist && sha256sum -c SHA256SUMS)
-          python -c "import json,zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; assert json.loads(z.read(n))['checkout_limpo'] is True" dist/traslado-"$VERSAO"-windows.zip
+          python -c "import json,zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; assert json.loads(z.read(n))['checkout_limpo'] is True" dist/traslado-$(python scripts/versao.py --imprimir)-windows.zip
       - name: Aguardar a matriz de ci.yml deste mesmo commit e exigir sucesso
         timeout-minutes: 65
         env:
@@ -73,20 +91,94 @@ jobs:
             fi
             sleep 30
           done
+      - name: Bytes liberados são os testados (pacote da execução liberada de ci.yml) e o rebuild é idêntico
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" | python scripts/ci_gate.py --id)
+          if [ "$ID" = "nenhuma" ] || [ -z "$ID" ]; then echo "Nenhuma execução liberada de ci.yml para $GITHUB_SHA" >&2; exit 1; fi
+          gh run download "$ID" --repo "$GITHUB_REPOSITORY" --name pacote --dir testado
+          (cd testado && sha256sum -c SHA256SUMS)
+          cmp dist/SHA256SUMS testado/SHA256SUMS || { echo "Rebuild deste job diverge do pacote testado no CI: release recusado." >&2; exit 1; }
+          python scripts/build_release.py --verificar testado/*.zip testado/*.whl testado/*.tar.gz testado/install.*
+          python scripts/versao.py --conferir --dist testado
+          python -c "import json,zipfile,sys,os; z=zipfile.ZipFile(sys.argv[1]); n=[x for x in z.namelist() if x.endswith('/INSTALL-PAYLOAD.json')][0]; p=json.loads(z.read(n)); assert p['checkout_limpo'] is True and p['commit']==os.environ['GITHUB_SHA'], p.get('commit')" testado/traslado-$(python scripts/versao.py --imprimir)-windows.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-bytes
+          path: testado/
+          if-no-files-found: error
+
+  publicar:
+    # Só em push de tag; único job com escrita, OIDC e attestation, e nenhum passo de build ou pip.
+    name: Attestation e release em rascunho
+    needs: verificar
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write      # criar o release em rascunho
+      id-token: write      # assinatura da attestation
+      attestations: write  # gravar a attestation
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-bytes
+          path: dist
+      - name: SHA256SUMS confere
+        run: cd dist && sha256sum -c SHA256SUMS
       - name: Attestation de proveniência dos bytes distribuídos
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: |
-            dist/traslado-${{ env.VERSAO }}-windows.zip
-            dist/traslado-${{ env.VERSAO }}-py3-none-any.whl
-            dist/SHA256SUMS
+          subject-path: dist/*
       - name: Criar release em rascunho (nunca publicar)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "dist/traslado-$VERSAO-windows.zip" \
-            "dist/traslado-$VERSAO-py3-none-any.whl" \
-            dist/SHA256SUMS \
-            --draft --verify-tag --title "Traslado $VERSAO" \
-            --notes "Rascunho gerado por workflow. Revisar SHA256SUMS e a attestation antes de publicar manualmente."
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
+            --draft --verify-tag --title "Traslado ${GITHUB_REF_NAME#v}" \
+            --notes "Fonte correspondente: https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_REF_NAME . Bytes idênticos aos testados no CI deste commit. Revisar SHA256SUMS e attestation antes de publicar manualmente."
+
+  pypi:
+    if: >-
+      (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v') && !github.event.release.prerelease) ||
+      (github.event_name == 'workflow_dispatch' && inputs.confirmacao == 'PUBLICAR' && startsWith(inputs.pypi_tag, 'v'))
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      attestations: read
+      id-token: write
+    steps:
+      - name: Obter apenas wheel e sdist da release publicada
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.pypi_tag }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,tagName > release.json
+          python -c 'import json; assert json.load(open("release.json"))["isDraft"] is False, "Release ainda é rascunho"'
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir bytes --pattern '*.whl' --pattern '*.tar.gz' --pattern SHA256SUMS
+          python - <<'PY'
+          import hashlib, os, pathlib, shutil
+          root = pathlib.Path('bytes')
+          version = os.environ['TAG'][1:]
+          names = [f'traslado-{version}-py3-none-any.whl', f'traslado-{version}.tar.gz']
+          sums = dict((line.split()[1], line.split()[0]) for line in (root/'SHA256SUMS').read_text().splitlines())
+          pathlib.Path('dist').mkdir()
+          for name in names:
+              assert hashlib.sha256((root/name).read_bytes()).hexdigest() == sums[name], f'Hash diverge: {name}'
+              shutil.copyfile(root/name, pathlib.Path('dist')/name)
+          PY
+      - name: Attestation do release.yml na tag, para cada byte a publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.pypi_tag }}
+        run: |
+          set -euo pipefail
+          for f in dist/*; do
+            gh attestation verify "$f" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref "refs/tags/$TAG"
+          done
+      - name: Trusted publishing (OIDC; nenhuma senha de PyPI)
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4

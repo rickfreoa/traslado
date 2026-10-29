@@ -11,6 +11,8 @@ import shutil
 import tempfile
 from typing import Callable
 
+from .errors import ConversionError
+
 from .model import Block, Options, finite_box
 from .runtime import managed_tesseract, managed_tessdata_for
 from .safety import run_bounded
@@ -28,7 +30,7 @@ def find_tesseract(explicit: str | None = None) -> str | None:
     if explicit:
         path = Path(explicit).expanduser()
         if not path.is_absolute() or not path.is_file():
-            raise ValueError("Informe o caminho absoluto do Tesseract")
+            raise ConversionError("missing_part", "Informe o caminho absoluto do Tesseract")
         return str(path)
     managed = managed_tesseract()
     if managed:
@@ -112,7 +114,7 @@ def recognize_blocks(image: Path, workspace: Path, options: Options,
 def _recognize(image: Path, workspace: Path, options: Options) -> tuple[Block, list[str], list[dict]]:
     exe = find_tesseract(options.tesseract)
     if not exe:
-        raise RuntimeError("OCR necessário: instale Tesseract e os idiomas solicitados; consulte doctor")
+        raise ConversionError('needs_ocr', "OCR necessário: instale Tesseract e os idiomas solicitados; consulte doctor")
     with tempfile.TemporaryDirectory(prefix="ocr-", dir=workspace) as raw:
         temp = Path(raw)
         base = temp / "result"
@@ -125,15 +127,16 @@ def _recognize(image: Path, workspace: Path, options: Options) -> tuple[Block, l
         argv.extend(["-c", "tessedit_create_txt=1", "-c", "tessedit_create_tsv=1"])
         log = temp / "stderr.log"
         code = run_bounded(argv, temp, options.ocr_timeout, log,
-                           env={**os.environ, "OMP_THREAD_LIMIT": "1"}, share_session=True)
+                           env={**os.environ, "OMP_THREAD_LIMIT": "1"}, share_session=True,
+                           max_memory_bytes=options.max_memory_mb * 1024 * 1024)
         diagnostics = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
         if code != 0 or re.search(r"failed loading language|error opening data file|couldn't load any languages|lstm requested, but not present", diagnostics, re.I):
-            raise RuntimeError("Tesseract falhou ao carregar/executar os idiomas solicitados (" + options.language + "); confira tessdata e doctor. " + diagnostics[-1500:])
+            raise ConversionError('missing_part', "Tesseract falhou ao carregar/executar os idiomas solicitados (" + options.language + "); confira tessdata e doctor. " + diagnostics[-1500:])
         text_file, tsv_file = base.with_suffix(".txt"), base.with_suffix(".tsv")
         if not text_file.is_file() or not tsv_file.is_file():
-            raise RuntimeError("OCR não produziu o contrato esperado")
+            raise ConversionError("missing_part", "OCR não produziu o contrato esperado")
         if text_file.stat().st_size + tsv_file.stat().st_size > options.max_output_bytes:
-            raise ValueError("OCR excede o limite de saída")
+            raise ConversionError('resource_limit', "OCR excede o limite de saída")
         text = text_file.read_text(encoding="utf-8").strip()
         confidences = []
         tsv = tsv_file.read_text(encoding="utf-8")
@@ -164,12 +167,13 @@ def _validate_languages(exe: str, data: str | None, options: Options, temp: Path
         argv += ["--tessdata-dir", data]
     log = temp / "languages.log"
     code = run_bounded(argv + ["--list-langs"], temp, options.ocr_timeout, log,
-                       env={**os.environ, "OMP_THREAD_LIMIT": "1"}, share_session=True)
+                       env={**os.environ, "OMP_THREAD_LIMIT": "1"}, share_session=True,
+                           max_memory_bytes=options.max_memory_mb * 1024 * 1024)
     if code != 0 or not log.is_file():
-        raise RuntimeError("Não foi possível validar os idiomas do Tesseract; confira doctor")
+        raise ConversionError('missing_part', "Não foi possível validar os idiomas do Tesseract; confira doctor")
     available = sorted({line.strip() for line in log.read_text(encoding="utf-8", errors="replace").splitlines()
                         if re.fullmatch(r"[a-zA-Z_]+", line.strip())})
     missing = sorted(set(options.language.split("+")) - set(available))
     if missing:
-        raise RuntimeError("Idiomas OCR ausentes: " + ", ".join(missing) + "; instale os modelos em tessdata ou selecione idiomas disponíveis: " + ", ".join(available))
+        raise ConversionError('missing_part', "Idiomas OCR ausentes: " + ", ".join(missing) + "; instale os modelos em tessdata ou selecione idiomas disponíveis: " + ", ".join(available))
     return available

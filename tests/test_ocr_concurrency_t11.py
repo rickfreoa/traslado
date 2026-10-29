@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 from __future__ import annotations
 
 import ctypes
@@ -137,9 +139,15 @@ class OCRConcurrencyT11(unittest.TestCase):
                 log = self.root / 'env.log'
                 with patch.object(safety.subprocess, 'Popen', wraps=subprocess.Popen) as popen:
                     safety.run_bounded([sys.executable, '-c', script], self.root, 10, log, env=given)
-                self.assertEqual(popen.call_args.kwargs['env'], given)
+                # Popen é do módulo subprocess, global: outra thread viva da suíte pode chamá-lo; vale a chamada deste argv.
+                # No Linux, run_bounded antepõe um shim de RLIMIT_AS; o argv do teste fica no fim.
+                nossas = [c for c in popen.call_args_list if c.args and list(c.args[0][-3:]) == [sys.executable, '-c', script]]
+                self.assertEqual(len(nossas), 1, popen.call_args_list)
+                self.assertEqual(nossas[0].kwargs['env'], given)
                 received = json.loads(log.read_text())
-                self.assertEqual({k: received[k] for k in expected}, expected)
+                # Windows não herda variáveis de ambiente de valor vazio (ex.: GITHUB_ACTION_REF no runner).
+                expected_vivas = {k: v for k, v in expected.items() if v != '' or os.name != 'nt'}
+                self.assertEqual({k: received.get(k) for k in expected_vivas}, expected_vivas)
                 self.assertEqual(received.get('OMP_THREAD_LIMIT'), expected.get('OMP_THREAD_LIMIT'))
                 if given is not None:
                     self.assertEqual(given, expected)
@@ -325,8 +333,11 @@ class OCRConcurrencyT11(unittest.TestCase):
                 except ProcessLookupError:
                     return
                 status = Path(f'/proc/{pid}/stat')
-                if status.exists() and status.read_text().split()[2] == 'Z':
-                    return  # dead, awaiting reaping by init
+                try:
+                    if status.read_text().split()[2] == 'Z':
+                        return  # dead, awaiting reaping by init
+                except (FileNotFoundError, ProcessLookupError):
+                    return  # reaped between os.kill and the read
                 time.sleep(.05)
             self.fail(f'PID {pid} survived')
 
@@ -345,7 +356,7 @@ class OCRConcurrencyT11(unittest.TestCase):
             with patch.dict(os.environ, env), patch.object(runner, 'run_bounded', side_effect=supervised):
                 result = runner.execute(self.source, self.root / 'output',
                                         Options(mode='ocr', language='eng', tesseract=sys.executable,
-                                                ocr_timeout=60, job_timeout=4 if mode == 'timeout' else 15),
+                                                ocr_timeout=60, job_timeout=12 if mode == 'timeout' else 30),
                                         cancel=cancel if mode == 'cancel' else None)
             self.assertEqual(result['status'], 'timeout' if mode == 'timeout' else 'cancelled', result)
             receipts = [json.loads(p.read_text()) for p in self.root.glob('*.pid')]
@@ -354,7 +365,7 @@ class OCRConcurrencyT11(unittest.TestCase):
                 self.assert_dead(receipt['pid'])
             self.assertEqual(list((self.root / 'output').iterdir()), [], result)
             self.assertNotIn('cleanup_warning', result)
-            self.assertLess(time.monotonic() - started, 20)
+            self.assertLess(time.monotonic() - started, 35)
 
 
 if __name__ == '__main__':

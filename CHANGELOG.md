@@ -2,12 +2,27 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
-## 2.0.0 (em andamento)
+## 2.0.0
 
+- **Licença**: código próprio sob `AGPL-3.0-or-later` (`LICENCE`), cabeçalhos SPDX em todos os fontes; `THIRD-PARTY.md`, inventário e política de licenças (`LICENSE-POLICY.md`) atualizados.
+- **Instalação sem administrador e sem Python prévio** em Windows, Linux e macOS (one-liner, atalho clicável ou `traslado setup`): uv e Python 3.13 gerenciados e fixados por SHA-256, dependências com `--require-hashes`, release candidata em `releases/<id>/` promovida atomicamente a `current.json` só com doctor, fixture e revogação aprovados; `-NoPromote`/`--no-promote` qualifica a candidata lado a lado sem promover.
+- **Autenticidade em dois canais**: `SHA256SUMS` e GitHub Attestations do `release.yml`; no modo remoto, digests conferidos na API de releases antes de instalar qualquer coisa (sem exigir Python no sistema); revogação por `revoked.json` atestado, com sequência monotônica e validade de 14 dias. Exceção offline só explícita (`--allow-offline-promotion` com `TRASLADO_PROMOCAO_OFFLINE=rascunho|teste`).
+- **Ciclo de vida pelo CLI**: `where`, `update`, `rollback`, `uninstall` (preserva sempre `data_root`; no Windows, o que o próprio processo prende é removido logo após a saída dele), `shortcuts`.
+- **CI** em Windows, Ubuntu e macOS, Python 3.11 a 3.14, perfis Core, Full e legacy contra o wheel instalado; mutação, contenção, E2E em contêineres Debian e Fedora mínimos, Windows e macOS, auditoria das bibliotecas dinâmicas carregadas; release em rascunho com bytes idênticos aos testados no CI; PyPI por trusted publishing só após publicação manual.
+- **GUI**: prévia quebra visualmente sequências longas sem espaço (o texto não muda).
+- Limite conhecido: no Windows Server Core a extensão nativa do PyMuPDF não carrega (DLL de sistema ausente); a instalação falha fechada, sem promover.
+
+- Extra `legacy` com anydoc 0.2.4 para DOC, RTF, ODT, ODS, ODP, PPT e EPUB,
+  somente com ativação explícita no CLI/TOML. XLS permanece não suportado.
+- Adaptador local no worker contido, erros tipados, notas, tabelas e proveniência
+  experimental em documento/manifesto; doctor informa disponibilidade.
+- Fixtures sintéticas públicas, gabaritos estruturais e mutações determinísticas.
+  A GUI ainda não oferece seleção do motor legado.
+- Detecção pelo conteúdo para PDF, OOXML, imagens cadastradas e HTML; extensão divergente gera `format_extension_mismatch`, com despacho pelo formato detectado. OLE2, RTF, ODF e EPUB são identificados para diagnóstico e recusados pelo perfil padrão.
+- Erros tipados no worker, no resultado por arquivo e no stderr do CLI, com `error_pages` para OCR indisponível; códigos de saída e mensagens anteriores preservados.
 - Distribuição e módulo `traslado`, com aliases de módulo `freoa_v6` na série 2.x.
 - Comandos `traslado` e `traslado-gui`; aliases `freoa-md` e `freoa-md-gui` mantidos.
 - Artefatos e avisos de conversão preservados; doctor informa o módulo.
-- Instalação gerenciada e atalhos serão redesenhados na E5.
 
 ## 1.1.0
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Etapa 1 do Traslado 1.1: versão única, seleção explícita, build limpo e determinístico, ausência de PyMuPDF/MuPDF e A8.
 
 Os testes de build exigem um checkout git (pulam no pacote extraído). Em CI a suíte roda contra o wheel instalado e
@@ -77,6 +79,7 @@ class Build(unittest.TestCase):
                 raise AssertionError(r.stdout + r.stderr)
         cls.zip = cls.a / f"traslado-{versao_fonte()}-windows.zip"
         cls.wheel = cls.a / f"traslado-{versao_fonte()}-py3-none-any.whl"
+        cls.sdist = cls.a / f"traslado-{versao_fonte()}.tar.gz"
 
     @classmethod
     def tearDownClass(cls):
@@ -95,13 +98,13 @@ class Build(unittest.TestCase):
 
     def test_zip_contem_exatamente_o_listado(self):
         listados = {n for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").split() if n and n[0] not in "#!"}
-        esperado = listados | {"INSTALL-PAYLOAD.json", f"dist/{self.wheel.name}"}
+        esperado = listados | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{self.wheel.name}"}
         self.assertEqual(self.membros(), esperado)
         self.assertFalse(any(n.startswith(("tests/", ".github/")) or n == "release-files.txt" for n in esperado))
         with zipfile.ZipFile(self.zip) as z:
             payload = json.loads(z.read(f"traslado-{versao_fonte()}-windows/INSTALL-PAYLOAD.json"))
         self.assertEqual(payload["checkout_limpo"], not self.flag)
-        self.assertEqual({f["path"] for f in payload["files"]}, esperado - {"INSTALL-PAYLOAD.json"})
+        self.assertEqual({f["path"] for f in payload["files"]}, esperado - {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS"})
 
     def test_arquivo_nao_listado_na_raiz_nao_entra(self):
         extra = ROOT / "ARQUIVO-NAO-LISTADO-T11.txt"
@@ -129,15 +132,28 @@ class Build(unittest.TestCase):
     def test_zip_deterministico(self):
         self.assertEqual((self.a / "SHA256SUMS").read_bytes(), (self.b / "SHA256SUMS").read_bytes())
         self.assertEqual(self.zip.read_bytes(), (self.b / self.zip.name).read_bytes())
+        self.assertEqual(self.sdist.read_bytes(), (self.b / self.sdist.name).read_bytes())
         linhas = (self.a / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
-        self.assertEqual(sorted(l.split("  ")[1] for l in linhas), sorted([self.zip.name, self.wheel.name]))
+        esperados = [
+            self.zip.name,
+            self.wheel.name,
+            self.sdist.name,
+            "PAYLOAD-SHA256SUMS",
+            "install.ps1",
+            "install.sh",
+            "requirements-core.hashes.lock",
+            "requirements-full.hashes.lock",
+            "requirements-legacy.hashes.lock",
+            "THIRD-PARTY-INVENTORY.json",
+        ]
+        self.assertEqual(sorted(l.split("  ")[1] for l in linhas), sorted(esperados))
         with zipfile.ZipFile(self.zip) as z:
             self.assertTrue(all(i.date_time == (1980, 1, 1, 0, 0, 0) and i.external_attr >> 16 == 0o100644 for i in z.infolist()))
             self.assertEqual(z.namelist(), sorted(z.namelist()))
 
     def test_sem_mupdf_no_zip_e_no_wheel(self):
         construcao = carregar("build_release")
-        self.assertEqual(construcao.verificar([self.zip, self.wheel]), 0)
+        self.assertEqual(construcao.verificar([self.zip, self.wheel, self.sdist]), 0)
 
 
 class DeteccaoMuPDF(unittest.TestCase):
@@ -183,8 +199,9 @@ class DeteccaoMuPDF(unittest.TestCase):
 
 
 class Inventario(unittest.TestCase):
-    ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "ocr-assets.lock.json", "requirements-full.lock",
-                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1"]
+    ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "README.md", "ocr-assets.lock.json", "requirements-full.lock",
+                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1", "licenses-allowlist.json",
+                "locks/requirements-legacy.hashes.lock"]
 
     def setUp(self):
         self.inv = carregar("inventario")
@@ -243,6 +260,22 @@ class Inventario(unittest.TestCase):
         div = self.alterar_inventario(lambda d: d.update(lacunas=[]))
         self.assertTrue(any("sem licença e sem lacuna declarada" in x for x in div))
         self.assertTrue(any("lacuna Linux" in x for x in div))
+
+    def test_ramo_or_exige_license_selected_admitido(self):
+        def sem_selecao(d):
+            for x in d["dependencies"]:
+                if x["name"] == "PyMuPDF":
+                    x.pop("license_selected", None)
+        self.assertTrue(any("PyMuPDF" in x or "pymupdf" in x for x in self.alterar_inventario(sem_selecao)))
+        self.assertTrue(self.inv.licenca_admitida("MIT", None, {"MIT"}))
+        self.assertFalse(self.inv.licenca_admitida("A OR B", "C", {"A", "C"}))
+        self.assertTrue(self.inv.licenca_admitida("A OR B", "A", {"A"}))
+        self.assertFalse(self.inv.licenca_admitida("A AND B", None, {"A"}))
+
+    def test_linha_de_licenca_obrigatoria_no_readme_e_third_party(self):
+        readme = self.tmp / "README.md"
+        readme.write_text(readme.read_text(encoding="utf-8").replace("Licença do código próprio: AGPL-3.0-or-later", ""), encoding="utf-8")
+        self.assertTrue(any("README.md sem a linha exata" in x for x in self.inv.verificar(self.tmp)[0]))
 
 
 @unittest.skipUnless(GIT, "exige checkout git")
@@ -362,7 +395,7 @@ class Workflows(unittest.TestCase):
         return (ROOT / ".github/workflows" / nome).read_text(encoding="utf-8")
 
     def test_todas_as_actions_fixadas_por_sha_completo(self):
-        usos = [l for n in ("ci.yml", "release.yml") for l in self.texto(n).splitlines() if re.match(r"\s*(- )?uses:", l)]
+        usos = [l for n in ("ci.yml", "release.yml", "revocation.yml", "fuzz.yml", "pypi.yml") if (ROOT / ".github/workflows" / n).is_file() for l in self.texto(n).splitlines() if re.match(r"\s*(- )?uses:", l)]
         self.assertGreaterEqual(len(usos), 8)
         for linha in usos:
             self.assertRegex(linha, r"uses:\s*[\w.-]+/[\w./-]+@[0-9a-f]{40}\s+#\s*v\d", linha)
@@ -623,14 +656,34 @@ class CiGate(unittest.TestCase):
         self.assertEqual(self.gate.decidir(self.gate.execucoes(p1)), "recusar")
         self.assertEqual(self.gate.execucoes(""), [])
 
+    def test_id_so_da_execucao_que_libera(self):
+        verde, vermelha = self.execucao(7), self.execucao(9, conclusion="failure", iniciado="2026-10-26T11:00:00Z")
+        self.assertEqual(self.gate.execucao_liberada([verde]), 7)
+        self.assertIsNone(self.gate.execucao_liberada([verde, vermelha]))
+        self.assertIsNone(self.gate.execucao_liberada([self.execucao(8, status="in_progress")]))
+
     def test_cli_imprime_a_decisao(self):
         r = subprocess.run([sys.executable, "-I", str(SCRIPTS / "ci_gate.py")], input=json.dumps({"workflow_runs": [self.execucao(1)]}),
                            capture_output=True, text=True)
         self.assertEqual(r.stdout.strip(), "liberar")
 
 
+class PerfilDaMatriz(unittest.TestCase):
+    """Canário: no perfil Full/legacy, um extrator quebrado não pode virar skip silencioso nos testes que o exigem."""
+
+    @unittest.skipUnless(os.environ.get("T11_PERFIL") in {"full", "legacy"}, "só nos perfis Full e legacy da matriz")
+    def test_modulos_do_perfil_importam(self):
+        modulos = ["fitz", "PIL.Image", "docx", "openpyxl", "pptx", "lxml.etree"]
+        for nome in modulos:
+            with self.subTest(modulo=nome):
+                importlib.import_module(nome)
+        if os.environ.get("T11_PERFIL") == "legacy":  # sem importar o pacote Python do anydoc (só o binário é carregado)
+            spec = importlib.util.find_spec("anydoc")
+            self.assertTrue(spec is not None and spec.origin, "anydoc ausente no perfil legacy")
+
+
 class Nucleo(unittest.TestCase):
-    MODULOS = ["cli", "runner", "formats", "registry", "doctor", "model", "render", "chunks", "safety", "worker", "runtime"]
+    MODULOS = ["cli", "runner", "formats", "registry", "doctor", "model", "render", "chunks", "safety", "worker", "runtime", "lifecycle", "revocation"]
 
     def test_nucleo_importa_sem_extras(self):
         """Processo limpo com os extras bloqueados: import pesado indevido no núcleo não pode virar skip no Core."""

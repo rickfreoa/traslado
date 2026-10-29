@@ -27,7 +27,7 @@ def inspect(tesseract: str | None = None, tessdata: str | None = None) -> dict:
               "runtime_config": {"path": settings["config_path"], "status": settings["config_status"]},
               "warnings": list(settings["warnings"])}
     for module, distribution in (("fitz", "PyMuPDF"), ("PIL", "Pillow"), ("docx", "python-docx"),
-                                 ("openpyxl", "openpyxl"), ("pptx", "python-pptx"), ("tkinter", None)):
+                                 ("openpyxl", "openpyxl"), ("pptx", "python-pptx"), ("anydoc", "firecrawl-anydoc"), ("tkinter", None)):
         available = importlib.util.find_spec(module) is not None
         item = {"available": available}
         if available and distribution:

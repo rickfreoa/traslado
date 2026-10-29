@@ -1,0 +1,33 @@
+{
+  "blocks": {
+    "text": 5
+  },
+  "source_blocks": {
+    "paragraph": 3,
+    "note_definition": 2
+  },
+  "notes": [
+    {
+      "label": "e1",
+      "text": "Nota primeira.",
+      "before": "Acao inicial",
+      "after": " continua.",
+      "family": "endnote"
+    },
+    {
+      "label": "e2",
+      "text": "Nota segunda.",
+      "before": "Segundo trecho",
+      "after": " termina.",
+      "family": "endnote"
+    }
+  ],
+  "ordered": [
+    "Acao inicial",
+    "Segundo trecho",
+    "Fim do relato.",
+    "[^e1]: Nota primeira.",
+    "[^e2]: Nota segunda."
+  ],
+  "_nota": "Word salva as notas de doc-fonte.rtf como notas de fim (RTF sem \\fet0); conferido por COM: Footnotes=0, Endnotes=2."
+}

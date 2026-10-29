@@ -1,4 +1,7 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 from __future__ import annotations
+import faulthandler
 import gc
 
 from pathlib import Path
@@ -16,8 +19,28 @@ REPORT = {"capabilities": {name: {"available": True} for name in ("fitz", "PIL",
           "tesseract": "managed-tesseract", "languages": ["por", "eng", "spa", "ita", "fra", "deu"], "warnings": []}
 
 
+def esperar_no_mainloop(root, condition, timeout):
+    """Espera a condição girando o mainloop (como o produto), não por laço de root.update(): no Tk 8.6 do macOS,
+    update() repetido em laço trava de forma intermitente no runner do CI. Devolve True se a condição ocorreu."""
+    deadline = time.monotonic() + timeout
+    estado = {"ok": False}
+    def tick():
+        if condition():
+            estado["ok"] = True
+            root.quit()
+        elif time.monotonic() > deadline:
+            root.quit()
+        else:
+            root.after(5, tick)
+    root.after(0, tick)
+    root.mainloop()
+    return estado["ok"]
+
 class GUIRc3(unittest.TestCase):
     def setUp(self):
+        # Vigia: travamento do Tk vira traceback de TODAS as threads e falha em 180 s, em vez de consumir o job.
+        faulthandler.dump_traceback_later(180, exit=True)
+        self.addCleanup(faulthandler.cancel_dump_traceback_later)
         # Dispose destroyed Tk fixture cycles on the UI thread before worker allocations.
         gc.collect()
         try:
@@ -42,12 +65,8 @@ class GUIRc3(unittest.TestCase):
             self.temp.cleanup()
 
     def pump(self,condition,timeout=5):
-        until=time.monotonic()+timeout
-        while time.monotonic()<until:
-            self.root.update()
-            if condition():return
-            time.sleep(.005)
-        self.fail("Tk condition timed out")
+        if not esperar_no_mainloop(self.root,condition,timeout):
+            self.fail("Tk condition timed out")
 
     def source(self):
         path=self.folder/"entrada.txt"

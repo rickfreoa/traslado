@@ -6,7 +6,9 @@ from __future__ import annotations
 from collections import Counter
 import os
 from pathlib import Path
+import gc
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -82,26 +84,26 @@ class App:
         self._row_results: dict[str, dict] = {}
         self._preview_token = 0
         self._preview_row: str | None = None
-        self.preview_label = tk.StringVar(value="Selecione um resultado para ver a prévia textual.")
-        self.result_detail = tk.StringVar(value="Selecione um arquivo para consultar os caminhos completos.")
+        self.preview_label = tk.StringVar(master=root, value="Selecione um resultado para ver a prévia textual.")
+        self.result_detail = tk.StringVar(master=root, value="Selecione um arquivo para consultar os caminhos completos.")
         self._wrap_labels = []
         self._layout_callback = None
         self._advanced_visible = False
         self._file_display_width = None
-        self.source = tk.StringVar()
-        self.output = tk.StringVar(value=str(default_output_path()))
-        self.input_kind = tk.StringVar(value="file")
-        self.config_path = tk.StringVar()
-        self.mode = tk.StringVar(value="auto")
-        self.language = tk.StringVar(value=default_language())
-        self.recursive = tk.BooleanVar(value=True)
-        self.chunk = tk.BooleanVar(value=True)
-        self.chunk_size = tk.StringVar(value="6000")
-        self.chunk_overlap = tk.StringVar(value="600")
-        self.scan_previews = tk.BooleanVar(value=False)
-        self.overwrite = tk.BooleanVar(value=False)
-        self.status = tk.StringVar(value="Verificando instalação…")
-        self.capabilities = tk.StringVar(value="Verificando capacidades e idiomas…")
+        self.source = tk.StringVar(master=root)
+        self.output = tk.StringVar(master=root, value=str(default_output_path()))
+        self.input_kind = tk.StringVar(master=root, value="file")
+        self.config_path = tk.StringVar(master=root)
+        self.mode = tk.StringVar(master=root, value="auto")
+        self.language = tk.StringVar(master=root, value=default_language())
+        self.recursive = tk.BooleanVar(master=root, value=True)
+        self.chunk = tk.BooleanVar(master=root, value=True)
+        self.chunk_size = tk.StringVar(master=root, value="6000")
+        self.chunk_overlap = tk.StringVar(master=root, value="600")
+        self.scan_previews = tk.BooleanVar(master=root, value=False)
+        self.overwrite = tk.BooleanVar(master=root, value=False)
+        self.status = tk.StringVar(master=root, value="Verificando instalação…")
+        self.capabilities = tk.StringVar(master=root, value="Verificando capacidades e idiomas…")
         self._setup_style()
         self.header = tk.Frame(root, bg=ACCENT)
         self.header.pack(fill="x")
@@ -596,7 +598,7 @@ class App:
         try:
             report = inspect(options.tesseract, options.tessdata)
             self.events.put(("doctor", report, options.language))
-            files = discover(source, output, recursive)
+            files = discover(source, output, recursive, legacy=options.legacy)
             if not files:
                 raise ValueError("Nenhum arquivo suportado encontrado")
             has_ocr_input = any(p.suffix.lower() == ".pdf" or p.suffix.lower() in IMAGE_SUFFIXES for p in files)
@@ -644,6 +646,11 @@ class App:
             with (Path(output) / "document.md").open("rb") as reader:
                 payload = reader.read(128 * 1024 + 1)
             text = payload[:128 * 1024].decode("utf-8", errors="replace")
+            # Sequência longa sem espaço paralisa o layout do Tk Text com quebra por palavra (no macOS, minutos):
+            # só na prévia, sequências acima de 200 caracteres ganham quebra de linha visual; o texto não muda.
+            bloco = 200
+            text = re.sub(r"\S{%d,}" % (bloco + 1),
+                          lambda m: "\n".join(m.group(0)[i:i + bloco] for i in range(0, len(m.group(0)), bloco)), text)
             if len(payload) > 128 * 1024:
                 text += "\n\n[Prévia truncada; consulte document.md.]"
             return text
@@ -759,14 +766,14 @@ class App:
 
 
 def main() -> None:
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except (AttributeError, OSError):
-            pass
+    from .platform import enable_hidpi
+    enable_hidpi()
     root = tk.Tk()
     App(root)
+    # Lixo cíclico da construção da janela (variáveis Tk) não pode ser finalizado por uma thread de trabalho:
+    # Variable.__del__ chama o Tcl fora da thread dele, o que trava o Tk no macOS. Coleta aqui e congela o resto.
+    gc.collect()
+    gc.freeze()
     root.mainloop()
 
 

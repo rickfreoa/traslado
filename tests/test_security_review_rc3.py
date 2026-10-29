@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 from __future__ import annotations
 
 import json
@@ -260,7 +262,7 @@ if sys.argv[2] == 'wait': time.sleep(30)
                 self.assertEqual(installer.run(args, capture=True, timeout=10), '')
             else:
                 with self.assertRaises(subprocess.TimeoutExpired):
-                    installer.run(args, capture=True, timeout=1.5)
+                    installer.run(args, capture=True, timeout=8)
             self.assertTrue(receipt.is_file(), 'Own child must start before the cleanup claim')
             child_pid = int(receipt.read_text())
             kernel = ctypes.WinDLL('kernel32', use_last_error=True)

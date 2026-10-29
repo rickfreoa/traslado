@@ -6,6 +6,57 @@ Traslado é a primeira versão pública do antigo Freoa Markdown Converter v6 (6
 
 Candidata com limitações explícitas: testes sintéticos não homologam fidelidade jurídica, e todo texto convertido sai marcado `fidelity: unverified`.
 
+Licença do código próprio: AGPL-3.0-or-later
+
+## Instalação
+
+### Controle primário: download verificado com GitHub Attestations
+
+Para verificação criptográfica de proveniência antes de executar qualquer script ou instalar o pacote, baixe os artefatos da [página de releases](https://github.com/rickfreoa/traslado/releases), confira o `SHA256SUMS` e valide a attestation oficial:
+
+```bash
+gh attestation verify traslado-2.0.0-py3-none-any.whl \
+  --repo rickfreoa/traslado \
+  --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+
+gh attestation verify install.ps1 \
+  --repo rickfreoa/traslado \
+  --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+
+gh attestation verify install.sh \
+  --repo rickfreoa/traslado \
+  --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
+```
+
+### Atalho de conveniência (one-liner)
+
+**Windows (PowerShell 5.1+):**
+
+```powershell
+irm https://github.com/rickfreoa/traslado/releases/download/v2.0.0/install.ps1 | iex
+```
+
+**Linux e macOS (`/bin/sh` POSIX):**
+
+```sh
+curl -fsSL https://github.com/rickfreoa/traslado/releases/download/v2.0.0/install.sh | sh
+```
+
+> **Aviso de segurança e assinatura:** O comando one-liner (`irm ... | iex` ou `curl ... | sh`) é **apenas um atalho de conveniência** e não substitui a verificação prévia com `gh attestation verify` e `SHA256SUMS`. Os scripts e pacotes do Traslado **não são assinados por certificado de assinatura de código** (Authenticode no Windows ou Developer ID / notarização Apple no macOS); por isso, alertas de segurança do sistema operacional (como Windows SmartScreen ou macOS Gatekeeper) podem aparecer ao baixar ou executar os instaladores clicáveis (`INSTALAR.bat`, `instalar.command`, `instalar.sh`).
+
+### Ciclo de vida pelo CLI
+
+Após a instalação, o comando `traslado` gerencia o ciclo de vida local sem exigir administrador:
+
+- `traslado where [--json]` — exibe caminhos da instalação ativa, Python gerenciado, OCR e diretórios do usuário;
+- `traslado update [--version V] [--yes]` — verifica revogação em dois canais, confere `SHA256SUMS` e promove a nova release de forma atômica;
+- `traslado rollback` — restaura a release imediatamente anterior preservada em `releases/<previous_release_id>`;
+- `traslado uninstall [--yes] [--keep-data]` — remove atalhos e a raiz de instalação gerenciada, preservando sempre os documentos do usuário (`data_root`).
+
+Implantação lado a lado: `install.ps1 -NoPromote` (ou `install.sh --no-promote`) instala e qualifica a release candidata sem tocar a instalação ativa; a promoção vem depois, pelo Python da candidata, com `traslado setup --promote --release-id <id>`.
+
+Limites conhecidos: os scripts e pacotes não têm assinatura de código (SmartScreen e Gatekeeper podem alertar); no Windows Server Core a extensão nativa do PyMuPDF não carrega e a instalação falha fechada.
+
 ## Novidades da 1.1.0
 
 A 1.1 acrescenta geometria e classificação aos artefatos estruturados, notas no DOCX e OCR concorrente, sem mudar o texto. Na amostra de qualificação (80 obras), o Markdown dos PDFs nativos saiu idêntico ao da 1.0.0; nas páginas com OCR, as palavras são as mesmas e só muda o espaçamento, porque cada parágrafo reconhecido vira uma linha (quebras internas passam a espaço). Histórico completo em [CHANGELOG.md](CHANGELOG.md).
@@ -98,6 +149,14 @@ ocr_timeout = 45
 images = true
 tables = true
 ```
+
+## Erros e avisos
+
+A assinatura do conteúdo prevalece sobre a extensão para PDF, Office, imagens e HTML reconhecidos. Uma divergência gera `format_extension_mismatch` em `document.json`, nos chunks, em `LEIA-AVISOS.txt` e no resumo do resultado. Texto e CSV continuam dependendo da extensão; formatos legados detectados são recusados pelo perfil padrão.
+
+Resultados `failed`, `partial`, `cancelled` e `timeout` incluem `error_code`: `unsupported`, `needs_ocr`, `malformed`, `encrypted`, `resource_limit`, `missing_part`, `io`, `timeout`, `cancelled` ou `internal`. `needs_ocr` inclui `error_pages` (folhas a partir de 1). O campo textual `error` é preservado. Em resultados parciais, vale o primeiro erro localizado por página; avisos de capacidade ou fidelidade sem exceção usam `unsupported`. Erros de uso/configuração saem em JSON no stderr.
+
+Os códigos de saída continuam 0 (completo), 3 (parcial), 2 (falha, cancelamento, timeout ou uso) e 130 (interrupção). `internal` identifica uma exceção ainda não classificada.
 
 ## Artefatos e limites efetivos
 
@@ -207,3 +266,25 @@ A nova conversão termina em pasta privada antes da substituição. A publicaç�
 OCR exige todos os idiomas selecionados. A rc9 consulta `--list-langs` com o executável/tessdata efetivos e verifica diagnósticos de carregamento após a execução. Não reduz silenciosamente `eng+fra+por` a `eng`. O bloco OCR registra `requested_languages`, `available_languages` e `language_validation`; uma listagem de modelos disponíveis não prova a qualidade do reconhecimento. `confidence` continua sendo média de escores do motor, não acurácia, e `fidelity` permanece `unverified`, inclusive com confiança alta. Trocas de ordinais, grafia e números exigem comparação com a página original; não são corrigidas por substituições heurísticas.
 
 A rc9 também elimina espaços iniciais da faixa de sobreposição quando o intervalo já coberto permite, conservando offsets, hashes, proteção de tabelas/código e sobreposição efetiva. Evidências rc8 são históricas, em `audit/history-rc8/`. O relatório rc9 contém os resultados atuais e os limites de validação.
+## Formatos legados (experimental)
+
+O extra opcional `legacy` combina com Core e Full: `pip install 'traslado[legacy]'`
+ou `pip install 'traslado[full,legacy]'`. Ative explicitamente com
+`traslado convert arquivo.rtf -o resultados --engine legacy`, ou `legacy = true`
+na seção `[conversion]` do TOML. A GUI ainda não oferece esse controle.
+
+DOC, RTF, ODT, ODS, ODP, PPT e EPUB usam exclusivamente o módulo compilado
+local do anydoc 0.2.4; XLS não é suportado. DOCX, XLSX e PPTX continuam com os
+extratores existentes. Não há OCR hospedado nem acesso à rede no adaptador.
+
+O resultado traz `submotor: "anydoc"`, `submotor_version: "0.2.4"`,
+`experimental: true`, `fidelity: "unverified"` e os avisos
+`legacy_engine_experimental` e `legacy_layout_unavailable`. A única folha é
+lógica (`page 1`, `route: "legacy"`): não representa paginação física nem caixas.
+Notas preservadas pelo modelo recebem chamadas `[^n]` (fim: `[^en]`) e definições
+únicas ao fim; células cobertas por mesclagem ficam vazias com aviso.
+Estilos de caracteres, paginação, geometria e fidelidade editorial não são
+garantidos. O anydoc pode perder semântica de notas de EPUB e estrutura de
+formatos binários; revisão do original continua necessária. Imagens externas
+não são baixadas. O resultado segue a publicação normal em pasta própria;
+somente `--overwrite` explícito autoriza substituir uma saída anterior.

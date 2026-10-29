@@ -30,3 +30,13 @@ test_ocr_concurrency_t11 fitz
 test_ocr_geometry_t11 fitz
 test_pdf_lines_t11 fitz
 test_scan_stamp_t11 fitz
+
+# E3: fixtures sintéticas dos formatos opcionais, importadas no corpo dos testes.
+test_detect_e3 fitz
+test_detect_e3 docx
+test_detect_e3 openpyxl
+test_detect_e3 pptx
+test_detect_e3 PIL
+test_errors_e3 fitz
+test_errors_e3 PIL
+test_errors_e3 docx

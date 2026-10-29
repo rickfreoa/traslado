@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """T11: registry contract and published-byte parity with the frozen 1.0.0 tree."""
 from __future__ import annotations
 
@@ -21,7 +23,8 @@ from traslado import doctor, formats, registry, runner
 from traslado.model import Document, Options
 
 
-EXPECTED = frozenset(".pdf .docx .xlsx .pptx .txt .md .json .xml .csv .tsv .html .htm .png .jpg .jpeg .tif .tiff .bmp .webp".split())
+EXPECTED = frozenset(".pdf .docx .xlsx .pptx .txt .md .json .xml .csv .tsv .html .htm .png .jpg .jpeg .tif .tiff .bmp .webp .doc .rtf .odt .ods .odp .ppt .epub".split())
+BUILTIN_EXPECTED = EXPECTED - frozenset(".doc .rtf .odt .ods .odp .ppt .epub".split())
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -57,7 +60,7 @@ class RegistryT11(unittest.TestCase):
         self.assertIs(runner.SUPPORTED, registry.SUPPORTED)
         self.assertIsInstance(registry.REGISTRY, tuple)
         self.assertEqual({c.id for c in registry.REGISTRY},
-                         {"pdf", "docx", "xlsx", "pptx", "image", "csv", "html", "text"})
+                         {"pdf", "docx", "xlsx", "pptx", "image", "csv", "html", "text", "legacy"})
         self.assertEqual(sum(len(c.extensions) for c in registry.REGISTRY), len(EXPECTED))
         for converter in registry.REGISTRY:
             with self.assertRaises(FrozenInstanceError):
@@ -123,21 +126,27 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
             for item in report["converters"]:
                 self.assertEqual(set(item), {"id", "extensions", "state", "code", "detail", "capabilities", "known_losses"})
                 self.assertIn(item["code"], registry.REASON_CODES)
-            self.assertEqual({p.suffix.lower() for p in runner.discover(inputs, root / "out")}, EXPECTED)
+            self.assertEqual({p.suffix.lower() for p in runner.discover(inputs, root / "out")}, BUILTIN_EXPECTED)
+            self.assertEqual({p.suffix.lower() for p in runner.discover(inputs, root / "out", legacy=True)}, EXPECTED)
             for source in inputs.iterdir():
                 supported = source.suffix.lower() in EXPECTED
                 # Single files keep the 1.0.0 path: execute refuses them with the established message.
                 self.assertEqual(runner.discover(source, root / "out"), [source])
-                # A byte-limit refusal proves format validation accepted the input,
-                # without invoking a parser on the intentionally invalid fixtures.
+                # E3 must bound input before reading signatures, even for an
+                # unknown extension (whose content might be supported).
                 result = runner.execute(source, root / "out", Options(max_input_bytes=1))
-                self.assertEqual(result["error"], "Entrada excede limite de bytes" if supported else
-                                 "Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
+                self.assertEqual(result["error"], "Entrada excede limite de bytes")
+                self.assertEqual(result["error_code"], "resource_limit")
+                if not supported:
+                    result = runner.execute(source, root / "out")
+                    self.assertEqual(result["error_code"], "unsupported")
+                    self.assertEqual(result["error"],
+                                     "Formato não suportado; use PDF, DOCX, XLSX, PPTX, texto, CSV, HTML ou imagem")
             # Directory traversal and single-file discovery use the same inventory.
             nested = inputs / "nested"
             nested.mkdir()
             (nested / "nested.TXT").write_bytes(b"nested")
-            self.assertEqual(len(runner.discover(inputs, root / "out", recursive=True)), len(EXPECTED) + 1)
+            self.assertEqual(len(runner.discover(inputs, root / "out", recursive=True)), len(BUILTIN_EXPECTED) + 1)
 
     def test_unavailable_does_not_short_circuit_worker(self):
         with scratch() as folder:
@@ -156,9 +165,41 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
 
     @unittest.skipUnless(HAS_V100, "requer checkout git com a tag v1.0.0")
     def test_original_branch_bodies_are_unchanged(self):
+        class BeforeE3(ast.NodeTransformer):
+            """Ignore only E3's typed failures and localized-error bookkeeping.
+
+            Published-byte parity below remains the behavioral preservation gate.
+            """
+            def visit_Raise(self, node):
+                self.generic_visit(node)
+                if isinstance(node.exc, ast.Call) and isinstance(node.exc.func, ast.Name) and node.exc.func.id == 'ConversionError':
+                    node.exc = ast.Call(func=ast.Name(id='ValueError', ctx=ast.Load()),
+                                        args=node.exc.args[1:], keywords=[])
+                return node
+
+            def visit_Expr(self, node):
+                if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name) and node.value.func.id in {'localized', '_load_image'}:
+                    return None
+                return self.generic_visit(node)
+
+            def visit_Call(self, node):
+                self.generic_visit(node)
+                if isinstance(node.func, ast.Name) and node.func.id == '_check_ooxml':
+                    return ast.Call(func=ast.Name(id='check_archive', ctx=ast.Load()), args=node.args[:2], keywords=[])
+                if isinstance(node.func, ast.Name) and node.func.id == '_parser_iter':
+                    return node.args[0]
+                if isinstance(node.func, ast.Name) and node.func.id == '_parser_call':
+                    call = node.args[0]
+                    return call.body if isinstance(call, ast.Lambda) else ast.Call(func=call, args=node.args[1:], keywords=node.keywords)
+                if isinstance(node.func, ast.Name) and node.func.id == 'exception_name':
+                    return ast.Attribute(value=ast.Call(func=ast.Name(id='type', ctx=ast.Load()),
+                                                       args=node.args, keywords=[]),
+                                         attr='__name__', ctx=ast.Load())
+                return node
+
         original = ast.parse(subprocess.check_output(
             ["git", "show", "v1.0.0:src/freoa_v6/formats.py"], cwd=ROOT).decode("utf-8"))
-        current = ast.parse(Path(formats.__file__).read_text(encoding="utf-8"))
+        current = BeforeE3().visit(ast.parse(Path(formats.__file__).read_text(encoding="utf-8")))
         extract = next(n for n in original.body if isinstance(n, ast.FunctionDef) and n.name == "extract")
         branch = next(n for n in extract.body if isinstance(n, ast.If) and ast.unparse(n.test) == "suffix == '.docx'")
         for name in ("docx", "xlsx", "pptx", "image"):
@@ -239,7 +280,7 @@ assert not {'fitz', 'PIL', 'docx', 'openpyxl', 'pptx'} & set(sys.modules)
                 ".htm": "<p>BEFORE &amp; AFTER 12345</p>",
             }.items():
                 (inputs / ("record" + suffix)).write_text(content, encoding="utf-8")
-            self.assertEqual({p.suffix for p in inputs.iterdir()}, EXPECTED)
+            self.assertEqual({p.suffix for p in inputs.iterdir()}, BUILTIN_EXPECTED)
             code = """
 import json,sys,hashlib,subprocess
 from dataclasses import asdict
@@ -275,7 +316,7 @@ print(json.dumps(results))
                 outputs.append(json.loads(proc.stdout))
             compared = []
             # DOCX changes on purpose in A5a (notes, per-species warnings) and has its own tests.
-            for suffix in sorted(EXPECTED - {".docx"}):
+            for suffix in sorted(BUILTIN_EXPECTED - {".docx"}):
                 for relative in ("document.md", "document.json", "document-layout.json", "chunks/chunks.jsonl"):
                     payloads = [(Path(out[suffix]) / relative).read_bytes() for out in outputs]
                     if relative == "document.json":

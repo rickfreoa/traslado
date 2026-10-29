@@ -1,11 +1,24 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """Physical-window/DPI simulations and complete-path result accessibility."""
 from pathlib import Path
+import faulthandler
 import tkinter as tk
 from tkinter import ttk
 import unittest
 from unittest.mock import patch
 
 from traslado.gui import App
+
+
+
+def setUpModule():
+    # Vigia do módulo: travamento do Tk vira traceback de todas as threads e falha, em vez de consumir o job.
+    faulthandler.dump_traceback_later(600, exit=True)
+
+
+def tearDownModule():
+    faulthandler.cancel_dump_traceback_later()
 
 
 class GUIRc6(unittest.TestCase):
@@ -136,7 +149,7 @@ class GUIRc6(unittest.TestCase):
         if root.winfo_screenheight()-self.MARGEM_DE_TELA<self.ALTURA_JANELA_PARA_DUAS_LINHAS_2X:
             self.skipTest(f"tela {root.winfo_screenwidth()}x{root.winfo_screenheight()} abaixo de {self.ALTURA_JANELA_PARA_DUAS_LINHAS_2X+self.MARGEM_DE_TELA} px de altura: não há espaço para duas linhas em escala 2x")
         self.add_results(root,app)
-        self.assertGreater(root.winfo_height(),650)
+        self.assertGreaterEqual(root.winfo_height(),650)  # o gerenciador de janelas pode não crescer além do pedido; o critério é o de duas linhas visíveis, abaixo
         self.assertLessEqual(root.minsize()[1],root.winfo_screenheight()-self.MARGEM_DE_TELA)
         rows=app.results.get_children()
         visible=[app.results.bbox(row) for row in rows if app.results.bbox(row)]

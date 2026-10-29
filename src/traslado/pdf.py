@@ -13,6 +13,8 @@ import re
 import tempfile
 from typing import Any
 
+from .errors import ConversionError, exception_name, localized
+
 from .model import Block, Document, Options, Page, finite_box, text_metrics
 from .ocr import recognize, recognize_blocks
 
@@ -62,10 +64,10 @@ def render_page(page: Any, path: Path, options: Options, clip: Any = None, *, ad
     rect = clip or page.rect
     scale = options.dpi / 72
     if (rect.width * scale + 1) * (rect.height * scale + 1) > options.max_pixels:
-        raise ValueError("Página excede limite de pixels; reduza o DPI")
+        raise ConversionError('resource_limit', "Página excede limite de pixels; reduza o DPI")
     pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), clip=clip, alpha=False)
     if pix.width * pix.height > options.max_pixels:
-        raise ValueError("Renderização excede limite de pixels")
+        raise ConversionError('resource_limit', "Renderização excede limite de pixels")
     if admit is None:
         pix.save(path)
     else:
@@ -80,10 +82,10 @@ def render_scan_preview(page: Any, path: Path, options: Options) -> None:
     rect = page.rect
     scale = min(options.dpi / 72, 1200 / max(rect.width, rect.height))
     if (rect.width * scale + 1) * (rect.height * scale + 1) > options.max_pixels:
-        raise ValueError("Prévia excede limite de pixels")
+        raise ConversionError('resource_limit', "Prévia excede limite de pixels")
     pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
     if pix.width * pix.height > options.max_pixels:
-        raise ValueError("Prévia excede limite de pixels")
+        raise ConversionError('resource_limit', "Prévia excede limite de pixels")
     pix.save(path, jpg_quality=85)
 
 
@@ -262,8 +264,12 @@ def _mark_furniture(document: Document, heights: list[tuple[float, Any]]) -> Non
 def extract(path: Path, workspace: Path, options: Options, document: Document) -> None:
     try:
         import fitz
-    except ImportError as exc:
-        raise RuntimeError("Instale o perfil PDF: pip install .[pdf]") from exc
+    except ModuleNotFoundError as exc:
+        if exc.name and exc.name.split(".")[0] not in {"fitz", "pymupdf"}:
+            raise ConversionError('missing_part', "PyMuPDF instalado, mas falhou ao carregar: " + str(exc)) from exc
+        raise ConversionError('unsupported', "Instale o perfil PDF: pip install .[pdf]") from exc
+    except ImportError as exc:  # pacote presente, biblioteca nativa não carregou (DLL ausente no sistema, por exemplo)
+        raise ConversionError('missing_part', "PyMuPDF instalado, mas falhou ao carregar: " + str(exc)) from exc
     assets = workspace / "assets"
     assets.mkdir(exist_ok=True)
     workers = min(options.ocr_workers, os.cpu_count() or 1)
@@ -297,6 +303,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                 page.blocks.extend(ocr_blocks)
                 page.warnings.extend(warnings)
             except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                localized(document, page, ConversionError("malformed", str(exc)) if isinstance(exc, RuntimeError) and not isinstance(exc, ConversionError) else exc)
                 page.warnings.append("ocr_failed: " + str(exc))
                 page.blocks.extend(fallback)
             finally:
@@ -308,14 +315,14 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
 
         def admit(size):
             if size > options.max_output_bytes:
-                raise ValueError("PNG OCR excede limite de saída")
+                raise ConversionError('resource_limit', "PNG OCR excede limite de saída")
             while live_bytes + size > options.max_output_bytes:
                 finish()
 
         if pdf.needs_pass:
-            raise ValueError("PDF protegido por senha não é suportado")
+            raise ConversionError('encrypted', "PDF protegido por senha não é suportado")
         if len(pdf) > options.max_pages:
-            raise ValueError("PDF excede limite de páginas")
+            raise ConversionError('resource_limit', "PDF excede limite de páginas")
         heights = []
         for index, source in enumerate(pdf, 1):
             heights.append((source.rect.height, source.rotation_matrix))
@@ -390,6 +397,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                     future = pool.submit(run)
                     pending.append((future, page, blocks, image, size, extras, notes))
                 except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                    localized(document, page, ConversionError("malformed", str(exc)) if isinstance(exc, RuntimeError) and not isinstance(exc, ConversionError) else exc)
                     image.unlink(missing_ok=True)
                     page.warnings.append("ocr_failed: " + str(exc))
                     page.blocks.extend(blocks)
@@ -402,6 +410,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                                                  details={"lossy_preview": True, "long_edge_pixels": 1200}))
                         page.metrics["scan_previews_exported"] = True
                     except (ValueError, OSError, RuntimeError) as exc:
+                        localized(document, page, ConversionError("malformed", str(exc)) if isinstance(exc, RuntimeError) and not isinstance(exc, ConversionError) else exc)
                         preview.unlink(missing_ok=True)
                         notes.append("scan_preview_failed: " + str(exc))
                 if metrics["suspect"]:
@@ -425,7 +434,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                     for table in detected.tables:
                         rows = [["" if c is None else str(c) for c in row] for row in table.extract()]
                         if sum(len(r) for r in rows) > options.max_cells:
-                            raise ValueError("Tabela excede limite de células")
+                            raise ConversionError('resource_limit', "Tabela excede limite de células")
                         box = finite_box(table.bbox)
                         if any(b.kind == "text" and _intersects(b, box) and not _contained(b, box) for b in blocks):
                             page.warnings.append("pdf_table_overlap_text_preserved_possible_duplication")
@@ -447,7 +456,8 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         if any(cell is None for row in table.rows for cell in row.cells):
                             page.warnings.append("pdf_table_merged_cells_need_review")
                 except Exception as exc:
-                    page.warnings.append("table_detection_failed: " + type(exc).__name__)
+                    localized(document, page, exc if isinstance(exc, ConversionError) else ConversionError("malformed", str(exc)))
+                    page.warnings.append("table_detection_failed: " + exception_name(exc))
             blocks, columns = reading_order(blocks, rect.width)
             if columns:
                 page.warnings.append("reading_order_two_column_heuristic")
@@ -466,6 +476,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                                                      details={"lossy_preview": True, "long_edge_pixels": 1200}))
                             page.metrics["scan_previews_exported"] = True
                         except (ValueError, OSError, RuntimeError) as exc:
+                            localized(document, page, ConversionError("malformed", str(exc)) if isinstance(exc, RuntimeError) and not isinstance(exc, ConversionError) else exc)
                             preview.unlink(missing_ok=True)
                             page.warnings.append("scan_preview_failed: " + str(exc))
                     continue
@@ -477,6 +488,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                         page.blocks.append(Block("image", bbox=finite_box(box),
                                                  asset=f"assets/{image_path.name}", engine="pymupdf"))
                     except (ValueError, OSError, RuntimeError) as exc:
+                        localized(document, page, ConversionError("malformed", str(exc)) if isinstance(exc, RuntimeError) and not isinstance(exc, ConversionError) else exc)
                         image_path.unlink(missing_ok=True)
                         page.warnings.append("image_render_failed: " + str(exc))
                 region_has_native = any(_within(b, box) for b in blocks if b.kind == "text")
@@ -494,6 +506,7 @@ def extract(path: Path, workspace: Path, options: Options, document: Document) -
                             page.route = "native+region_ocr"
                         page.warnings.extend(warnings)
                     except (RuntimeError, TimeoutError, ValueError, OSError) as exc:
+                        localized(document, page, ConversionError("malformed", str(exc)) if isinstance(exc, RuntimeError) and not isinstance(exc, ConversionError) else exc)
                         page.warnings.append("region_ocr_failed: " + str(exc))
                     if not options.images:
                         image_path.unlink(missing_ok=True)

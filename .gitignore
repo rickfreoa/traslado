@@ -4,8 +4,13 @@ __pycache__/
 .venv/
 build/
 work/
+tests/_medicoes/
 ocr-cache/
 *.egg-info/
 dist/*
 !dist/.gitignore
 INSTALL-PAYLOAD.json
+
+pytest-cache-files-*/
+
+.t11-logs/

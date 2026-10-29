@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Ricardo Peres Freoa
 """P6-3: cerca ou <table> sem fechamento deixa de proteger até o fim do documento; vale até o fim do bloco de origem."""
 from __future__ import annotations
 
@@ -179,9 +181,12 @@ class UnclosedTests(unittest.TestCase):
             blocos_ref = [(r["char_start"], r["char_end"]) for r in layout(d).refs]
             tempos = []
             for _ in range(3):
-                t = time.perf_counter()
-                chunks._protected(md, [], blocks=blocos_ref, unclosed=[])
-                tempos.append(time.perf_counter() - t)
+                t = time.process_time()
+                runs = 0
+                while time.process_time() - t < .125:
+                    chunks._protected(md, [], blocks=blocos_ref, unclosed=[])
+                    runs += 1
+                tempos.append((time.process_time() - t) / runs)
             return leituras[0], min(tempos)
 
         (l1, t1), (l2, t2) = medir(200), medir(800)

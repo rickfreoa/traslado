@@ -38,6 +38,7 @@ class Options:
     advanced_timeout: int = 90
     max_memory_mb: int = 2048
     furniture: str = "mark"
+    legacy: bool = False
 
     def __post_init__(self) -> None:
         if self.furniture not in ("off", "mark"):
@@ -58,7 +59,7 @@ class Options:
                 raise ValueError(f"Limite inválido: {name}")
         if self.chunk_overlap_chars >= self.chunk_size_chars:
             raise ValueError("A sobreposição dos chunks deve ser menor que o tamanho")
-        for name in ("tables", "images", "scan_previews", "chunks", "overwrite"):
+        for name in ("legacy", "tables", "images", "scan_previews", "chunks", "overwrite"):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"Opção inválida: {name}")
         for name in ("tesseract", "tessdata", "advanced_kit"):
@@ -101,9 +102,17 @@ class Document:
     converter_version: str = __version__
     duration_seconds: float = 0
     options: dict[str, Any] = field(default_factory=dict)
+    submotor: str | None = None
+    submotor_version: str | None = None
+    experimental: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
+        for key in ("submotor", "submotor_version", "experimental"):
+            if data[key] is None:
+                data.pop(key)
+        if not data["options"].get("legacy"):
+            data["options"].pop("legacy", None)
         for page in data["pages"]:
             for block in page["blocks"]:
                 # Line geometry is internal to PDF analysis, never an output payload.

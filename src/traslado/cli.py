@@ -8,10 +8,21 @@ from pathlib import Path
 import sys
 import tomllib
 
+from .errors import ConversionError, classify
+
 from . import __version__
 from .doctor import inspect
+from . import lifecycle
 from .model import Options
+from . import platform as plat
 from .runner import discover, execute
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message):
+        print(json.dumps({"status": "failed", "error": message, "error_code": "malformed"},
+                         ensure_ascii=False), file=sys.stderr)
+        self.exit(2)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if stream is not None and hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="Traslado — conversão local")
+    parser = _Parser(description="Traslado — conversão local")
     parser.add_argument("--version", action="version", version=__version__)
     sub = parser.add_subparsers(dest="command", required=True)
     doctor = sub.add_parser("doctor", help="Verificar instalação e capacidades")
@@ -31,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     convert.add_argument("-o", "--output", type=Path, required=True)
     convert.add_argument("--recursive", action="store_true")
     convert.add_argument("--mode", choices=["auto", "native", "ocr"])
+    convert.add_argument("--engine", choices=["legacy"], help="Ativar motor legado experimental local")
     convert.add_argument("--furniture", choices=["off", "mark"])
     convert.add_argument("--language")
     convert.add_argument("--dpi", type=int)
@@ -50,6 +62,47 @@ def main(argv: list[str] | None = None) -> int:
     convert.add_argument("--chunk-overlap-chars", type=int)
     convert.add_argument("--no-tables", action="store_true", help="Desativar detecção geométrica de tabelas PDF; células Office/CSV são preservadas")
     sub.add_parser("gui", help="Abrir interface")
+
+    setup = sub.add_parser("setup", help="Configurar release candidata, gates e promoção")
+    shortcuts = sub.add_parser("shortcuts", help="Recriar atalhos da instalacao promovida")
+    shortcuts.add_argument("--root", type=Path)
+    setup.add_argument("--keep-failed", action="store_true")
+    setup.add_argument("--release-id")
+    setup.add_argument("--expected-digests", type=Path)
+    setup.add_argument("--check-active", action="store_true")
+    setup.add_argument("--expected-version", default=__version__)
+    setup.add_argument("--profile", choices=["Full", "Core", "full", "core"], default="Full")
+    setup.add_argument("--extras")
+    setup.add_argument("--languages", default=",".join(lifecycle.DEFAULT_LANGUAGES))
+    setup.add_argument("--no-shortcut", action="store_true")
+    setup.add_argument("--root", type=Path)
+    setup.add_argument("--promote", action=argparse.BooleanOptionalAction, default=False)
+    setup.add_argument("--allow-offline-promotion", action="store_true")
+    setup.add_argument("--from-dir", type=Path)
+    setup.add_argument("--skip-ocr", action="store_true")
+    setup.add_argument("--ocr-cache", type=Path)
+    setup.add_argument("--data-root", type=Path)
+
+    where = sub.add_parser("where", help="Localizar instalação ativa e candidata")
+    where.add_argument("--json", action="store_true")
+    where.add_argument("--root", type=Path)
+
+    update = sub.add_parser("update", help="Atualizar instalação pelo GitHub Releases")
+    update.add_argument("--version")
+    update.add_argument("--yes", action="store_true")
+    update.add_argument("--root", type=Path)
+    update.add_argument("--from-dir", type=Path)
+    update.add_argument("--allow-offline-promotion", action="store_true",
+                        help="Só com --from-dir e TRASLADO_PROMOCAO_OFFLINE=rascunho|teste")
+
+    uninstall = sub.add_parser("uninstall", help="Remover atalhos e raiz gerenciada")
+    uninstall.add_argument("--yes", action="store_true")
+    uninstall.add_argument("--keep-data", action="store_true")
+    uninstall.add_argument("--root", type=Path)
+
+    rollback = sub.add_parser("rollback", help="Reverter para a release anterior")
+    rollback.add_argument("--root", type=Path)
+
     args = parser.parse_args(argv)
     try:
         if args.command == "doctor":
@@ -59,10 +112,77 @@ def main(argv: list[str] | None = None) -> int:
             from .gui import main as gui
             gui()
             return 0
+        managed = getattr(args, "root", None) or plat.managed_root()
+        if args.command in {"where", "setup", "update", "uninstall", "rollback", "shortcuts"}:
+            lifecycle.prune_releases(managed, pending_only=True)
+            if (managed / "state/pending-uninstall.json").is_file():
+                # Só o próprio uninstall retoma a remoção pendente; setup/update de nova instalação a descartam;
+                # where, rollback e shortcuts não alteram nada por causa dela.
+                if args.command == "uninstall":
+                    result = lifecycle.uninstall_managed(root=managed, yes=True)
+                    print(json.dumps(result, ensure_ascii=False))
+                    return 0
+                if args.command in {"setup", "update"}:
+                    lifecycle.discard_pending_uninstall(managed)
+        if args.command == "shortcuts":
+            root = args.root or plat.managed_root()
+            current = plat.read_current(root)
+            if not current:
+                raise ValueError("current.json ilegivel ou ausente")
+            plat.refresh_shortcuts(root, current)
+            return 0
+        if args.command == "setup":
+            if args.check_active:
+                return 0 if lifecycle.active_release_matches(args.root or plat.managed_root(), args.expected_version,
+                    "Core" if args.profile.lower() == "core" else "Full", args.extras, args.languages) else 1
+            manifest = lifecycle.setup_release(
+                root=args.root,
+                release_id=args.release_id,
+                profile="Core" if args.profile.lower() == "core" else "Full",
+                extras=args.extras,
+                languages=args.languages,
+                no_shortcut=args.no_shortcut,
+                keep_failed=args.keep_failed,
+                promote=bool(args.promote),
+                allow_offline_promotion=args.allow_offline_promotion,
+                skip_ocr=args.skip_ocr,
+                from_dir=args.from_dir,
+                expected_digests=json.loads(args.expected_digests.read_text(encoding="utf-8-sig")) if args.expected_digests else None,
+                ocr_cache=args.ocr_cache,
+                data_root=args.data_root,
+            )
+            print(json.dumps(manifest, ensure_ascii=False, indent=2))
+            gates = manifest.get("gates", {})
+            if gates.get("doctor") is not True or gates.get("fixture") is not True:
+                return 2
+            return 0
+        if args.command == "where":
+            info = plat.where(args.root)
+            if args.json:
+                print(json.dumps(info, ensure_ascii=False))
+            else:
+                print(json.dumps(info, ensure_ascii=False, indent=2))
+            return 0 if info.get("current") is not None else 1
+        if args.command == "update":
+            if args.allow_offline_promotion and args.from_dir is None:
+                raise ValueError("--allow-offline-promotion exige --from-dir")
+            res = lifecycle.update_release(version=args.version, yes=args.yes, root=args.root, from_dir=args.from_dir,
+                                           allow_offline_promotion=args.allow_offline_promotion)
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "uninstall":
+            res = lifecycle.uninstall_managed(root=args.root, yes=args.yes, keep_data=args.keep_data)
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "rollback":
+            target_root = args.root if args.root is not None else plat.managed_root()
+            restored = plat.rollback(target_root)
+            print(json.dumps(restored, ensure_ascii=False, indent=2))
+            return 0
         values = {}
         if args.config:
             if args.config.stat().st_size > 64 * 1024:
-                raise ValueError("Configuração excede limite")
+                raise ConversionError('resource_limit', "Configuração excede limite")
             data = tomllib.loads(args.config.read_text(encoding="utf-8"))
             if set(data) != {"conversion"} or not isinstance(data["conversion"], dict):
                 raise ValueError("Use somente a seção [conversion]")
@@ -78,21 +198,33 @@ def main(argv: list[str] | None = None) -> int:
             values["scan_previews"] = True
         if args.no_tables:
             values["tables"] = False
+        if args.engine == "legacy":
+            values["legacy"] = True
         options = Options(**values)
-        files = discover(args.source, args.output, args.recursive)
+        files = discover(args.source, args.output, args.recursive, legacy=options.legacy)
         if not files:
-            raise ValueError("Nenhum arquivo suportado encontrado")
+            raise ConversionError("unsupported", "Nenhum arquivo suportado encontrado")
         results = []
         for file in files:
             result = execute(file, args.output, options)
+            if result.get("error_code") == "needs_ocr":
+                if sys.platform == "darwin":
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract no macOS, execute: brew install tesseract"
+                elif sys.platform != "win32":
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract no Linux, execute: sudo apt install tesseract-ocr (ou sudo dnf install tesseract)"
+                else:
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Configure o Tesseract local ou reinstale o perfil Full."
             results.append(result)
             print(json.dumps(result, ensure_ascii=False), flush=True)
         statuses = {r["status"] for r in results}
         return 2 if statuses & {"failed", "cancelled", "timeout"} else 3 if "partial" in statuses else 0
+    except lifecycle.ShortcutError as exc:
+        print(str(exc), file=sys.stderr)
+        return 4
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
-        print(json.dumps({"status": "failed", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        print(json.dumps({"status": "failed", "error": str(exc), "error_code": ("malformed" if isinstance(exc, (ValueError, TypeError)) and not isinstance(exc, ConversionError) else classify(exc).code)}, ensure_ascii=False), file=sys.stderr)
         return 2
 
 

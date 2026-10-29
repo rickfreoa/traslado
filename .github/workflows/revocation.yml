@@ -1,0 +1,89 @@
+name: Revocation
+
+# Reemite semanalmente (e por despacho manual) o documento revoked.json com sequence monotônica
+# e validade de 14 dias, gera attestation e publica na release fixa 'revocation'.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: traslado-revocation
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  revocation:
+    name: Emitir revoked.json e publicar attestation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+      - name: Instalar emissor para execucao isolada
+        run: python -m pip install --no-deps .
+      - name: Obter sequence anterior e emitir novo revoked.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LATEST_STATUS=$(curl -sS -L -H "Authorization: Bearer $GH_TOKEN" -o /tmp/product-latest.json -w '%{http_code}' https://api.github.com/repos/rickfreoa/traslado/releases/latest)
+          case "$LATEST_STATUS" in
+            200) PRODUCT_LATEST=$(python -c "import json; print(json.load(open('/tmp/product-latest.json'))['tag_name'])"); test "$PRODUCT_LATEST" != revocation ;;
+            404) PRODUCT_LATEST=""; echo "Sem release de produto publicada; conferencia de latest dispensada" ;;
+            *) echo "Falha ao consultar latest: HTTP $LATEST_STATUS" >&2; exit 1 ;;
+          esac
+          echo "PRODUCT_LATEST=$PRODUCT_LATEST" >> "$GITHUB_ENV"
+          STATUS=$(curl -sS -L -o /tmp/previous-revoked.json -w '%{http_code}' \
+            https://github.com/rickfreoa/traslado/releases/download/revocation/revoked.json)
+          case "$STATUS" in
+            200) PREV_SEQ=$(python -c "import json; s=json.load(open('/tmp/previous-revoked.json', encoding='utf-8'))['sequence']; assert type(s) is int and s > 0; print(s)") ;;
+            404)
+              RELEASE_STATUS=$(curl -sS -L -H "Authorization: Bearer $GH_TOKEN" -o /tmp/revocation-release.json -w '%{http_code}' https://api.github.com/repos/rickfreoa/traslado/releases/tags/revocation)
+              case "$RELEASE_STATUS" in
+                404) PREV_SEQ=0 ;;
+                200) echo "Release revocation existe sem revoked.json; emissao recusada" >&2; exit 1 ;;
+                *) echo "Falha ao consultar release revocation: HTTP $RELEASE_STATUS" >&2; exit 1 ;;
+              esac ;;
+            *) echo "Falha ao obter sequencia anterior: HTTP $STATUS" >&2; exit 1 ;;
+          esac
+          echo "Sequência anterior: $PREV_SEQ"
+          python -I -m traslado.revocation \
+            --input revocation/revoked-list.json \
+            --previous-sequence "$PREV_SEQ" \
+            --output dist/revoked.json
+          cat dist/revoked.json
+      - name: Attestation de proveniência de revoked.json
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: dist/revoked.json
+      - name: Publicar asset na release fixa revocation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view revocation >/dev/null 2>&1; then
+            gh release upload revocation dist/revoked.json --clobber
+          else
+            gh release create revocation dist/revoked.json --latest=false \
+              --title "Revogação — Traslado" \
+              --notes "Canal contínuo de revogação (revoked.json) reemitido automaticamente."
+          fi
+          if [ -n "$PRODUCT_LATEST" ]; then
+            test "$(gh api repos/rickfreoa/traslado/releases/latest --jq .tag_name)" = "$PRODUCT_LATEST"
+          else
+            echo "Sem release de produto anterior; latest nao conferido"
+          fi

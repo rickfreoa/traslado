@@ -1,0 +1,16 @@
+{
+  "blocks": {
+    "text": 3
+  },
+  "source_blocks": {
+    "heading": 1,
+    "list_item": 2
+  },
+  "notes": [],
+  "ordered": [
+    "Relato publico",
+    "Acao inicial.",
+    "Fim do relato."
+  ],
+  "_nota": "O corpo do layout de título e conteúdo do PowerPoint é um espaço reservado com marcadores: os dois parágrafos são itens de lista."
+}

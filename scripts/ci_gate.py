@@ -38,5 +38,17 @@ def decidir(runs: list[dict]) -> str:
     return "liberar" if ultimo.get("conclusion") == "success" else "recusar"
 
 
+def execucao_liberada(runs: list[dict]) -> int | None:
+    """Id da execução que liberou (a mais recente, concluída com sucesso); None se a decisão não for liberar."""
+    if decidir(runs) != "liberar":
+        return None
+    return max(runs, key=lambda r: (r.get("run_started_at") or r["created_at"], r["id"]))["id"]
+
+
 if __name__ == "__main__":
-    print(decidir(execucoes(sys.stdin.read())))
+    runs = execucoes(sys.stdin.read())
+    if sys.argv[1:] == ["--id"]:  # para baixar o artefato testado daquela execução
+        liberada = execucao_liberada(runs)
+        print(liberada if liberada is not None else "nenhuma")
+    else:
+        print(decidir(runs))
