@@ -241,7 +241,8 @@ class ReviewE23Fix(unittest.TestCase):
                 return '1 (name) R bad invalid'
             return '5 (name) R 1 99' if path.name == 'stat' else '100 4'
         with patch.object(safety.sys, 'platform', 'linux'), patch.object(safety, 'Path', side_effect=lambda p: root if p == '/proc' else real_path(p)), patch.object(Path, 'read_text', read), patch.object(os, 'sysconf', create=True, return_value=4096):
-            self.assertEqual(safety.group_processes(99), [(4, 16384), (5, 16384)])
+            # A ordem segue a listagem do diretório (não garantida pelo sistema de arquivos); o uso é só a soma do RSS.
+            self.assertEqual(sorted(safety.group_processes(99)), [(4, 16384), (5, 16384)])
         with patch.object(safety.sys, 'platform', 'darwin'), patch.object(safety.subprocess, 'check_output', return_value='5 99 4 S extra\n'):
             self.assertEqual(safety.group_processes(99), [(5, 4096)])
 
