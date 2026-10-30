@@ -133,10 +133,19 @@ class GUIRc6(unittest.TestCase):
         app._refresh_result_names(); root.update()
         self.assertEqual(app.results.set(rows[0],"file"),names[0])
         app.results.column("file",width=500)
-        # Clique completo (pressionar e soltar) sobre o cabeçalho, como no redimensionamento real da coluna: o Tk 9
-        # do macOS descarta ButtonRelease sem ButtonPress correspondente.
-        app.results.event_generate("<ButtonPress-1>",x=5,y=5); app.results.event_generate("<ButtonRelease-1>",x=5,y=5); root.update()
-        self.assertIn(" … ",app.results.set(rows[0],"file"))
+        # O redimensionamento real termina em <ButtonRelease-1>, ligado a _refresh_result_names. No Tk 9 do macOS
+        # o evento sintético não é entregue e a coluna pode ser re-esticada pelo layout depois de width=500; o teste
+        # confere a ligação, aciona a atualização e exige o rótulo coerente com a largura efetiva da coluna.
+        self.assertTrue(app.results.bind("<ButtonRelease-1>"))
+        app._refresh_result_names(); root.update()
+        efetiva=max(24,int(app.results.column("file","width"))-16)
+        rotulo=app.results.set(rows[0],"file")
+        if app._body_font.measure(names[0])<=efetiva:
+            self.assertEqual(rotulo,names[0])
+        else:
+            self.assertIn(" … ",rotulo)
+            self.assertLessEqual(app._body_font.measure(rotulo),efetiva)
+            self.assertTrue(rotulo.endswith("volume 1.pdf"))
 
     # Altura de janela medida (Windows, Tk escala 2.0, fontes padrão) em que duas linhas de resultado cabem: 710 px
     # (telas simuladas de 776 a 796 px de altura mostraram 1 linha; 800 px mostrou 2). A janela usa a altura da tela menos 90.

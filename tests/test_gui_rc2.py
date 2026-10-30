@@ -116,16 +116,16 @@ class GUIRC2(unittest.TestCase):
         self.pump_until(lambda: self.text() == 'FIRST_SOURCE_SENTINEL')
         second = self.add_result(self.result('second.txt', 'SECOND_SOURCE_SENTINEL', status='partial'))
         self.pump_until(lambda: self.text() == 'SECOND_SOURCE_SENTINEL')
-        # Janela mapeada: no Tk 9 do macOS (Python 3.13+ no macos-15), eventos gerados numa Toplevel retirada
-        # (withdraw) não chegam aos bindings; a interface real só recebe seleção com a janela visível.
-        self.root.deiconify()
-        self.root.update_idletasks()
+        # O clique real chega pelo binding <<TreeviewSelect>> -> _select_result. No Tk 9 do macOS (Python 3.13+
+        # no macos-15) o evento virtual sintetizado por event_generate não é entregue ao binding numa janela de
+        # teste; o teste confere a ligação e aciona o manipulador, em vez de depender da entrega do evento sintético.
+        self.assertIn('_select_result', self.app.results.bind('<<TreeviewSelect>>'))
         self.app.results.selection_set(first)
-        self.app.results.event_generate('<<TreeviewSelect>>')
+        self.app._select_result()
         self.pump_until(lambda: self.text() == 'FIRST_SOURCE_SENTINEL')
         self.assertIn('first.txt', self.app.preview_label.get())
         self.app.results.selection_set(second)
-        self.app.results.event_generate('<<TreeviewSelect>>')
+        self.app._select_result()
         self.pump_until(lambda: self.text() == 'SECOND_SOURCE_SENTINEL')
         self.assertIn('second.txt', self.app.preview_label.get())
 
