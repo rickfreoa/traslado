@@ -660,6 +660,8 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
             "args = sys.argv[1:]\n"
             "if os.environ.get('E5_UV_LOG'):\n"
             "    with open(os.environ['E5_UV_LOG'], 'a') as log: log.write(repr(args)+'\\n')\n"
+            "if os.environ.get('E5_UV_STDERR'):\n"
+            "    print('Downloading cpython (simulado)', file=sys.stderr, flush=True)\n"
             "if args and args[0] == 'venv':\n"
             "    venv_dir = Path(args[1])\n"
             f"    subprocess.run([r'{sys.executable}', '-m', 'venv', '--without-pip', '--system-site-packages', str(venv_dir)], check=True)\n"
@@ -732,6 +734,19 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         digests = json.loads(transmitted[0].read_text(encoding="utf-8-sig"))
         self.assertEqual(digests[wheel_path.name], hashlib.sha256(wheel_path.read_bytes()).hexdigest())
         self.assertIn("requirements-core.hashes.lock", digests)
+        # Saída redirecionada dentro do PowerShell 5.1 (*>) com o uv escrevendo progresso em stderr: antes da
+        # correção, o $ErrorActionPreference='Stop' convertia a linha de stderr em erro terminante.
+        redir_root = self.tmp / "redir_root"
+        redir_log = self.tmp / "redir.log"
+        comando = (f"& '{ROOT / 'install.ps1'}' -Profile Core -NoShortcut -AllowOfflinePromotion "
+                   f"-FromDir '{from_dir}' -Root '{redir_root}' *> '{redir_log}'; exit $LASTEXITCODE")
+        redir = subprocess.run([str(ps_exe), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", comando],
+                               env=dict(env, E5_UV_STDERR="1"), capture_output=True, timeout=120)
+        texto_redir = redir_log.read_text(encoding="utf-16", errors="replace") if redir_log.exists() else ""
+        self.assertEqual(redir.returncode, 0, texto_redir + repr(redir.stdout + redir.stderr))
+        self.assertIn("simulado", texto_redir)
+        self.assertTrue((redir_root / "current.json").is_file())
+
         before = (install_root / "current.json").read_bytes()
         folders = list((install_root / "releases").iterdir())
         repeat = subprocess.run(proc.args, env=env, capture_output=True, timeout=120)
@@ -787,10 +802,27 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         payload = extracted / f"traslado-{__version__}-windows"
         self.assertTrue((payload / "PAYLOAD-SHA256SUMS").is_file())
         self.assertFalse((payload / "SHA256SUMS").exists())
-        zip_root = self.tmp / "zip-install"
-        wrapper = subprocess.run(["cmd.exe", "/c", str(payload / "INSTALAR.bat"), "-Root", str(zip_root), "-Profile", "Core", "-NoShortcut", "-AllowOfflinePromotion"], input=b"\n", env=env, capture_output=True, timeout=120)
-        self.assertEqual(wrapper.returncode, 0, wrapper.stdout+wrapper.stderr)
-        self.assertEqual(plat.read_current(zip_root)["gates"]["revocation"], "offline")
+        # Todos os perfis, inclusive Full: a raiz do ZIP traz um requirements-full.hashes.lock homônimo do
+        # instalador legado (linha 1.x); o lock 2.0 está em locks\ e é o que o PAYLOAD-SHA256SUMS autentica.
+        payload_sums = {l.split()[-1]: l.split()[0] for l in (payload / "PAYLOAD-SHA256SUMS").read_text(encoding="utf-8").splitlines() if l.strip()}
+        for perfil, extras in (("Core", []), ("Full", []), ("Full", ["-Extras", "legacy"])):
+            zip_root = self.tmp / ("zip-install-" + perfil + "".join(extras))
+            uv_antes = (self.tmp / "uv.log").read_text(encoding="utf-8", errors="replace")
+            wrapper = subprocess.run(["cmd.exe", "/c", str(payload / "INSTALAR.bat"), "-Root", str(zip_root), "-Profile", perfil, *extras, "-SkipOCR", "-NoShortcut", "-AllowOfflinePromotion"], input=b"\n", env=env, capture_output=True, timeout=180)
+            self.assertEqual(wrapper.returncode, 0, wrapper.stdout+wrapper.stderr)
+            self.assertNotIn(b"SHA-256 divergente", wrapper.stdout+wrapper.stderr)
+            self.assertEqual(plat.read_current(zip_root)["profile"], perfil)
+            self.assertEqual(plat.read_current(zip_root)["gates"]["revocation"], "offline")
+            # O uv recebeu o lock 2.0 de locks\, autenticado pelo PAYLOAD-SHA256SUMS, e não o homônimo da raiz.
+            novos = (self.tmp / "uv.log").read_text(encoding="utf-8", errors="replace")[len(uv_antes):]
+            lock = f"requirements-{perfil.lower()}.hashes.lock"
+            esc = lambda p: str(p).replace("\\", "\\\\")  # o mock registra repr(args)
+            self.assertNotIn(esc(payload / lock) + "'", novos)
+            if perfil == "Full":  # Core não instala dependências de terceiros
+                self.assertIn(esc(payload / "locks" / lock), novos)
+            if extras:
+                self.assertIn(esc(payload / "locks" / "requirements-legacy.hashes.lock"), novos)
+            self.assertEqual(hashlib.sha256((payload / "locks" / lock).read_bytes()).hexdigest(), payload_sums[lock])
 
 
 

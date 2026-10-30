@@ -13,6 +13,8 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 - `needs_ocr` no Linux indica o comando do gerenciador da distribuição (apt, dnf, zypper, pacman ou apk, por `/etc/os-release`); ZIP com método de compressão, versão ou criptografia não suportados resulta em `unsupported`/`encrypted`, não em `internal`.
 - `--version` de `update` recusa o prefixo `v`; sem `gh`, a conferência do `revoked.json` não é criptográfica (presença e SAN declarado).
 - Limite conhecido: no Windows Server Core a extensão nativa do PyMuPDF não carrega (DLL de sistema ausente); a instalação falha fechada, sem promover.
+- **Instalação pelo ZIP extraído** (`INSTALAR.bat`, `instalar.sh`): `install.ps1`/`install.sh` com `-FromDir`/`--from-dir` procuram primeiro o layout do ZIP (`dist/`, `locks/`) e só depois o layout plano dos ativos da release. Antes, a raiz do ZIP trazia o `requirements-full.hashes.lock` do instalador legado (linha 1.x), homônimo do lock 2.0, e a instalação Full pelo ZIP recusava por SHA-256 divergente (falha fechada, sem instalar nada). Teste da instalação pelo ZIP passa a cobrir Core, Full e Full com `legacy`.
+- `install.ps1` com a saída redirecionada dentro do Windows PowerShell 5.1 (`*>`, `2>&1`) não aborta mais quando o uv escreve progresso em stderr; o resultado de cada etapa continua decidido pelo código de saída. README: seção de instalação no Windows reescrita para o fluxo 2.0; `INSTALAR.ps1` documentado como instalador legado da linha 1.x.
 
 - Extra `legacy` com anydoc 0.2.4 para DOC, RTF, ODT, ODS, ODP, PPT e EPUB,
   somente com ativação explícita no CLI/TOML. XLS permanece não suportado.

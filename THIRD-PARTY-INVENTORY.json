@@ -1257,7 +1257,7 @@
     {
       "id": "pymupdf-agpl-fora-dos-artefatos",
       "escopo": "PyMuPDF/MuPDF",
-      "descricao": "O extra Full depende de PyMuPDF (AGPL ou licença comercial). Nenhum ZIP ou wheel distribuído contém seus bytes (verificado no build e no release); a instalação pelo usuário exige decisão de licenciamento."
+      "descricao": "O extra Full depende de PyMuPDF (AGPL ou licença comercial). Nenhum ZIP ou wheel distribuído contém seus bytes (verificado no build e no release); instalado pelo usuário no perfil Full, compõe com o Traslado um conjunto sob AGPL-3.0 (ramo AGPL do PyMuPDF), sem decisão adicional de licenciamento para uso local."
     },
     {
       "id": "sem-sbom-ferramentas-e-wheels",

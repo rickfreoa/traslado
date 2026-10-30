@@ -181,8 +181,10 @@ LEGACY_LOCK_PATH=""
 if [ -n "$FROM_DIR" ]; then
     FROM_DIR="$(CDPATH= cd -- "$FROM_DIR" && pwd)"
     SUMS_PATH="$(find_local "$FROM_DIR" "SHA256SUMS" "../SHA256SUMS" "PAYLOAD-SHA256SUMS" || true)"
-    WHEEL_PATH="$(find_local "$FROM_DIR" "$WHEEL_NAME" "dist/$WHEEL_NAME" || true)"
-    PROFILE_LOCK_PATH="$(find_local "$FROM_DIR" "$PROFILE_LOCK_NAME" "locks/$PROFILE_LOCK_NAME" || true)"
+    # Layout do ZIP (dist/, locks/) antes do layout plano dos ativos da release: a raiz do ZIP ainda traz o
+    # lock do instalador legado INSTALAR.ps1 (linha 1.x), homônimo do lock 2.0.
+    WHEEL_PATH="$(find_local "$FROM_DIR" "dist/$WHEEL_NAME" "$WHEEL_NAME" || true)"
+    PROFILE_LOCK_PATH="$(find_local "$FROM_DIR" "locks/$PROFILE_LOCK_NAME" "$PROFILE_LOCK_NAME" || true)"
     if [ -z "$WHEEL_PATH" ] || [ -z "$PROFILE_LOCK_PATH" ] || [ -z "$SUMS_PATH" ]; then
         echo "Artefatos obrigatórios (SHA256SUMS, $WHEEL_NAME, $PROFILE_LOCK_NAME) ausentes em $FROM_DIR" >&2
         exit 1
@@ -191,7 +193,7 @@ if [ -n "$FROM_DIR" ]; then
     check_sum_entry "$SUMS_PATH" "$PROFILE_LOCK_NAME" "$PROFILE_LOCK_PATH"
     case ",$EXTRAS," in
         *,legacy,*)
-            LEGACY_LOCK_PATH="$(find_local "$FROM_DIR" "$LEGACY_LOCK_NAME" "locks/$LEGACY_LOCK_NAME" || true)"
+            LEGACY_LOCK_PATH="$(find_local "$FROM_DIR" "locks/$LEGACY_LOCK_NAME" "$LEGACY_LOCK_NAME" || true)"
             if [ -z "$LEGACY_LOCK_PATH" ]; then
                 echo "Lock $LEGACY_LOCK_NAME ausente em $FROM_DIR" >&2
                 exit 1

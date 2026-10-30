@@ -86,6 +86,20 @@ function Read-SumsMap([string]$SumsFile) {
     return $map
 }
 
+# Chamada nativa tolerante a stderr: no Windows PowerShell 5.1, com $ErrorActionPreference='Stop' e a saída
+# redirecionada dentro do PowerShell (*>, 2>&1), qualquer linha em stderr (o progresso do uv, por exemplo)
+# vira erro terminante. O resultado continua decidido pelo $LASTEXITCODE conferido logo depois de cada chamada.
+function Invoke-Native {
+    $exe = $args[0]
+    $rest = @($args | Select-Object -Skip 1)
+    if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { throw "Executavel ausente: $exe" }
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    # Sentinela: se o processo nao chegar a executar, o codigo da chamada anterior nao passa por sucesso.
+    $global:LASTEXITCODE = 9009
+    try { & $exe @rest } finally { $ErrorActionPreference = $previous }
+}
+
 function Find-LocalArtifact([string]$BaseDir, [string[]]$RelativeCandidates) {
     foreach ($rel in $RelativeCandidates) {
         $candidate = Join-Path $BaseDir $rel
@@ -128,7 +142,7 @@ try {
                 $ActiveArgs = @("-I", "-m", "traslado", "setup", "--check-active", "--expected-version", $CleanVersion,
                                 "--root", $RootFull, "--profile", $NormProfile, "--languages", $Languages)
                 if ($Extras) { $ActiveArgs += @("--extras", $Extras) }
-                & $activePy @ActiveArgs
+                Invoke-Native $activePy @ActiveArgs
                 if ($LASTEXITCODE -ne 0) { throw "Release ativa sem integridade" }
                 Write-Host "Traslado $CleanVersion ($NormProfile) já está ativo em $RootFull ($ReleaseId)."
                 Write-Host "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v$CleanVersion"
@@ -154,10 +168,12 @@ try {
     if ($FromDir) {
         $EffectiveFromDir = (Resolve-Path -LiteralPath $FromDir).Path
         $SumsPath = Find-LocalArtifact $EffectiveFromDir @("SHA256SUMS", "..\SHA256SUMS", "PAYLOAD-SHA256SUMS")
-        $WheelPath = Find-LocalArtifact $EffectiveFromDir @($WheelName, "dist\$WheelName")
-        $ProfileLockPath = Find-LocalArtifact $EffectiveFromDir @($ProfileLockName, "locks\$ProfileLockName")
+        # Layout do ZIP (dist\, locks\) antes do layout plano dos ativos da release: a raiz do ZIP ainda traz
+        # o lock do instalador legado INSTALAR.ps1 (requirements-full.hashes.lock da linha 1.x), homônimo do lock 2.0.
+        $WheelPath = Find-LocalArtifact $EffectiveFromDir @("dist\$WheelName", $WheelName)
+        $ProfileLockPath = Find-LocalArtifact $EffectiveFromDir @("locks\$ProfileLockName", $ProfileLockName)
         if ("legacy" -in $ExtrasList) {
-            $LegacyLockPath = Find-LocalArtifact $EffectiveFromDir @($LegacyLockName, "locks\$LegacyLockName")
+            $LegacyLockPath = Find-LocalArtifact $EffectiveFromDir @("locks\$LegacyLockName", $LegacyLockName)
         }
         if (-not $WheelPath -or -not $ProfileLockPath) {
             throw "Artefatos obrigatórios ($WheelName, $ProfileLockName) ausentes em FromDir: $EffectiveFromDir"
@@ -246,7 +262,7 @@ try {
         $SelfArtifact = if (-not $FromDir -and $selfAsset.Count -gt 0 -and $SelfFile) { $SelfFile } else { $null }
         foreach ($artifact in @($WheelPath, $ProfileLockPath, $LegacyLockPath, $SumsPath, $SelfArtifact)) {
             if (-not $artifact) { continue }
-            & $GhCmd.Source attestation verify $artifact --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref "refs/tags/v$CleanVersion"
+            Invoke-Native $GhCmd.Source attestation verify $artifact --repo rickfreoa/traslado --signer-workflow rickfreoa/traslado/.github/workflows/release.yml --source-ref "refs/tags/v$CleanVersion"
             if ($LASTEXITCODE -ne 0) { throw "Attestation reprovada para $artifact" }
         }
     } else {
@@ -304,7 +320,7 @@ try {
 
     $VenvDir = Join-Path $ReleaseDir ".venv"
     Write-Host "Criando ambiente Python 3.13 gerenciado em $VenvDir..."
-    & $UvExe venv $VenvDir --python 3.13 --python-preference only-managed
+    Invoke-Native $UvExe venv $VenvDir --python 3.13 --python-preference only-managed
     if ($LASTEXITCODE -ne 0) { throw "Falha ao criar .venv com uv" }
 
     $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
@@ -314,17 +330,17 @@ try {
 
     if ($NormProfile -eq "Full") {
         Write-Host "Instalando dependências fixadas ($ProfileLockName)..."
-        & $UvExe pip install --python $VenvPython --require-hashes --only-binary :all: -r $ProfileLockPath
+        Invoke-Native $UvExe pip install --python $VenvPython --require-hashes --only-binary :all: -r $ProfileLockPath
         if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar dependências do perfil $NormProfile" }
     }
     if ($LegacyLockPath) {
         Write-Host "Instalando extra experimental legacy ($LegacyLockName)..."
-        & $UvExe pip install --python $VenvPython --require-hashes -r $LegacyLockPath
+        Invoke-Native $UvExe pip install --python $VenvPython --require-hashes -r $LegacyLockPath
         if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar extra legacy" }
     }
 
     Write-Host "Instalando wheel $WheelName..."
-    & $UvExe pip install --python $VenvPython --no-deps $WheelPath
+    Invoke-Native $UvExe pip install --python $VenvPython --no-deps $WheelPath
     if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar wheel do Traslado" }
 
     # 5. Executar traslado setup e promover somente se os gates aprovarem
@@ -361,7 +377,7 @@ try {
     }
 
     Write-Host "Executando verificação de gates e configuração (traslado setup)..."
-    & $VenvPython @SetupArgs
+    Invoke-Native $VenvPython @SetupArgs
     if ($LASTEXITCODE -eq 4) {
         Write-Host "Instalacao promovida; somente os atalhos falharam. Recrie-os com: & '$VenvPython' -I -m traslado shortcuts --root '$RootFull'"
         exit 4
@@ -372,7 +388,7 @@ try {
             # outside the release, so Windows can remove the candidate executable.
             try {
                 $CleanupRuntime = (& $VenvPython -I -c "import json,sys,pathlib,traslado; print(json.dumps([sys._base_executable,str(pathlib.Path(traslado.__file__).parent.parent)]))") | ConvertFrom-Json
-                & $CleanupRuntime[0] -I -c "import sys,pathlib; sys.path.insert(0,sys.argv[1]); from traslado.lifecycle import remove_unreferenced_release; remove_unreferenced_release(pathlib.Path(sys.argv[2]),pathlib.Path(sys.argv[3]))" $CleanupRuntime[1] $RootFull $ReleaseDir
+                Invoke-Native $CleanupRuntime[0] -I -c "import sys,pathlib; sys.path.insert(0,sys.argv[1]); from traslado.lifecycle import remove_unreferenced_release; remove_unreferenced_release(pathlib.Path(sys.argv[2]),pathlib.Path(sys.argv[3]))" $CleanupRuntime[1] $RootFull $ReleaseDir
                 if ($LASTEXITCODE -ne 0) { Write-Host "Limpeza pendente; marcador preservado para a proxima execucao." }
             } catch { Write-Host "Limpeza pendente; marcador preservado para a proxima execucao." }
         }
