@@ -62,13 +62,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-14]
+        os: [windows-latest, ubuntu-latest, macos-15]
         python: ["3.11", "3.12", "3.13", "3.14"]
         perfil: [core, full]
         include:
           - {os: windows-latest, python: "3.13", perfil: legacy}
           - {os: ubuntu-latest, python: "3.13", perfil: legacy}
-          - {os: macos-14, python: "3.13", perfil: legacy}
+          - {os: macos-15, python: "3.13", perfil: legacy}
     defaults:
       run:
         shell: bash
@@ -136,7 +136,7 @@ jobs:
       - name: OCR macOS Full/legacy (somente CI)
         if: runner.os == 'macOS' && matrix.perfil != 'core'
         run: |
-          test "$(uname -m)" = arm64 || { echo "::error::macos-14 deve ser arm64"; exit 1; }
+          test "$(uname -m)" = arm64 || { echo "::error::macos-15 deve ser arm64"; exit 1; }
           brew install tesseract tesseract-lang
           tesseract --version
           tesseract --list-langs
@@ -227,7 +227,7 @@ jobs:
         include:
           - {os: windows-latest, label: windows}
           - {os: ubuntu-latest, label: linux}
-          - {os: macos-14, label: macos}
+          - {os: macos-15, label: macos}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -298,7 +298,7 @@ jobs:
             label: fedora
             image: quay.io/fedora/fedora-minimal:42@sha256:09a2061e2cfb85ac8e7fa7f2234d0ace6ad4f2b7dfdf0f257c90405e4f07577d
           - {os: windows-2022, label: windows}
-          - {os: macos-14, label: macos}
+          - {os: macos-15, label: macos}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:

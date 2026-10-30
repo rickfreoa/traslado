@@ -692,7 +692,7 @@ def _probe_macos_quarantine(app_bundle: Path, work_dir: Path) -> dict:
 
 def run_macos_e2e(dist_dir: Path, audit_output: Path) -> dict:
     if platform.machine() != "arm64":
-        raise RuntimeError(f"macos-14 deve fornecer arm64; observado: {platform.machine()}")
+        raise RuntimeError(f"macos-15 deve fornecer arm64; observado: {platform.machine()}")
     with tempfile.TemporaryDirectory(prefix="traslado-e2e-macos-") as tmp:
         work_dir = Path(tmp)
         managed_root = work_dir / "Library" / "Application Support" / "Traslado"
@@ -738,7 +738,7 @@ def run_macos_e2e(dist_dir: Path, audit_output: Path) -> dict:
 
         report: dict = {
             "os": "macos",
-            "runner": "macos-14",
+            "runner": "macos-15",
             "autonomy_limit_note": "Em macOS a autonomia é provada pela auditoria de bibliotecas carregadas (otool -L, DYLD_PRINT_LIBRARIES e vmmap), não por imagem virgem do sistema operacional.",
             "shortcuts_verified": {
                 "app_bundle": str(app_bundle),
