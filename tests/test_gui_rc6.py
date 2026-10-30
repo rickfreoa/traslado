@@ -133,7 +133,9 @@ class GUIRc6(unittest.TestCase):
         app._refresh_result_names(); root.update()
         self.assertEqual(app.results.set(rows[0],"file"),names[0])
         app.results.column("file",width=500)
-        app.results.event_generate("<ButtonRelease-1>"); root.update()
+        # Clique completo (pressionar e soltar) sobre o cabeçalho, como no redimensionamento real da coluna: o Tk 9
+        # do macOS descarta ButtonRelease sem ButtonPress correspondente.
+        app.results.event_generate("<ButtonPress-1>",x=5,y=5); app.results.event_generate("<ButtonRelease-1>",x=5,y=5); root.update()
         self.assertIn(" … ",app.results.set(rows[0],"file"))
 
     # Altura de janela medida (Windows, Tk escala 2.0, fontes padrão) em que duas linhas de resultado cabem: 710 px

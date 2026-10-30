@@ -116,6 +116,10 @@ class GUIRC2(unittest.TestCase):
         self.pump_until(lambda: self.text() == 'FIRST_SOURCE_SENTINEL')
         second = self.add_result(self.result('second.txt', 'SECOND_SOURCE_SENTINEL', status='partial'))
         self.pump_until(lambda: self.text() == 'SECOND_SOURCE_SENTINEL')
+        # Janela mapeada: no Tk 9 do macOS (Python 3.13+ no macos-15), eventos gerados numa Toplevel retirada
+        # (withdraw) não chegam aos bindings; a interface real só recebe seleção com a janela visível.
+        self.root.deiconify()
+        self.root.update_idletasks()
         self.app.results.selection_set(first)
         self.app.results.event_generate('<<TreeviewSelect>>')
         self.pump_until(lambda: self.text() == 'FIRST_SOURCE_SENTINEL')
