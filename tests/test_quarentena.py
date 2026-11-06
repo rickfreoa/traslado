@@ -4,8 +4,13 @@
 import json
 import os
 from pathlib import Path
+import sys
 import unittest
 from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
 
 from scripts.run_tests import (
     validate_quarantine_entry,
@@ -15,8 +20,6 @@ from scripts.run_tests import (
     TimeoutTestResult,
     FORBIDDEN_QUARANTINE_TESTS,
 )
-
-ROOT = Path(__file__).resolve().parent.parent
 
 
 class QuarentenaContractTests(unittest.TestCase):
@@ -128,4 +131,33 @@ class QuarentenaContractTests(unittest.TestCase):
         res = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=60)
         self.assertEqual(res.returncode, 0, f"Falha ao executar runner: {res.stdout}\n{res.stderr}")
         self.assertNotIn("ModuleNotFoundError: No module named 'tests'", res.stdout + res.stderr)
+
+    def test_import_scripts_funciona_com_raiz_do_pacote_isolada(self):
+        """test_quarentena e test_revocation_sentinel devem encontrar scripts em ambiente de pacote instalado."""
+        import shutil
+        import subprocess
+        import sys
+        import tempfile
+
+        with tempfile.TemporaryDirectory(prefix="traslado-pkg-") as tmp:
+            pkg = Path(tmp)
+            (pkg / "scripts").mkdir()
+            shutil.copyfile(ROOT / "scripts" / "run_tests.py", pkg / "scripts" / "run_tests.py")
+            shutil.copyfile(ROOT / "scripts" / "revocation_sentinel.py", pkg / "scripts" / "revocation_sentinel.py")
+            (pkg / "tests").mkdir()
+            shutil.copyfile(ROOT / "tests" / "test_quarentena.py", pkg / "tests" / "test_quarentena.py")
+            shutil.copyfile(ROOT / "tests" / "test_revocation_sentinel.py", pkg / "tests" / "test_revocation_sentinel.py")
+            (pkg / "tests" / "__init__.py").write_text("", encoding="utf-8")
+
+            code = (
+                "import sys\n"
+                f"sys.path = [r'{pkg / 'tests'}', r'{pkg}'] + [p for p in sys.path if 'wt30' not in p and p != '']\n"
+                "import test_quarentena\n"
+                "import test_revocation_sentinel\n"
+                "print('OK')\n"
+            )
+            res = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, timeout=60)
+            self.assertEqual(res.returncode, 0, f"Falha na importação isolada: {res.stdout}\n{res.stderr}")
+            self.assertIn("OK", res.stdout)
+
 

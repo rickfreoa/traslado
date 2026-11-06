@@ -415,6 +415,18 @@ class Workflows(unittest.TestCase):
         self.assertIn("actions: read", t)
         self.assertIn("--draft", t)
 
+    def test_ci_copia_scripts_necessarios_para_pacote_de_testes_instalado(self):
+        t = self.texto("ci.yml")
+        # Deve copiar run_tests.py e revocation_sentinel.py para $PKG/scripts/
+        self.assertIn('mkdir -p "$PKG/scripts"', t)
+        self.assertIn('cp fonte/scripts/run_tests.py "$PKG/scripts/run_tests.py"', t)
+        self.assertIn('cp fonte/scripts/revocation_sentinel.py "$PKG/scripts/revocation_sentinel.py"', t)
+        # Scripts não devem constar em release-files.txt / ZIP do produto
+        release_files = (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines()
+        self.assertNotIn("scripts/run_tests.py", release_files)
+        self.assertNotIn("scripts/revocation_sentinel.py", release_files)
+
+
 
 @unittest.skipUnless(os.environ.get("T11_EXIGE_OCR"), "qualificação de OCR real só nas células Full que exigem o motor")
 class QualificacaoOCR(unittest.TestCase):

@@ -193,6 +193,9 @@ jobs:
           T11_PERFIL: ${{ matrix.perfil }}
         run: |
           cp -r fonte/tests "$PKG/tests"
+          mkdir -p "$PKG/scripts"
+          cp fonte/scripts/run_tests.py "$PKG/scripts/run_tests.py"
+          cp fonte/scripts/revocation_sentinel.py "$PKG/scripts/revocation_sentinel.py"
           cp fonte/scripts/run_tests.py "$PKG/run_tests.py"
           mkdir -p "$PKG/ci"
           cp fonte/ci/quarentena.json "$PKG/ci/quarentena.json"
