@@ -238,7 +238,7 @@ jobs:
         run: |
           cd "$PKG"
           unset PYTHONPATH
-          "$PY" -I -m pytest -v tests/test_review_e23fix.py
+          "$PY" -I -X faulthandler -m pytest -v -o faulthandler_timeout=600 tests/test_review_e23fix.py
 
 
   contencao:

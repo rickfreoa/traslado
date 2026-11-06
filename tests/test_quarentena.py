@@ -160,4 +160,39 @@ class QuarentenaContractTests(unittest.TestCase):
             self.assertEqual(res.returncode, 0, f"Falha na importação isolada: {res.stdout}\n{res.stderr}")
             self.assertIn("OK", res.stdout)
 
+    def test_core_runner_aplica_timeout_test_result(self):
+        """O modo core deve usar TimeoutTestResult com faulthandler e timeout por teste."""
+        import io
+        import tempfile
+        from tests import test_release_t11
+
+        with tempfile.TemporaryDirectory(prefix="core-timeout-") as tmp:
+            pasta = Path(tmp)
+            (pasta / "core-skips.txt").write_text("", encoding="utf-8")
+            (pasta / "test_fake.py").write_text(
+                "import unittest\nclass FakeT(unittest.TestCase):\n    def test_ok(self): pass\n",
+                encoding="utf-8",
+            )
+            fluxo = io.StringIO()
+            with patch("scripts.run_tests.faulthandler.dump_traceback_later") as mock_arm:
+                rc = test_release_t11.executar_core(pasta, opcionais=set(), fluxo=fluxo, timeout=600.0)
+                self.assertEqual(rc, 0)
+                mock_arm.assert_called()
+
+    def test_conftest_pytest_arma_e_cancela_faulthandler(self):
+        """tests/conftest.py deve armar dump_traceback_later(600) e cancelar ao fim de cada teste."""
+        from tests import conftest
+        with patch("tests.conftest.faulthandler.dump_traceback_later") as mock_arm, \
+             patch("tests.conftest.faulthandler.cancel_dump_traceback_later") as mock_cancel:
+            gen = conftest.pytest_runtest_protocol(None, None)
+            next(gen)
+            mock_arm.assert_called_once_with(600.0, repeat=False, exit=True)
+            try:
+                next(gen)
+            except StopIteration:
+                pass
+            mock_cancel.assert_called_once()
+
+
+
 

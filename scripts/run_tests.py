@@ -248,13 +248,39 @@ def main(argv: list[str] | None = None) -> int:
 
     # Tratamento especial para "tests/test_release_t11.py --core"
     if any("--core" in a for a in test_args):
+        # Localiza a pasta tests
+        pasta_tests = None
+        for cand in [Path.cwd() / "tests", ROOT / "tests", Path(__file__).resolve().parent / "tests"]:
+            if cand.is_dir():
+                pasta_tests = cand
+                break
+
+        # Importa executar_core
+        from tests import test_release_t11
+
+        def core_filter(suite: unittest.TestSuite) -> unittest.TestSuite:
+            if args.mode == "blocking":
+                return filter_suite(
+                    suite,
+                    lambda t: not is_test_quarantined(t.id(), current_cell, quarantine_entries),
+                )
+            else:  # quarantine
+                return filter_suite(
+                    suite,
+                    lambda t: is_test_quarantined(t.id(), current_cell, quarantine_entries),
+                )
+
         if args.mode == "quarantine":
-            print("Nenhum teste em quarentena para o perfil core.")
-            return 0
-        # Executa o runner do release t11 core diretamente com faulthandler ativo
-        cmd = [sys.executable, "-I", "-X", "utf8"] + test_args
-        res = subprocess.run(cmd)
-        return res.returncode
+            quarantined = get_quarantined_tests_for_cell(current_cell, quarantine_entries)
+            if not quarantined:
+                print(f"Quarentena: nenhum teste configurado para a célula {current_cell}.")
+                return 0
+
+        return test_release_t11.executar_core(
+            pasta=pasta_tests,
+            timeout=args.timeout,
+            suite_filter=core_filter,
+        )
 
     # Monta suíte via unittest loader
     loader = unittest.defaultTestLoader
