@@ -159,8 +159,8 @@ def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
             for info in z.infolist():
                 try:
                     conteudo = z.read(info)
-                except (NotImplementedError, zipfile.BadZipFile, RuntimeError) as exc:
-                    # Fixtures do fuzz são ZIPs deliberadamente ilegíveis (ex.: flag 5): opacas, com o nome conferido.
+                except Exception as exc:  # flag 5, deflate corrompido, CRC, criptografia: o membro não pode ser lido
+                    # Fixtures do fuzz são ZIPs deliberadamente ilegíveis: opacas, com o nome conferido.
                     if FIXTURE_FUZZ.search(nome):
                         if NOME_MUPDF.search(info.filename):
                             achados.append(f"{caminho}{nome}!{info.filename}: nome")

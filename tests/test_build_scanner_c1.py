@@ -58,5 +58,22 @@ class ScannerFuzzC1(unittest.TestCase):
         self.assertTrue(achados and achados[0].endswith(': nome'), achados)
 
 
+    def test_deflate_corrompido_dentro_e_fora_das_fixtures(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('word/document.xml', bytes(range(256)) * 64)
+        dados = bytearray(buf.getvalue())
+        inicio = 30 + len('word/document.xml')
+        for i in range(inicio + 8, inicio + 40):
+            dados[i] ^= 0xFF
+        dados = bytes(dados)
+        with zipfile.ZipFile(io.BytesIO(dados)) as z, self.assertRaises(Exception):
+            z.read('word/document.xml')
+        self.assertEqual(self.b.membros_proibidos('pkg/tests/fixtures/fuzz/y.docx', dados), [])
+        achados = self.b.membros_proibidos('pkg/qualquer.docx', dados)
+        self.assertEqual(len(achados), 1, achados)
+        self.assertIn('ilegível', achados[0])
+
+
 if __name__ == '__main__':
     unittest.main()
