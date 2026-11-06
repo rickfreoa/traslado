@@ -15,6 +15,7 @@ concurrency:
 env:
   PYTHONUTF8: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONFAULTHANDLER: "1"
 
 jobs:
   construir:
@@ -40,14 +41,14 @@ jobs:
       - name: Testes de release e de inventário (com checkout)
         env:
           PYTHONPATH: src
-        run: python -m unittest -v tests.test_release_t11
+        run: python scripts/run_tests.py -v tests.test_release_t11
       - name: Testes que dependem da árvore-fonte (composição, entry points, contrato dos workflows)
         env:
           PYTHONPATH: src
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r requirements-full.hashes.lock
           python -m pip install --only-binary=:all: --require-hashes -r requirements-test.hashes.lock
-          python -m unittest -v tests.test_scripts_e6 tests.test_compat_e1 tests.test_lifecycle_e5 tests.test_e5_corrections tests.test_fechamento_e10
+          python scripts/run_tests.py -v tests.test_scripts_e6 tests.test_compat_e1 tests.test_lifecycle_e5 tests.test_e5_corrections tests.test_fechamento_e10 tests.test_quarentena
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pacote
@@ -192,15 +193,35 @@ jobs:
           T11_PERFIL: ${{ matrix.perfil }}
         run: |
           cp -r fonte/tests "$PKG/tests"
+          cp fonte/scripts/run_tests.py "$PKG/run_tests.py"
+          mkdir -p "$PKG/ci"
+          cp fonte/ci/quarentena.json "$PKG/ci/quarentena.json"
           # Mutações e medições têm jobs bloqueantes próprios; não repetir 27 vezes.
           rm "$PKG/tests/test_mutation_e6.py" "$PKG/tests/test_containment_e2.py"
           cd "$PKG"
           unset PYTHONPATH
+          RUNNER_ARGS=(run_tests.py --mode blocking --os "${{ matrix.os }}" --python "${{ matrix.python }}" --perfil "${{ matrix.perfil }}")
           if [ "${{ matrix.perfil }}" = "core" ]; then
-            ARGS=(tests/test_release_t11.py --core)
+            ARGS=("${RUNNER_ARGS[@]}" tests/test_release_t11.py --core)
           else
-            ARGS=(-m unittest discover -s tests -v)
+            ARGS=("${RUNNER_ARGS[@]}" discover -s tests -v)
           fi
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a "$PY" -I -X utf8 "${ARGS[@]}"
+          else
+            "$PY" -I -X utf8 "${ARGS[@]}"
+          fi
+
+      - name: Testes em quarentena (informativo)
+        if: (success() || steps.suite.outcome == 'failure') && matrix.perfil != 'core'
+        continue-on-error: true
+        env:
+          T11_EXIGE_INSTALADO: "1"
+          T11_PERFIL: ${{ matrix.perfil }}
+        run: |
+          cd "$PKG"
+          unset PYTHONPATH
+          ARGS=(run_tests.py --mode quarantine --os "${{ matrix.os }}" --python "${{ matrix.python }}" --perfil "${{ matrix.perfil }}" discover -s tests -v)
           if [ "$RUNNER_OS" = "Linux" ]; then
             xvfb-run -a "$PY" -I -X utf8 "${ARGS[@]}"
           else
@@ -274,7 +295,7 @@ jobs:
           python -m pip install --only-binary=:all: --require-hashes -r locks/requirements-full.hashes.lock
           python -m pip install --require-hashes -r locks/requirements-legacy.hashes.lock
           python -m pip install --no-deps pacote/*.whl
-          python -m unittest -v tests.test_mutation_e6 tests.test_legacy_e4
+          python scripts/run_tests.py -v tests.test_mutation_e6 tests.test_legacy_e4
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
