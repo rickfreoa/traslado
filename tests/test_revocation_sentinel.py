@@ -162,3 +162,39 @@ class RevocationSentinelTests(unittest.TestCase):
         self.assertEqual(len(client.closed), 1)
         self.assertEqual(client.closed[0][0], 88)
         self.assertIn("normalizada", client.closed[0][1].lower())
+
+    def test_falha_de_download_indisponibilidade_cria_ou_atualiza_issue_de_alerta(self):
+        client = FakeIssueClient()
+        erro = "Falha ao baixar revoked.json: HTTP 404 Not Found"
+        res = process_sentinel(None, client, "fake/repo", now=self.now, error_alert=erro)
+        self.assertEqual(res["action"], "created")
+        self.assertEqual(len(client.created), 1)
+        self.assertIn(ISSUE_LABEL, client.created[0]["labels"])
+        self.assertIn("HTTP 404", client.created[0]["body"])
+
+    def test_documento_invalido_cria_ou_atualiza_issue_de_alerta(self):
+        client = FakeIssueClient(initial_issues=[{
+            "number": 99,
+            "title": "Alerta anterior",
+            "body": "corpo antigo",
+            "labels": [ISSUE_LABEL],
+            "state": "open",
+        }])
+        erro = "revoked.json recebido não é JSON válido: Expecting value: line 1 column 1"
+        res = process_sentinel(None, client, "fake/repo", now=self.now, error_alert=erro)
+        self.assertEqual(res["action"], "updated")
+        self.assertEqual(res["issue"], 99)
+        self.assertIn("JSON válido", client.updated[0][1])
+
+    def test_main_com_download_falho_registra_alerta_na_issue_e_encerra(self):
+        from unittest.mock import patch
+        import scripts.revocation_sentinel as rs
+
+        client = FakeIssueClient()
+        with patch.object(rs, "fetch_revoked_doc_from_release", side_effect=RuntimeError("Conexão recusada")):
+            rc = rs.main(["--repo", "fake/repo"], client=client)
+            self.assertEqual(rc, 1)
+            self.assertEqual(len(client.created), 1)
+            self.assertIn("Conexão recusada", client.created[0]["body"])
+            self.assertIn(ISSUE_LABEL, client.created[0]["labels"])
+

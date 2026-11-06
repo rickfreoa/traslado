@@ -167,18 +167,24 @@ class GhCliIssueClient(IssueClient):
         subprocess.run(cmd, capture_output=True, text=True, env=self._env(), check=True)
 
 
-def build_issue_body(doc: dict, alerts: list[str]) -> str:
-    seq = doc.get("sequence", "?")
-    issued = doc.get("issued_at", "?")
-    expires = doc.get("expires_at", "?")
+def build_issue_body(doc: dict | None, alerts: list[str]) -> str:
+    if doc and isinstance(doc, dict):
+        seq = doc.get("sequence", "?")
+        issued = doc.get("issued_at", "?")
+        expires = doc.get("expires_at", "?")
+        dados_doc = (
+            f"- **Sequência atual:** {seq}\n"
+            f"- **Data de emissão (issued_at):** `{issued}`\n"
+            f"- **Data de expiração (expires_at):** `{expires}`\n\n"
+        )
+    else:
+        dados_doc = "- **Estado do documento:** indisponível ou inválido na release fixa `revocation`.\n\n"
 
     motivos = "\n".join(f"- {a}" for a in alerts)
     return (
         f"## Alerta da Sentinela de Revogação\n\n"
         f"O documento `revoked.json` da release fixa `revocation` requer atenção operacional:\n\n"
-        f"- **Sequência atual:** {seq}\n"
-        f"- **Data de emissão (issued_at):** `{issued}`\n"
-        f"- **Data de expiração (expires_at):** `{expires}`\n\n"
+        f"{dados_doc}"
         f"### Motivos do alerta:\n"
         f"{motivos}\n\n"
         f"---\n"
@@ -188,12 +194,18 @@ def build_issue_body(doc: dict, alerts: list[str]) -> str:
 
 
 def process_sentinel(
-    doc: dict,
+    doc: dict | None,
     issue_client: IssueClient,
     repo: str,
     now: datetime | str | None = None,
+    error_alert: str | None = None,
 ) -> dict:
-    is_alert, alerts = check_revocation_health(doc, now=now)
+    if error_alert:
+        is_alert = True
+        alerts = [error_alert]
+    else:
+        is_alert, alerts = check_revocation_health(doc or {}, now=now)
+
     open_issues = issue_client.list_open_issues(repo, ISSUE_LABEL)
 
     if is_alert:
@@ -233,7 +245,7 @@ def fetch_revoked_doc_from_release(repo: str) -> dict:
         raise RuntimeError(f"revoked.json recebido não é JSON válido: {exc}") from exc
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, client: IssueClient | None = None) -> int:
     parser = argparse.ArgumentParser(description="Sentinela de revogação do Traslado")
     parser.add_argument("--input", type=Path, default=None, help="Caminho local para revoked.json (se omitido, baixa da release)")
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPO), help="Repositório GitHub")
@@ -241,19 +253,45 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="Não altera issues no GitHub")
     args = parser.parse_args(argv)
 
-    if args.input and args.input.is_file():
-        doc = json.loads(args.input.read_text(encoding="utf-8-sig"))
+    doc: dict | None = None
+    fetch_error: str | None = None
+
+    if args.input:
+        if not args.input.is_file():
+            fetch_error = f"Arquivo local informado não existe: {args.input}"
+        else:
+            try:
+                doc = json.loads(args.input.read_text(encoding="utf-8-sig"))
+                if not isinstance(doc, dict):
+                    fetch_error = f"Documento em {args.input} não é um objeto JSON válido."
+            except Exception as exc:
+                fetch_error = f"Falha ao interpretar documento JSON em {args.input}: {exc}"
     else:
-        doc = fetch_revoked_doc_from_release(args.repo)
+        try:
+            doc = fetch_revoked_doc_from_release(args.repo)
+            if not isinstance(doc, dict):
+                fetch_error = "Documento baixado da release 'revocation' não é um objeto JSON válido."
+        except Exception as exc:
+            fetch_error = f"Indisponibilidade ou falha no download de revoked.json: {exc}"
 
     if args.dry_run:
-        is_alert, alerts = check_revocation_health(doc, now=args.now)
+        if fetch_error:
+            print(f"Alerta ativo (erro de obtenção): {fetch_error}")
+            return 1
+        is_alert, alerts = check_revocation_health(doc or {}, now=args.now)
         print(f"Alerta ativo: {is_alert}")
         for a in alerts:
             print(f"- {a}")
-        return 0
+        return 1 if is_alert else 0
 
-    client = GhCliIssueClient()
+    if client is None:
+        client = GhCliIssueClient()
+
+    if fetch_error:
+        result = process_sentinel(None, client, args.repo, now=args.now, error_alert=fetch_error)
+        print(f"Sentinela registrou alerta operacional de indisponibilidade/invalidez: {result}")
+        return 1
+
     result = process_sentinel(doc, client, args.repo, now=args.now)
     print(f"Sentinela executada com sucesso: {result}")
     return 0
