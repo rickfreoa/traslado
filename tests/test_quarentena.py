@@ -77,6 +77,47 @@ class QuarentenaContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "motivo"):
             validate_quarantine_entry({**valida, "motivo": ""})
 
+    def test_validador_recusa_curingas_e_correspondencia_parcial(self):
+        valida = {
+            "teste": "tests.test_detect_e3.DetectionE3.test_supported_formats_dispatch_by_content",
+            "celula": {"os": "macos-15", "python": "3.14", "perfil": "full"},
+            "issue": "https://github.com/rickfreoa/traslado/issues/100",
+            "motivo": "Investigação",
+        }
+        # Recusa curinga '*' em qualquer campo da célula
+        for campo in ("os", "python", "perfil"):
+            celula_curinga = dict(valida["celula"], **{campo: "*"})
+            with self.assertRaisesRegex(ValueError, r"(?i)(matriz|curinga|inválida|inexistente)"):
+                validate_quarantine_entry({**valida, "celula": celula_curinga})
+
+        # Recusa correspondência parcial (ex: 'windows' em vez de 'windows-latest')
+        celula_parcial = dict(valida["celula"], os="windows")
+        with self.assertRaisesRegex(ValueError, r"(?i)(matriz|curinga|inválida|inexistente)"):
+            validate_quarantine_entry({**valida, "celula": celula_parcial})
+
+        # Recusa célula inexistente na matriz do CI
+        celula_inexistente = {"os": "windows-latest", "python": "3.10", "perfil": "full"}
+        with self.assertRaisesRegex(ValueError, r"(?i)(matriz|curinga|inválida|inexistente)"):
+            validate_quarantine_entry({**valida, "celula": celula_inexistente})
+
+    def test_quarentena_aplicada_ao_core(self):
+        """O mecanismo de quarentena deve filtrar testes também no modo Core."""
+        entradas = [
+            {
+                "teste": "tests.test_fake.FakeT.test_quarentenado",
+                "celula": {"os": "ubuntu-latest", "python": "3.13", "perfil": "core"},
+                "issue": "https://github.com/rickfreoa/traslado/issues/105",
+                "motivo": "Quarentena de teste no core",
+            }
+        ]
+        celula_core = {"os": "ubuntu-latest", "python": "3.13", "perfil": "core"}
+        celula_outra = {"os": "ubuntu-latest", "python": "3.13", "perfil": "full"}
+
+        test_id = "tests.test_fake.FakeT.test_quarentenado"
+        self.assertTrue(is_test_quarantined(test_id, celula_core, entradas))
+        self.assertFalse(is_test_quarantined(test_id, celula_outra, entradas))
+
+
     def test_quarentena_exclui_teste_bloqueante_somente_na_celula_indicada(self):
         entradas = [
             {

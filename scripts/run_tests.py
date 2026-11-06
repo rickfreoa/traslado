@@ -43,6 +43,17 @@ FORBIDDEN_QUARANTINE_TESTS = {
     "tests.test_errors_e3.ErrorsE3.test_execute_failure_matrix",
 }
 
+VALID_MATRIX_CELLS = {
+    (os_name, py_ver, perfil)
+    for os_name in ("windows-latest", "ubuntu-latest", "macos-15")
+    for py_ver in ("3.11", "3.12", "3.13", "3.14")
+    for perfil in ("core", "full")
+} | {
+    ("windows-latest", "3.13", "legacy"),
+    ("ubuntu-latest", "3.13", "legacy"),
+    ("macos-15", "3.13", "legacy"),
+}
+
 
 def _matches_test(pattern: str, test_id: str) -> bool:
     if pattern == test_id:
@@ -50,6 +61,14 @@ def _matches_test(pattern: str, test_id: str) -> bool:
     if test_id.endswith("." + pattern) or pattern.endswith("." + test_id):
         return True
     return False
+
+
+def _norm_python_version(py: str) -> str:
+    # "3.14.0" -> "3.14", "3.14" -> "3.14"
+    parts = py.strip().split(".")
+    if len(parts) >= 2:
+        return f"{parts[0]}.{parts[1]}"
+    return py.strip()
 
 
 def validate_quarantine_entry(entry: dict) -> dict:
@@ -73,6 +92,18 @@ def validate_quarantine_entry(entry: dict) -> dict:
         val = celula.get(k)
         if not isinstance(val, str) or not val.strip():
             raise ValueError(f"Campo 'celula.{k}' é obrigatório e não pode ser vazio")
+        if "*" in val:
+            raise ValueError(f"Curingas não são permitidos na célula de quarentena: celula.{k}={val!r}")
+
+    norm_os = celula["os"].strip()
+    norm_py = _norm_python_version(celula["python"])
+    norm_perfil = celula["perfil"].strip().lower()
+
+    if (norm_os, norm_py, norm_perfil) not in VALID_MATRIX_CELLS:
+        raise ValueError(
+            f"Célula {{'os': {norm_os!r}, 'python': {norm_py!r}, 'perfil': {norm_perfil!r}}} é inválida ou inexistente "
+            f"na matriz do CI. Curingas e correspondência parcial não são permitidos; use células exatas da matriz existente em ci.yml."
+        )
 
     issue = entry.get("issue")
     if not isinstance(issue, str) or not issue.strip():
@@ -85,9 +116,9 @@ def validate_quarantine_entry(entry: dict) -> dict:
     return {
         "teste": teste.strip(),
         "celula": {
-            "os": celula["os"].strip(),
-            "python": celula["python"].strip(),
-            "perfil": celula["perfil"].strip(),
+            "os": norm_os,
+            "python": norm_py,
+            "perfil": norm_perfil,
         },
         "issue": issue.strip(),
         "motivo": motivo.strip(),
@@ -109,30 +140,20 @@ def load_and_validate_quarantine(path: Path | str | None = None) -> list[dict]:
     return [validate_quarantine_entry(item) for item in dados]
 
 
-def _norm_python_version(py: str) -> str:
-    # "3.14.0" -> "3.14", "3.14" -> "3.14"
-    parts = py.strip().split(".")
-    if len(parts) >= 2:
-        return f"{parts[0]}.{parts[1]}"
-    return py.strip()
-
-
 def _cell_matches(entry_cell: dict, target_cell: dict) -> bool:
-    target_os = target_cell.get("os", "").lower()
-    entry_os = entry_cell.get("os", "").lower()
-    if entry_os != "*" and entry_os != target_os:
-        # Tenta casar prefixos como 'windows' com 'windows-latest'
-        if not (entry_os in target_os or target_os in entry_os):
-            return False
+    target_os = target_cell.get("os", "").strip()
+    entry_os = entry_cell.get("os", "").strip()
+    if entry_os != target_os:
+        return False
 
     target_py = _norm_python_version(target_cell.get("python", ""))
     entry_py = _norm_python_version(entry_cell.get("python", ""))
-    if entry_py != "*" and entry_py != target_py:
+    if entry_py != target_py:
         return False
 
-    target_perfil = target_cell.get("perfil", "").lower()
-    entry_perfil = entry_cell.get("perfil", "").lower()
-    if entry_perfil != "*" and entry_perfil != target_perfil:
+    target_perfil = target_cell.get("perfil", "").strip().lower()
+    entry_perfil = entry_cell.get("perfil", "").strip().lower()
+    if entry_perfil != target_perfil:
         return False
 
     return True

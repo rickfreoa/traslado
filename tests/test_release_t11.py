@@ -431,6 +431,13 @@ class Workflows(unittest.TestCase):
         t = self.texto("ci.yml")
         self.assertIn('"$PY" -I -X faulthandler -m pytest -v -o faulthandler_timeout=600 tests/test_review_e23fix.py', t)
 
+    def test_ci_quarentena_inclui_perfil_core(self):
+        t = self.texto("ci.yml")
+        quarantine_block = t[t.index("name: Testes em quarentena"):t.index("name: Regressões de função pytest")]
+        self.assertNotIn("matrix.perfil != 'core'", quarantine_block)
+        self.assertIn('tests/test_release_t11.py --core', quarantine_block)
+
+
 
 
 

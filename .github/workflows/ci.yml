@@ -216,7 +216,7 @@ jobs:
           fi
 
       - name: Testes em quarentena (informativo)
-        if: (success() || steps.suite.outcome == 'failure') && matrix.perfil != 'core'
+        if: success() || steps.suite.outcome == 'failure'
         continue-on-error: true
         env:
           T11_EXIGE_INSTALADO: "1"
@@ -224,7 +224,12 @@ jobs:
         run: |
           cd "$PKG"
           unset PYTHONPATH
-          ARGS=(run_tests.py --mode quarantine --os "${{ matrix.os }}" --python "${{ matrix.python }}" --perfil "${{ matrix.perfil }}" discover -s tests -v)
+          RUNNER_ARGS=(run_tests.py --mode quarantine --os "${{ matrix.os }}" --python "${{ matrix.python }}" --perfil "${{ matrix.perfil }}")
+          if [ "${{ matrix.perfil }}" = "core" ]; then
+            ARGS=("${RUNNER_ARGS[@]}" tests/test_release_t11.py --core)
+          else
+            ARGS=("${RUNNER_ARGS[@]}" discover -s tests -v)
+          fi
           if [ "$RUNNER_OS" = "Linux" ]; then
             xvfb-run -a "$PY" -I -X utf8 "${ARGS[@]}"
           else
