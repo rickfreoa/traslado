@@ -254,12 +254,55 @@ function Get-OcrProcessArchitecture {
     return 'X64'
 }
 
-function Get-OcrOsArchitecture {
-    if ('System.Runtime.InteropServices.RuntimeInformation' -as [type]) {
+function Get-OcrNativeMachine {
+    if (-not ('FreoaOcrSystemNative' -as [type])) {
         try {
-            $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
-            return $arch.ToString().ToUpperInvariant()
-        } catch {}
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class FreoaOcrSystemNative {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWow64Process2(IntPtr hProcess, out ushort processMachine, out ushort nativeMachine);
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetCurrentProcess();
+    public static bool TryGetNativeMachine(out ushort nativeMachine) {
+        nativeMachine = 0;
+        ushort proc = 0;
+        try {
+            return IsWow64Process2(GetCurrentProcess(), out proc, out nativeMachine);
+        } catch {
+            return false;
+        }
+    }
+}
+'@
+        } catch {
+            return $null
+        }
+    }
+    try {
+        [UInt16]$native = 0
+        if ([FreoaOcrSystemNative]::TryGetNativeMachine([ref]$native)) {
+            return [int]$native
+        }
+    } catch {}
+    return $null
+}
+
+function Resolve-OcrOsArchitecture($NativeMachine = $null, [string]$RuntimeArch = $null) {
+    $nm = if ($null -ne $NativeMachine) { [int]$NativeMachine } else { 0 }
+    if ($nm -eq 0xAA64) {
+        return 'ARM64'
+    }
+    if ($nm -eq 0x014C) {
+        return 'X86'
+    }
+    if ($nm -eq 0x8664) {
+        return 'X64'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($RuntimeArch)) {
+        return $RuntimeArch.Trim().ToUpperInvariant()
     }
     foreach ($target in @([System.EnvironmentVariableTarget]::Process, [System.EnvironmentVariableTarget]::Machine)) {
         try {
@@ -277,6 +320,17 @@ function Get-OcrOsArchitecture {
         return 'X86'
     }
     return 'X64'
+}
+
+function Get-OcrOsArchitecture {
+    $nativeMachine = Get-OcrNativeMachine
+    $runtimeArch = $null
+    if ('System.Runtime.InteropServices.RuntimeInformation' -as [type]) {
+        try {
+            $runtimeArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+        } catch {}
+    }
+    return Resolve-OcrOsArchitecture $nativeMachine $runtimeArch
 }
 
 function Assert-OcrExecutionPlatform {

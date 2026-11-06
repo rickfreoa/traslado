@@ -207,6 +207,33 @@ class OcrBootstrapRC3(unittest.TestCase):
         r_x86 = self.ps(command_x86)
         self.failed_with(r_x86, 'OCR: Windows x86')
 
+    def test_os_architecture_resolution_handles_emulated_arm64_and_all_cases(self):
+        # 1. Native x64
+        cmd_x64 = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0x8664 'X64'"
+        self.assertEqual(self.ps(cmd_x64).stdout.decode('utf-8').strip(), 'X64')
+
+        # 2. Native ARM64
+        cmd_arm = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0xAA64 'ARM64'"
+        self.assertEqual(self.ps(cmd_arm).stdout.decode('utf-8').strip(), 'ARM64')
+
+        # 3. x64 emulated on ARM64 (.NET runtime reports X64, but nativeMachine is 0xAA64)
+        cmd_emulated = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0xAA64 'X64'"
+        self.assertEqual(self.ps(cmd_emulated).stdout.decode('utf-8').strip(), 'ARM64')
+
+        # 4. x86
+        cmd_x86 = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0x014C 'X86'"
+        self.assertEqual(self.ps(cmd_x86).stdout.decode('utf-8').strip(), 'X86')
+
+        # 5. End-to-end rejection under emulated ARM64: Get-OcrNativeMachine reports 0xAA64 while Runtime reports X64
+        cmd_e2e_emulated = (
+            '. ' + quoted(SCRIPT) + '; '
+            'function Get-OcrNativeMachine { 0xAA64 }; '
+            'Assert-OcrExecutionPlatform'
+        )
+        r_e2e = self.ps(cmd_e2e_emulated)
+        self.failed_with(r_e2e, 'OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64')
+
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
