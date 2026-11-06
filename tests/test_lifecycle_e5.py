@@ -348,16 +348,22 @@ class RevocationTests(unittest.TestCase):
         )
         self.assertIsNone(doc_mesmo_dia)
 
-        # Teste via CLI: com mesmo dia e mesma lista, arquivo de saída não é gerado
+        # Teste via CLI: com mesmo dia e mesma lista, arquivo de saída não é gerado (congelando o relógio)
         saida_cli = self.tmp / "nao_gerar.json"
         prev_doc_path = self.tmp / "doc1.json"
         prev_doc_path.write_text(json.dumps(doc1), encoding="utf-8")
-        rc = revocation.main([
-            "--input", str(source),
-            "--output", str(saida_cli),
-            "--previous-sequence", str(doc1["sequence"]),
-            "--previous-document", str(prev_doc_path),
-        ])
+        orig_ensure = revocation._ensure_utc
+        with mock.patch.object(
+            revocation,
+            "_ensure_utc",
+            side_effect=lambda instant=None: revocation._parse_utc(t1) if instant is None else orig_ensure(instant),
+        ):
+            rc = revocation.main([
+                "--input", str(source),
+                "--output", str(saida_cli),
+                "--previous-sequence", str(doc1["sequence"]),
+                "--previous-document", str(prev_doc_path),
+            ])
         self.assertEqual(rc, 0)
         self.assertFalse(saida_cli.exists())
 

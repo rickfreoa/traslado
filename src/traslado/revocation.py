@@ -507,6 +507,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, required=True, help="Caminho de saída para revoked.json")
     parser.add_argument("--previous-sequence", type=int, default=0)
     parser.add_argument("--previous-document", type=Path, default=None, help="Caminho do documento revoked.json anterior publicado")
+    parser.add_argument("--now", default=None, help="Timestamp UTC simulado")
     parser.add_argument("--ttl-days", type=int, default=14)
     parser.add_argument("--force", "--forcar", action="store_true", dest="force", help="Forçar emissão mesmo com mesmo dia UTC e mesma lista")
     args = parser.parse_args(argv)
@@ -515,6 +516,7 @@ def main(argv: list[str] | None = None) -> int:
         args.input,
         previous_sequence=args.previous_sequence,
         previous_document=args.previous_document,
+        now=args.now,
         ttl_days=args.ttl_days,
         force=args.force,
     )
