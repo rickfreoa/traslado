@@ -2,6 +2,13 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
+## 2.0.1
+
+- **Revogação diária idempotente**: emissão agendada diariamente (`17 6 * * *`) do documento `revoked.json` com validade de 14 dias; o job conclui sem nova emissão (sequência inalterada) se o documento publicado tiver sido emitido no mesmo dia UTC e a lista de revogados for idêntica. Despacho manual via `workflow_dispatch` com `forcar: true` força a emissão.
+- **Sentinela de revogação**: workflow agendado a cada 6 h (`.github/workflows/revocation-sentinel.yml`) e script `scripts/revocation_sentinel.py` com permissões mínimas (`issues: write`, `contents: read`), que monitora o documento `revoked.json` e abre ou atualiza (sem duplicar) uma issue com o rótulo `revogacao` quando restarem menos de 7 dias para expiração ou quando a emissão tiver mais de 36 h, fechando-a automaticamente ao normalizar.
+- **Aviso no `traslado doctor`**: `doctor` informa o estado do último documento aceito pela instalação (`sequence`, `expires_at`, `days_remaining` / `dias_restantes`) e exibe aviso estável quando restarem menos de 7 dias ou quando não houver documento aceito, estritamente sem acesso à rede, mantendo o código de saída do doctor e a conversão instalada inalterados.
+- **Diagnóstico de travamento no CI e quarentena nominal**: runner `scripts/run_tests.py` com `faulthandler` ativo e timeout de 600 s por teste (despejando o traceback de todas as threads ao estourar o limite); mecanismo de quarentena nominal por célula via `ci/quarentena.json` (inicialmente vazio), com passo informativo (`continue-on-error: true`), validação obrigatória de issue em cada entrada e garantia de que `test_errors_e3.ErrorsE3.test_execute_failure_matrix` permanece bloqueante em todas as células.
+
 ## 2.0.0
 
 - **Licença**: código próprio sob `AGPL-3.0-or-later` (`LICENCE`), cabeçalhos SPDX em todos os fontes; `THIRD-PARTY.md`, inventário e política de licenças (`LICENSE-POLICY.md`) atualizados.
