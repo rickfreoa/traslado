@@ -13,7 +13,13 @@ param(
 # The caller supplies a new directory inside its unpublished release stage.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-if (-not $LockPath) { $LockPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'ocr-assets.lock.json' }
+if (-not $LockPath) {
+    if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'ocr-assets.lock.json')) {
+        $LockPath = Join-Path $PSScriptRoot 'ocr-assets.lock.json'
+    } else {
+        $LockPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'ocr-assets.lock.json'
+    }
+}
 
 function Get-OcrReparseTag([string]$Path) {
     if (-not ('FreoaOcrReparseNative' -as [type])) {
