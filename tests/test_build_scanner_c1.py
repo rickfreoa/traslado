@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""2.0.1: o verificador de composição da release trata as fixtures do fuzz (ZIPs ilegíveis) sem quebrar nem cegar o gate."""
+import importlib.util
+import io
+import sys
+import unittest
+import zipfile
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parents[1]
+FUZZ = RAIZ / 'tests' / 'fixtures' / 'fuzz'
+
+
+def carregar():
+    sys.path.insert(0, str(RAIZ / 'scripts'))
+    try:
+        spec = importlib.util.spec_from_file_location('build_release_c1', RAIZ / 'scripts' / 'build_release.py')
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        sys.path.pop(0)
+
+
+def zip_flag5(membro: str) -> bytes:
+    """ZIP com um membro cujo bit 5 (dados corrigidos) está ligado nos cabeçalhos local e central."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w') as z:
+        z.writestr(membro, b'x' * 64)
+    dados = bytearray(buf.getvalue())
+    for assinatura, deslocamento in ((b'PK\x03\x04', 6), (b'PK\x01\x02', 8)):
+        i = dados.find(assinatura)
+        dados[i + deslocamento] |= 0x20
+    return bytes(dados)
+
+
+class ScannerFuzzC1(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.b = carregar()
+        cls.docx = (FUZZ / 'finding-docx-0d70b5901ed1b479.docx').read_bytes()
+
+    def test_premissa_flag5_ilegivel(self):
+        with zipfile.ZipFile(io.BytesIO(zip_flag5('a.xml'))) as z, self.assertRaises(NotImplementedError):
+            z.read('a.xml')
+
+    def test_fixture_do_fuzz_e_opaca_no_sdist(self):
+        nome = 'traslado-2.0.1/tests/fixtures/fuzz/finding-docx-0d70b5901ed1b479.docx'
+        self.assertEqual(self.b.membros_proibidos(nome, self.docx, 'traslado-2.0.1.tar.gz!'), [])
+
+    def test_zip_ilegivel_fora_das_fixtures_e_achado(self):
+        achados = self.b.membros_proibidos('traslado/assets/qualquer.docx', zip_flag5('word/document.xml'))
+        self.assertEqual(len(achados), 1, achados)
+        self.assertIn('ilegível', achados[0])
+
+    def test_nome_mupdf_em_fixture_ilegivel_continua_achado(self):
+        achados = self.b.membros_proibidos('pkg/tests/fixtures/fuzz/x.docx', zip_flag5('fitz/_mupdf.pyd'))
+        self.assertTrue(achados and achados[0].endswith(': nome'), achados)
+
+
+if __name__ == '__main__':
+    unittest.main()

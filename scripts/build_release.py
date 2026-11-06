@@ -146,6 +146,9 @@ def construir_sdist(destino: Path, nomes: list[str], wheel: Path) -> Path:
     return sdist
 
 
+FIXTURE_FUZZ = re.compile(r"(^|/)tests/fixtures/fuzz/[^/!]+$")
+
+
 def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
     """Motivos pelos quais um membro (e, recursivamente, um zip/wheel/tar.gz aninhado) contém PyMuPDF/MuPDF."""
     achados = []
@@ -154,7 +157,17 @@ def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
     if zipfile.is_zipfile(io.BytesIO(dados)):
         with zipfile.ZipFile(io.BytesIO(dados)) as z:
             for info in z.infolist():
-                achados += membros_proibidos(info.filename, z.read(info), f"{caminho}{nome}!")
+                try:
+                    conteudo = z.read(info)
+                except (NotImplementedError, zipfile.BadZipFile, RuntimeError) as exc:
+                    # Fixtures do fuzz são ZIPs deliberadamente ilegíveis (ex.: flag 5): opacas, com o nome conferido.
+                    if FIXTURE_FUZZ.search(nome):
+                        if NOME_MUPDF.search(info.filename):
+                            achados.append(f"{caminho}{nome}!{info.filename}: nome")
+                        continue
+                    achados.append(f"{caminho}{nome}!{info.filename}: ilegível ({type(exc).__name__})")
+                    continue
+                achados += membros_proibidos(info.filename, conteudo, f"{caminho}{nome}!")
     elif nome.lower().endswith((".tar.gz", ".tgz", ".tar")) and tarfile.is_tarfile(io.BytesIO(dados)):
         with tarfile.open(fileobj=io.BytesIO(dados), mode="r:*") as tf:
             for info in tf.getmembers():
