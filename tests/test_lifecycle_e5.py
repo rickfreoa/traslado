@@ -899,6 +899,56 @@ class LocksAndWrappersContractTests(unittest.TestCase):
             self.assertIn("CRITICAL_CLI_BOOTSTRAP_STDERR", out_err)
             self.assertNotIn("VOLUMINOUS_STDOUT_SENTINEL", out_err)
 
+    def test_reused_ocr_validates_platform_and_pe_architecture(self) -> None:
+        def make_pe(machine: int) -> bytes:
+            header = bytearray(128)
+            header[0:2] = b"MZ"
+            pe_offset = 64
+            header[0x3C:0x40] = pe_offset.to_bytes(4, "little")
+            header[pe_offset:pe_offset+4] = b"PE\0\0"
+            header[pe_offset+4:pe_offset+6] = machine.to_bytes(2, "little")
+            return bytes(header)
+
+        # Caso 1: executável existente é ARM64 -> deve falhar com mensagem explícita e não reutilizar
+        release_dir = Path(tempfile.mkdtemp(prefix="t-ocr-arm64-"))
+        self.addCleanup(shutil.rmtree, release_dir, True)
+        ocr_dir = release_dir / "ocr"
+        ocr_dir.mkdir()
+        (ocr_dir / "tessdata").mkdir()
+        (ocr_dir / "tesseract.exe").write_bytes(make_pe(0xAA64))
+        with self.assertRaises(RuntimeError) as ctx:
+            lifecycle.setup_ocr(release_dir, platform_name="win32", profile="Full")
+        self.assertIn("OCR: Windows ARM64 nao suportado nesta versao; executavel tesseract e ARM64", str(ctx.exception))
+
+        # Caso 2: executável existente é x86 -> deve falhar com mensagem explícita e não reutilizar
+        release_dir_x86 = Path(tempfile.mkdtemp(prefix="t-ocr-x86-"))
+        self.addCleanup(shutil.rmtree, release_dir_x86, True)
+        ocr_dir_x86 = release_dir_x86 / "ocr"
+        ocr_dir_x86.mkdir()
+        (ocr_dir_x86 / "tessdata").mkdir()
+        (ocr_dir_x86 / "tesseract.exe").write_bytes(make_pe(0x014C))
+        with self.assertRaises(RuntimeError) as ctx_x86:
+            lifecycle.setup_ocr(release_dir_x86, platform_name="win32", profile="Full")
+        self.assertIn("OCR: executavel tesseract e x86 (32 bits); requer versao x64", str(ctx_x86.exception))
+
+        # Caso 3: executável x64 válido -> reutilizado com sucesso
+        release_dir_x64 = Path(tempfile.mkdtemp(prefix="t-ocr-x64-"))
+        self.addCleanup(shutil.rmtree, release_dir_x64, True)
+        ocr_dir_x64 = release_dir_x64 / "ocr"
+        ocr_dir_x64.mkdir()
+        (ocr_dir_x64 / "tessdata").mkdir()
+        (ocr_dir_x64 / "tesseract.exe").write_bytes(make_pe(0x8664))
+        res = lifecycle.setup_ocr(release_dir_x64, platform_name="win32", profile="Full")
+        self.assertTrue(res["ocr_installed"])
+        self.assertEqual(res["ocr"]["origin"], "lock")
+
+        # Caso 4: plataforma ARM64 (mesmo sob emulação x64) com executável x64 -> recusa de plataforma
+        with mock.patch("traslado.lifecycle._get_windows_native_machine", return_value=0xAA64, create=True):
+            with self.assertRaises(RuntimeError) as ctx_plat:
+                lifecycle.setup_ocr(release_dir_x64, platform_name="win32", profile="Full")
+            self.assertIn("OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64", str(ctx_plat.exception))
+
+
 
 if __name__ == "__main__":
     unittest.main()
