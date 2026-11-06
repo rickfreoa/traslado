@@ -233,7 +233,7 @@ def conferir_composicao(p: Path) -> list[str]:
         expected |= {info + n for n in ("METADATA", "WHEEL", "entry_points.txt", "top_level.txt", "RECORD", "licenses/LICENCE")}
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
-    elif p.name == prefix + "-windows.zip":
+    elif p.name == prefix + "-windows.zip" or p.name.endswith("-windows.zip"):
         expected = {prefix + "-windows/" + n for n in nomes | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{prefix}-py3-none-any.whl", "scripts/bootstrap_ocr.ps1"}}
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
@@ -250,7 +250,7 @@ def conferir_composicao(p: Path) -> list[str]:
         errors.append(f"{p.name}: membros duplicados")
     if set(actual) != expected:
         errors.append(f"{p.name}: composição diverge: a mais {sorted(set(actual)-expected)}; a menos {sorted(expected-set(actual))}")
-    if p.name == prefix + "-windows.zip":
+    if p.name == prefix + "-windows.zip" or p.name.endswith("-windows.zip"):
         prefix_zip = prefix + "-windows/"
         caminho_derived = prefix_zip + "scripts/bootstrap_ocr.ps1"
         caminho_canonical = prefix_zip + "src/traslado/assets/bootstrap_ocr.ps1"

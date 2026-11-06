@@ -106,33 +106,43 @@ class Build(unittest.TestCase):
         self.assertEqual(payload["checkout_limpo"], not self.flag)
         self.assertEqual({f["path"] for f in payload["files"]}, esperado - {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS"})
 
-    def test_bootstrap_ocr_unica_fonte_e_sem_divergencias(self):
-        canonical = ROOT / "src/traslado/assets/bootstrap_ocr.ps1"
-        self.assertTrue(canonical.is_file(), "Fonte única src/traslado/assets/bootstrap_ocr.ps1 ausente")
-        derived = ROOT / "scripts/bootstrap_ocr.ps1"
-        if derived.is_file():
-            self.assertEqual(
-                derived.read_bytes(),
-                canonical.read_bytes(),
-                "scripts/bootstrap_ocr.ps1 diverge da fonte única em src/traslado/assets/bootstrap_ocr.ps1"
-            )
-        with zipfile.ZipFile(self.zip) as z:
-            membros = z.namelist()
-            prefix = f"traslado-{versao_fonte()}-windows"
-            caminho_derived = f"{prefix}/scripts/bootstrap_ocr.ps1"
-            caminho_canonical = f"{prefix}/src/traslado/assets/bootstrap_ocr.ps1"
-            if caminho_derived in membros and caminho_canonical in membros:
-                self.assertEqual(
-                    z.read(caminho_derived),
-                    z.read(caminho_canonical),
-                    "scripts/bootstrap_ocr.ps1 e src/traslado/assets/bootstrap_ocr.ps1 divergem no ZIP"
-                )
+    def test_git_ls_files_contem_exatamente_um_bootstrap_ocr(self):
+        resultado = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        arquivos = [
+            linha.strip()
+            for linha in resultado.stdout.splitlines()
+            if linha.strip().endswith("bootstrap_ocr.ps1")
+        ]
+        self.assertEqual(
+            arquivos,
+            ["src/traslado/assets/bootstrap_ocr.ps1"],
+            f"O índice git deve conter exatamente uma fonte de bootstrap_ocr.ps1, mas continha: {arquivos}",
+        )
 
-    def test_bootstrap_ocr_divergencias_sao_rejeitadas(self):
-        canonical = (ROOT / "src/traslado/assets/bootstrap_ocr.ps1").read_bytes()
-        tampered = canonical + b"\n# DIVERGENCIA SIMULADA\n"
-        with self.assertRaises(AssertionError):
-            self.assertEqual(tampered, canonical)
+    def test_bootstrap_ocr_copia_adulterada_rejeitada_por_verificador_de_build(self):
+        br = carregar("build_release")
+        prefix = f"traslado-{versao_fonte()}-windows"
+        caminho_derived = f"{prefix}/scripts/bootstrap_ocr.ps1"
+        tmp_dir = self.tmp / "tampered-dir"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_zip = tmp_dir / self.zip.name
+        with zipfile.ZipFile(self.zip, "r") as z_in, zipfile.ZipFile(tmp_zip, "w") as z_out:
+            for item in z_in.infolist():
+                conteudo = z_in.read(item.filename)
+                if item.filename == caminho_derived:
+                    conteudo += b"\n# DIVERGENCIA ADULTERADA\n"
+                z_out.writestr(item, conteudo)
+        erros = br.conferir_composicao(tmp_zip)
+        self.assertTrue(
+            any("diverge da fonte única" in e for e in erros),
+            f"Verificador do produto/build deveria rejeitar divergência em scripts/bootstrap_ocr.ps1, mas erros foram: {erros}",
+        )
+        self.assertEqual(br.verificar([tmp_zip]), 1)
 
     def test_arquivo_nao_listado_na_raiz_nao_entra(self):
         extra = ROOT / "ARQUIVO-NAO-LISTADO-T11.txt"
