@@ -55,7 +55,7 @@ class ScannerFuzzC1(unittest.TestCase):
 
     def test_nome_mupdf_em_fixture_ilegivel_continua_achado(self):
         achados = self.b.membros_proibidos('pkg/tests/fixtures/fuzz/x.docx', zip_flag5('fitz/_mupdf.pyd'))
-        self.assertTrue(achados and achados[0].endswith(': nome'), achados)
+        self.assertTrue(any(a.endswith(': nome') for a in achados), achados)
 
 
     def test_deflate_corrompido_dentro_e_fora_das_fixtures(self):
@@ -73,6 +73,19 @@ class ScannerFuzzC1(unittest.TestCase):
         achados = self.b.membros_proibidos('pkg/qualquer.docx', dados)
         self.assertEqual(len(achados), 1, achados)
         self.assertIn('ilegível', achados[0])
+
+
+    def test_fixtures_reais_cabem_no_teto_e_nao_citam_mupdf(self):
+        for p in sorted(FUZZ.iterdir()):
+            nome = 'traslado-2.0.1/tests/fixtures/fuzz/' + p.name
+            self.assertEqual(self.b.membros_proibidos(nome, p.read_bytes()), [], p.name)
+
+    def test_fixture_grande_ou_com_mupdf_e_achado(self):
+        nome = 'pkg/tests/fixtures/fuzz/z.docx'
+        grande = zip_flag5('a.xml') + b'\0' * (self.b.FIXTURE_FUZZ_MAX + 1)
+        self.assertTrue(any('excede' in a for a in self.b.membros_proibidos(nome, grande)))
+        com_mupdf = zip_flag5('a.xml') + b'\0libmupdf\0'
+        self.assertTrue(any(a.endswith(': conteúdo') for a in self.b.membros_proibidos(nome, com_mupdf)))
 
 
 if __name__ == '__main__':

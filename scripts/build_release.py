@@ -147,11 +147,19 @@ def construir_sdist(destino: Path, nomes: list[str], wheel: Path) -> Path:
 
 
 FIXTURE_FUZZ = re.compile(r"(^|/)tests/fixtures/fuzz/[^/!]+$")
+FIXTURE_FUZZ_MAX = 64 * 1024
 
 
 def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
     """Motivos pelos quais um membro (e, recursivamente, um zip/wheel/tar.gz aninhado) contém PyMuPDF/MuPDF."""
     achados = []
+    if FIXTURE_FUZZ.search(nome):
+        # Fixture do fuzz pode ter membros ilegíveis: teto de tamanho (um binário MuPDF tem megabytes)
+        # e varredura de conteúdo sobre os bytes brutos, além da varredura recursiva abaixo.
+        if len(dados) > FIXTURE_FUZZ_MAX:
+            achados.append(f"{caminho}{nome}: fixture do fuzz excede {FIXTURE_FUZZ_MAX} bytes")
+        if CONTEUDO_MUPDF.search(dados):
+            achados.append(f"{caminho}{nome}: conteúdo")
     if NOME_MUPDF.search(nome):
         achados.append(f"{caminho}{nome}: nome")
     if zipfile.is_zipfile(io.BytesIO(dados)):

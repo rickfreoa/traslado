@@ -54,7 +54,7 @@ def classify(exc: Exception) -> ConversionError:
         code = "malformed"
     elif type(exc).__name__ in {"DecompressionBombError", "DecompressionBombWarning"}:
         code = "resource_limit"
-    elif isinstance(exc, ValueError) and str(exc) == "unknown raw mode for given image mode":
+    elif isinstance(exc, ValueError) and str(exc).startswith("unknown raw mode"):
         code = "malformed"
     elif isinstance(exc, ValueError) and str(exc) in {
             "Tabela renderizada excede limite de células", "Quantidade de chunks excede limite",
