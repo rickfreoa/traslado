@@ -106,6 +106,34 @@ class Build(unittest.TestCase):
         self.assertEqual(payload["checkout_limpo"], not self.flag)
         self.assertEqual({f["path"] for f in payload["files"]}, esperado - {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS"})
 
+    def test_bootstrap_ocr_unica_fonte_e_sem_divergencias(self):
+        canonical = ROOT / "src/traslado/assets/bootstrap_ocr.ps1"
+        self.assertTrue(canonical.is_file(), "Fonte única src/traslado/assets/bootstrap_ocr.ps1 ausente")
+        derived = ROOT / "scripts/bootstrap_ocr.ps1"
+        if derived.is_file():
+            self.assertEqual(
+                derived.read_bytes(),
+                canonical.read_bytes(),
+                "scripts/bootstrap_ocr.ps1 diverge da fonte única em src/traslado/assets/bootstrap_ocr.ps1"
+            )
+        with zipfile.ZipFile(self.zip) as z:
+            membros = z.namelist()
+            prefix = f"traslado-{versao_fonte()}-windows"
+            caminho_derived = f"{prefix}/scripts/bootstrap_ocr.ps1"
+            caminho_canonical = f"{prefix}/src/traslado/assets/bootstrap_ocr.ps1"
+            if caminho_derived in membros and caminho_canonical in membros:
+                self.assertEqual(
+                    z.read(caminho_derived),
+                    z.read(caminho_canonical),
+                    "scripts/bootstrap_ocr.ps1 e src/traslado/assets/bootstrap_ocr.ps1 divergem no ZIP"
+                )
+
+    def test_bootstrap_ocr_divergencias_sao_rejeitadas(self):
+        canonical = (ROOT / "src/traslado/assets/bootstrap_ocr.ps1").read_bytes()
+        tampered = canonical + b"\n# DIVERGENCIA SIMULADA\n"
+        with self.assertRaises(AssertionError):
+            self.assertEqual(tampered, canonical)
+
     def test_arquivo_nao_listado_na_raiz_nao_entra(self):
         extra = ROOT / "ARQUIVO-NAO-LISTADO-T11.txt"
         extra.write_text("fora da lista", encoding="utf-8")
@@ -200,7 +228,8 @@ class DeteccaoMuPDF(unittest.TestCase):
 
 class Inventario(unittest.TestCase):
     ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "README.md", "ocr-assets.lock.json", "requirements-full.lock",
-                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1", "licenses-allowlist.json",
+                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1",
+                "src/traslado/assets/bootstrap_ocr.ps1", "licenses-allowlist.json",
                 "locks/requirements-legacy.hashes.lock"]
 
     def setUp(self):

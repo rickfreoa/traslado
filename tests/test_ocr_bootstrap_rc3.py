@@ -15,7 +15,7 @@ import unittest
 import uuid
 
 PACKAGE = Path(__file__).resolve().parents[1]
-SCRIPT = PACKAGE / 'scripts/bootstrap_ocr.ps1'
+SCRIPT = PACKAGE / 'src/traslado/assets/bootstrap_ocr.ps1'
 LOCK = PACKAGE / 'ocr-assets.lock.json'
 POWERSHELL = Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
 
