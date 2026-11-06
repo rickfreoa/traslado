@@ -117,8 +117,15 @@ def main() -> int:
         return 0
     except Exception as exc:
         issue = classify(exc)
-        (workspace / "error.json").write_text(json.dumps({"type": type(exc).__name__, "error": str(exc)[:2000], "code": issue.code, "data": issue.data or {}},
-                                                       ensure_ascii=False), encoding="utf-8")
+        # Diagnostics are control data, outside the monitored output budget.
+        # A second write failure must not erase the original, typed cause.
+        payload = json.dumps({"type": type(exc).__name__, "error": str(exc)[:2000],
+                              "code": issue.code, "data": issue.data or {}}, ensure_ascii=False)
+        (Path(sys.argv[1]).parent / "worker-error.json").write_text(payload, encoding="utf-8")
+        try:
+            (workspace / "error.json").write_text(payload, encoding="utf-8")
+        except OSError:
+            pass  # The authoritative diagnostic is already outside the budget.
         return 2
 
 

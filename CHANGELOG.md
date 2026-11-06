@@ -2,6 +2,12 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
+## 2.0.1
+
+- Falhas por limites configurados preservam `resource_limit` mesmo quando a limpeza do processo falha ou o diagnóstico de saída fica incompleto. O worker registra a causa fora do orçamento da pasta de saída; falhas de E/S sem causa de limite continuam como `io`.
+- Achados do fuzz passam a integrar as regressões automáticas, tanto em `execute()` quanto no caminho em processo: ZIP com flag 5 resulta em `unsupported`; árvore de páginas PDF inválida e modo de pixels inválido resultam em `malformed`.
+- A correção altera a classificação de falhas, preservando os bytes de `document.md` e `chunks.jsonl` para documentos válidos.
+
 ## 2.0.0
 
 - **Licença**: código próprio sob `AGPL-3.0-or-later` (`LICENCE`), cabeçalhos SPDX em todos os fontes; `THIRD-PARTY.md`, inventário e política de licenças (`LICENSE-POLICY.md`) atualizados.

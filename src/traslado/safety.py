@@ -77,6 +77,8 @@ def check_archive(path: Path, options: Options) -> None:
             raise ConversionError('resource_limit', "Arquivo Office excede o limite de descompressão")
         names: set[str] = set()
         for info in infos:
+            if info.flag_bits & 0x20:
+                raise ConversionError('unsupported', "ZIP com dados corrigidos (flag 5) não suportado")
             name = info.filename.replace("\\", "/")
             if name in names:
                 raise ConversionError('malformed', "Membro ZIP duplicado")
@@ -208,7 +210,11 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
     peak = 0
     if measurements is not None:
         measurements.update(limit_bytes=max_memory_bytes, peak_bytes=0, detected_after_s=None,
-                            rlimit_applied=sys.platform == 'linux')
+                            rlimit_applied=sys.platform == 'linux', resource_limit=None)
+    def exceeded(cause: str, message: str) -> None:
+        if measurements is not None:
+            measurements['resource_limit'] = cause
+        raise ConversionError('resource_limit', message)
     with log.open("wb") as stream:
         proc = None
         try:
@@ -228,7 +234,7 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
                         if rss > max_memory_bytes:
                             if measurements is not None:
                                 measurements['detected_after_s'] = time.monotonic() - started
-                            raise ConversionError('resource_limit', 'Limite de memória excedido (monitorado)')
+                            exceeded('memory', 'Limite de memória excedido (monitorado)')
                 if on_poll:
                     on_poll()
                 if cancel and cancel():
@@ -238,7 +244,7 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
                         measurements['detected_after_s'] = time.monotonic() - started
                     raise ConversionTimeout("Tempo limite excedido")
                 if log.stat().st_size > max_log_bytes:
-                    raise ConversionError('resource_limit', "Log excede o limite")
+                    exceeded('log', "Log excede o limite")
                 if budget_root and max_directory_bytes:
                     total = _directory_bytes(budget_root)
                     # PDF's page rasters are siblings of package inside the private
@@ -246,26 +252,38 @@ def run_bounded(argv: list[str], cwd: Path, timeout: int, log: Path,
                     for folder in budget_root.parent.glob('.freoa-ocr-page-*'):
                         total += _directory_bytes(folder)
                     if total > max_directory_bytes:
-                        raise ConversionError('resource_limit', "Arquivos temporários excedem limite de saída")
+                        exceeded('directory', "Arquivos temporários excedem limite de saída")
                 time.sleep(0.05)
             if log.stat().st_size > max_log_bytes:
-                raise ConversionError('resource_limit', "Log excede o limite")
+                exceeded('log', "Log excede o limite")
             if budget_root and max_directory_bytes:
                 total = _directory_bytes(budget_root) + sum(_directory_bytes(p) for p in budget_root.parent.glob('.freoa-ocr-page-*'))
                 if total > max_directory_bytes:
-                    raise ConversionError('resource_limit', "Arquivos temporários excedem limite de saída")
+                    exceeded('directory', "Arquivos temporários excedem limite de saída")
             return proc.returncode
         finally:
-            if job:
-                peak = max(peak, job.peak_memory())
+            failure = sys.exception()
+            try:
+                try:
+                    if job:
+                        peak = max(peak, job.peak_memory())
+                        if measurements is not None:
+                            measurements['job_pids'] = job.process_ids()
+                finally:
+                    if job:
+                        job.close()  # kills descendants even on a failed final measurement
+                    if proc:
+                        kill_tree(proc)
+            except OSError:
+                # A process can disappear between poll and killpg/ps. Cleanup
+                # must not replace the already established conversion failure.
+                if isinstance(failure, ConversionError):
+                    raise failure
+                raise
+            finally:
                 if measurements is not None:
-                    measurements['job_pids'] = job.process_ids()
-                job.close()  # kills descendants even if the original process exited normally
-            if proc:
-                kill_tree(proc)
-            if measurements is not None:
-                measurements.update(peak_bytes=peak, elapsed_s=time.monotonic() - started,
-                                    pid=proc.pid if proc else None)
+                    measurements.update(peak_bytes=peak, elapsed_s=time.monotonic() - started,
+                                        pid=proc.pid if proc else None)
 
 
 def safe_child(root: Path, name: str) -> Path:
