@@ -98,7 +98,7 @@ class Build(unittest.TestCase):
 
     def test_zip_contem_exatamente_o_listado(self):
         listados = {n for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").split() if n and n[0] not in "#!"}
-        esperado = listados | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{self.wheel.name}"}
+        esperado = listados | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{self.wheel.name}", "scripts/bootstrap_ocr.ps1"}
         self.assertEqual(self.membros(), esperado)
         self.assertFalse(any(n.startswith(("tests/", ".github/")) or n == "release-files.txt" for n in esperado))
         with zipfile.ZipFile(self.zip) as z:
@@ -228,7 +228,7 @@ class DeteccaoMuPDF(unittest.TestCase):
 
 class Inventario(unittest.TestCase):
     ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "README.md", "ocr-assets.lock.json", "requirements-full.lock",
-                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1",
+                "requirements-full.hashes.lock", "requirements-test.hashes.lock",
                 "src/traslado/assets/bootstrap_ocr.ps1", "licenses-allowlist.json",
                 "locks/requirements-legacy.hashes.lock"]
 

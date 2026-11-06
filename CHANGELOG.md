@@ -5,7 +5,7 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 ## 2.0.1
 
 - **Bootstrap OCR**: detecção do sistema operacional pela API (`RuntimeInformation::IsOSPlatform` ou `[Environment]::OSVersion.Platform -eq 'Win32NT'`) em vez da variável `$env:OS`; distinção correta entre arquitetura do sistema operacional e arquitetura do processo; validação da arquitetura do executável Tesseract pelo campo Machine do cabeçalho PE (0x8664 para x64) antes da execução; recusa explícita de arquiteturas ARM64 e x86.
-- **Distribuição e integridade do instalador OCR**: fonte única versionada em `src/traslado/assets/bootstrap_ocr.ps1`, eliminando divergências com cópias derivadas e garantindo validação em testes de empacotamento da release.
+- **Distribuição e integridade do instalador OCR**: fonte única versionada em `src/traslado/assets/bootstrap_ocr.ps1`, com `scripts/bootstrap_ocr.ps1` removido do controle de versão e derivado no build com verificação de igualdade byte a byte; todos os consumidores adaptados à fonte única.
 - **Diagnóstico do setup**: código de saída e final do `stderr` do processo de bootstrap OCR (até 4 KB) incluídos na mensagem de erro do `traslado setup` em caso de falha, sem despejar saída volumosa de `stdout`.
 - **Atalhos no CLI**: o comando `traslado shortcuts` passa a ser efetivo mesmo após instalação promovida com `--no-shortcut`, criando os atalhos solicitados e atualizando `shortcuts.enabled` para `true` no manifesto `current.json` de forma atômica; comandos `update` e `rollback` continuam respeitando o estado gravado.
 

@@ -234,7 +234,7 @@ def conferir_composicao(p: Path) -> list[str]:
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
     elif p.name == prefix + "-windows.zip":
-        expected = {prefix + "-windows/" + n for n in nomes | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{prefix}-py3-none-any.whl"}}
+        expected = {prefix + "-windows/" + n for n in nomes | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{prefix}-py3-none-any.whl", "scripts/bootstrap_ocr.ps1"}}
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
     elif p.name == prefix + ".tar.gz":
@@ -250,6 +250,15 @@ def conferir_composicao(p: Path) -> list[str]:
         errors.append(f"{p.name}: membros duplicados")
     if set(actual) != expected:
         errors.append(f"{p.name}: composição diverge: a mais {sorted(set(actual)-expected)}; a menos {sorted(expected-set(actual))}")
+    if p.name == prefix + "-windows.zip":
+        prefix_zip = prefix + "-windows/"
+        caminho_derived = prefix_zip + "scripts/bootstrap_ocr.ps1"
+        caminho_canonical = prefix_zip + "src/traslado/assets/bootstrap_ocr.ps1"
+        with zipfile.ZipFile(p) as z:
+            membros_z = z.namelist()
+            if caminho_derived in membros_z and caminho_canonical in membros_z:
+                if z.read(caminho_derived) != z.read(caminho_canonical):
+                    errors.append(f"{p.name}: cópia em scripts/bootstrap_ocr.ps1 diverge da fonte única em src/traslado/assets/bootstrap_ocr.ps1")
     return errors
 
 
@@ -295,6 +304,10 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
     extras_dist = _emitir_artefatos_bootstrap_e_locks(dist)
     itens = {n: (ROOT / n).read_bytes() for n in nomes}
     itens[f"dist/{wheel.name}"] = wheel.read_bytes()  # o instalador exige o wheel próprio no payload
+    # O ZIP da release copia scripts/bootstrap_ocr.ps1 da fonte única e confere igualdade:
+    fonte_unica_bootstrap = ROOT / "src/traslado/assets/bootstrap_ocr.ps1"
+    itens["scripts/bootstrap_ocr.ps1"] = fonte_unica_bootstrap.read_bytes()
+    assert itens["scripts/bootstrap_ocr.ps1"] == itens["src/traslado/assets/bootstrap_ocr.ps1"]
     payload = {"schema_version": 1, "product": PRODUCT, "version": VERSION, "checkout_limpo": limpo,
                "commit": git("rev-parse", "HEAD").strip(),
                "files": [{"path": n, "sha256": sha(b), "bytes": len(b)} for n, b in sorted(itens.items())]}

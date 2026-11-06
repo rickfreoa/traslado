@@ -406,7 +406,10 @@ def install(args):
         run([python, "-I", "-m", "pip", "install", "--no-input", "--no-index", "--no-deps", wheels[0]], env=environment)
         use_ocr = args.profile == "Full" and not args.skip_ocr
         if use_ocr:
-            command = [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", release / "scripts/bootstrap_ocr.ps1",
+            bootstrap_script = release / "src/traslado/assets/bootstrap_ocr.ps1"
+            if not bootstrap_script.is_file():
+                bootstrap_script = release / "scripts/bootstrap_ocr.ps1"
+            command = [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", bootstrap_script,
                        "-Destination", release / "ocr", "-CacheDirectory", package / "ocr-cache", "-Languages", ",".join(args.languages)]
             run(command, env=environment)
         data_root.mkdir(parents=True, exist_ok=True)
