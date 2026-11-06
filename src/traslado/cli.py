@@ -129,11 +129,19 @@ def main(argv: list[str] | None = None) -> int:
                 if args.command in {"setup", "update"}:
                     lifecycle.discard_pending_uninstall(managed)
         if args.command == "shortcuts":
-            root = args.root or plat.managed_root()
+            root = Path(args.root or plat.managed_root())
             current = plat.read_current(root)
             if not current:
                 raise ValueError("current.json ilegivel ou ausente")
+            shortcuts = current.setdefault("shortcuts", {})
+            if not isinstance(shortcuts, dict):
+                shortcuts = {}
+                current["shortcuts"] = shortcuts
+            shortcuts["enabled"] = True
+            if not shortcuts.get("home"):
+                shortcuts["home"] = str(Path(os.environ.get("HOME") or os.environ.get("USERPROFILE") or Path.home()))
             plat.refresh_shortcuts(root, current)
+            plat._atomic(root / "current.json", current)
             return 0
         if args.command == "setup":
             if args.check_active:

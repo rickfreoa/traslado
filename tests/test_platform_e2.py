@@ -136,6 +136,122 @@ class PlatformE2(unittest.TestCase):
             self.assertEqual(run.call_count, 2)
             self.assertIn('-I -m traslado.gui', run.call_args.args[0][-1])
 
+    def test_shortcuts_command_enables_shortcuts_after_no_shortcut(self):
+        from traslado import cli
+        fake_home = self.root / "fake_home"
+        fake_home.mkdir(parents=True, exist_ok=True)
+        desk_dir = fake_home / "desk"
+        menu_dir = fake_home / "menu"
+        managed = self.root / "managed"
+        managed.mkdir(parents=True, exist_ok=True)
+
+        rel_py = p.release_python(managed, "v1")
+        rel_py.parent.mkdir(parents=True, exist_ok=True)
+        rel_py.write_bytes(b"sentinel")
+
+        current_manifest = {
+            "schema_version": 2,
+            "product": "traslado",
+            "release_id": "v1",
+            "version": "2.0.1",
+            "platform": sys.platform,
+            "shortcuts": {
+                "enabled": False,
+                "home": str(fake_home),
+                "dirs": {
+                    "desktop_dir": str(desk_dir),
+                    "start_menu_dir": str(menu_dir),
+                },
+            },
+        }
+        p._atomic(managed / "current.json", current_manifest)
+
+        # Verify initial state: shortcuts.enabled is False and no shortcuts exist
+        self.assertFalse(p.read_current(managed)["shortcuts"]["enabled"])
+        p.refresh_shortcuts(managed, current_manifest)
+        if sys.platform == "win32":
+            self.assertFalse((desk_dir / "Traslado.lnk").exists())
+            self.assertFalse((menu_dir / "Traslado.lnk").exists())
+
+        env = {
+            "HOME": str(fake_home),
+            "USERPROFILE": str(fake_home),
+            "APPDATA": str(fake_home / "AppData/Roaming"),
+            "LOCALAPPDATA": str(fake_home / "AppData/Local"),
+        }
+        with patch.dict(os.environ, env):
+            code = cli.main(["shortcuts", "--root", str(managed)])
+            self.assertEqual(code, 0)
+
+        # Item D: Explicit command creates shortcuts and sets shortcuts.enabled = True atomically
+        updated = p.read_current(managed)
+        self.assertTrue(updated["shortcuts"]["enabled"])
+        if sys.platform == "win32":
+            self.assertTrue((desk_dir / "Traslado.lnk").exists())
+            self.assertTrue((menu_dir / "Traslado.lnk").exists())
+
+        # Verify update and rollback continue respecting the recorded state
+        # Rollback to v0 where shortcuts.enabled is False keeps shortcuts disabled
+        (managed / "releases" / "v0").mkdir(parents=True, exist_ok=True)
+        v0_py = p.release_python(managed, "v0")
+        v0_py.parent.mkdir(parents=True, exist_ok=True)
+        v0_py.write_bytes(b"sentinel")
+        v0_manifest = {
+            "schema_version": 2,
+            "product": "traslado",
+            "release_id": "v0",
+            "version": "2.0.0",
+            "platform": sys.platform,
+            "shortcuts": {
+                "enabled": False,
+                "home": str(fake_home),
+                "dirs": {
+                    "desktop_dir": str(desk_dir),
+                    "start_menu_dir": str(menu_dir),
+                },
+            },
+        }
+        (managed / "state" / "history").mkdir(parents=True, exist_ok=True)
+        p._atomic(managed / "state" / "history" / "v0.json", v0_manifest)
+        updated["previous_release_id"] = "v0"
+        p._atomic(managed / "current.json", updated)
+
+        rolled_back = p.rollback(managed)
+        self.assertFalse(rolled_back["shortcuts"]["enabled"])
+        self.assertFalse(p.read_current(managed)["shortcuts"]["enabled"])
+
+        # Verify update_release respects the recorded state:
+        # When shortcuts are enabled in current.json, -NoShortcut / --no-shortcut is omitted.
+        # When shortcuts are disabled, -NoShortcut / --no-shortcut is included.
+        from traslado import lifecycle
+        import hashlib
+        commands = []
+        def fake_run(argv, **kw):
+            commands.append(list(argv))
+            return subprocess.CompletedProcess(argv, 0)
+
+        update_pkg = self.root / "update_pkg"
+        update_pkg.mkdir(parents=True, exist_ok=True)
+        wheel_name = "traslado-2.0.2-py3-none-any.whl"
+        (update_pkg / wheel_name).write_bytes(b"wheel_sentinel")
+        script_name = "install.ps1" if sys.platform == "win32" else "install.sh"
+        (update_pkg / script_name).write_bytes(b"script_sentinel")
+        wh_hash = hashlib.sha256(b"wheel_sentinel").hexdigest()
+        sc_hash = hashlib.sha256(b"script_sentinel").hexdigest()
+        (update_pkg / "SHA256SUMS").write_text(f"{wh_hash}  {wheel_name}\n{sc_hash}  {script_name}\n", encoding="utf-8")
+
+        no_sc_flag = "-NoShortcut" if sys.platform == "win32" else "--no-shortcut"
+
+        # Update while shortcuts enabled:
+        p._atomic(managed / "current.json", updated)
+        lifecycle.update_release(root=managed, from_dir=update_pkg, yes=True, run_cmd=fake_run)
+        self.assertNotIn(no_sc_flag, commands[-1])
+
+        # Update while shortcuts disabled:
+        p._atomic(managed / "current.json", rolled_back)
+        lifecycle.update_release(root=managed, from_dir=update_pkg, yes=True, run_cmd=fake_run)
+        self.assertIn(no_sc_flag, commands[-1])
+
 
 if __name__ == '__main__':
     unittest.main()

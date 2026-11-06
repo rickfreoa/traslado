@@ -182,12 +182,14 @@ def _promote(root, now=None, *, allow_offline=False, offline_reason=None):
 
 def refresh_shortcuts(root, manifest):
     config = manifest.get('shortcuts', {})
-    if not config.get('enabled'):
+    if not isinstance(config, dict) or not config.get('enabled'):
         return
+    home_val = config.get('home')
+    dirs = config.get('dirs') if isinstance(config.get('dirs'), dict) else {}
     create_shortcut(release_python(root, manifest['release_id'], platform=manifest.get('platform')),
                     name='Traslado', platform=manifest.get('platform'),
-                    home=Path(config['home']),
-                    **{k: Path(v) if v else None for k, v in config.get('dirs', {}).items()})
+                    home=Path(home_val) if home_val else None,
+                    **{k: Path(v) if v else None for k, v in dirs.items()})
 
 
 def rollback(root):
