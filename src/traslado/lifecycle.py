@@ -393,15 +393,20 @@ def setup_ocr(
             ]
             if env.get("TRASLADO_OCR_OFFLINE") == "1":
                 cmd.append("-Offline")
-            subprocess.run(
+            proc = subprocess.run(
                 cmd,
-                check=True,
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
+            if proc.returncode != 0:
+                raw_err = proc.stderr if proc.stderr is not None else b""
+                if isinstance(raw_err, str):
+                    raw_err = raw_err.encode("utf-8", errors="replace")
+                tail_err = raw_err[-4096:].decode("utf-8", errors="replace").strip()
+                detalhe = f": {tail_err}" if tail_err else ""
+                raise RuntimeError(
+                    f"Falha no bootstrap OCR (código {proc.returncode}){detalhe}"
+                )
         finally:
             if temp_cache_ctx is not None:
                 temp_cache_ctx.cleanup()

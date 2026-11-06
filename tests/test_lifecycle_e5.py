@@ -861,6 +861,44 @@ class LocksAndWrappersContractTests(unittest.TestCase):
             self.assertIn("SPDX-License-Identifier: AGPL-3.0-or-later", texto, nome)
             self.assertIn(url_esperada, texto, nome)
 
+    def test_setup_ocr_failure_includes_exit_code_and_tail_stderr(self) -> None:
+        release_dir = Path(tempfile.mkdtemp(prefix="t-ocr-fail-"))
+        self.addCleanup(shutil.rmtree, release_dir, True)
+        mock_proc = subprocess.CompletedProcess(
+            args=["powershell.exe"],
+            returncode=42,
+            stdout="VOLUMINOUS_STDOUT_SENTINEL\n" * 500,
+            stderr="NOISE_STDERR\n" + ("x" * 5000) + "\nCRITICAL_BOOTSTRAP_STDERR_SENTINEL\n",
+        )
+        with mock.patch("traslado.lifecycle.subprocess.run", return_value=mock_proc):
+            with self.assertRaises(Exception) as ctx:
+                lifecycle.setup_ocr(release_dir, platform_name="win32", profile="Full")
+            msg = str(ctx.exception)
+            self.assertIn("42", msg)
+            self.assertIn("CRITICAL_BOOTSTRAP_STDERR_SENTINEL", msg)
+            self.assertNotIn("VOLUMINOUS_STDOUT_SENTINEL", msg)
+
+    def test_cli_setup_failure_includes_stderr_and_exit_code(self) -> None:
+        import io
+        from contextlib import redirect_stderr
+        managed = Path(tempfile.mkdtemp(prefix="t-cli-setup-"))
+        self.addCleanup(shutil.rmtree, managed, True)
+        mock_proc = subprocess.CompletedProcess(
+            args=["powershell.exe"],
+            returncode=17,
+            stdout="VOLUMINOUS_STDOUT_SENTINEL\n" * 500,
+            stderr="NOISE\n" + ("y" * 5000) + "\nCRITICAL_CLI_BOOTSTRAP_STDERR\n",
+        )
+        with mock.patch("traslado.lifecycle.subprocess.run", return_value=mock_proc):
+            err_buf = io.StringIO()
+            with redirect_stderr(err_buf):
+                exit_code = cli.main(["setup", "--root", str(managed), "--profile", "Full"])
+            self.assertEqual(exit_code, 2)
+            out_err = err_buf.getvalue()
+            self.assertIn("17", out_err)
+            self.assertIn("CRITICAL_CLI_BOOTSTRAP_STDERR", out_err)
+            self.assertNotIn("VOLUMINOUS_STDOUT_SENTINEL", out_err)
+
 
 if __name__ == "__main__":
     unittest.main()
