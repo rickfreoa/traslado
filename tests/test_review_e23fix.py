@@ -14,6 +14,10 @@ import tempfile
 import unittest
 import importlib.util
 from traslado import detect, formats, platform, runner, safety
+try:
+    from tests.profile_safety import isolate_profile
+except ImportError:
+    from profile_safety import isolate_profile
 
 FULL = all(importlib.util.find_spec(m) is not None for m in ("fitz", "docx", "pptx", "openpyxl", "PIL"))
 from traslado.errors import ConversionError, classify, partial_error
@@ -36,6 +40,7 @@ class ReviewE23Fix(unittest.TestCase):
     def setUp(self):
         directory = self.enterContext(tempfile.TemporaryDirectory())
         self.tmp_path = Path(directory)
+        isolate_profile(self, self.tmp_path)
 
     def test_text_false_positives(self):
         for suffix, payload in [('.txt', 'BM&FBOVESPA: relatorio de mercado\nLinha 2\n'), ('.md', 'BM&FBOVESPA: relatorio de mercado\nLinha 2\n'), ('.csv', 'BM,valor\nacao,123\n'), ('.md', '# Brief\nDetectar PDF (`%PDF-` nos primeiros 1024 bytes).\n'), ('.md', '# Brief\nExemplo %PDF-1.7 em prosa.\n')]:

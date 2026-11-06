@@ -12,12 +12,63 @@ from unittest.mock import patch
 
 from traslado import platform as p
 
+try:
+    from tests.profile_safety import isolate_profile
+except ImportError:
+    from profile_safety import isolate_profile
+
 
 class PlatformE2(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        isolate_profile(self, self.root)
+
+    def test_fix3_rollback_refreshes_both_temporary_shortcut_locations(self):
+        for release, folder in (("v1", "A"), ("v2", "B")):
+            self.candidate(release, platform="linux", shortcuts={
+                "enabled": True, "home": str(self.root),
+                "dirs": {"applications_dir": str(self.root / folder)}})
+            p.promote(self.root)
+            p.refresh_shortcuts(self.root, p.read_current(self.root))
+        p.rollback(self.root)
+        for folder in ("A", "B"):
+            content = (self.root / folder / "traslado.desktop").read_text(encoding="utf-8")
+            self.assertRegex(content, r"releases[\\/]+v1[\\/]+\.venv")
+            self.assertNotRegex(content, r"releases[\\/]+v2[\\/]+\.venv")
+
+    def test_fix3_rollback_disabled_removes_abandoned_shortcuts_without_creation(self):
+        for release, folder, enabled in (("v1", "A", False), ("v2", "B", True)):
+            self.candidate(release, platform="linux", shortcuts={
+                "enabled": enabled, "home": str(self.root),
+                "dirs": {"applications_dir": str(self.root / folder)}})
+            p.promote(self.root)
+            p.refresh_shortcuts(self.root, p.read_current(self.root))
+        abandoned = self.root / "B/traslado.desktop"
+        self.assertTrue(abandoned.exists())
+        with patch.object(p, "create_shortcut") as create:
+            restored = p.rollback(self.root)
+            create.assert_not_called()
+        self.assertFalse(restored["shortcuts"]["enabled"])
+        self.assertFalse(abandoned.exists())
+        self.assertFalse((self.root / "A/traslado.desktop").exists())
+
+    def test_fix3_shortcuts_without_manifest_home_uses_temporary_profile(self):
+        from traslado import cli
+        self.candidate(platform="linux", shortcuts={"enabled": False})
+        p.promote(self.root)
+        home = self.root / "profile"
+        with patch.dict(os.environ, {"HOME": str(home), "USERPROFILE": str(home),
+                                    "APPDATA": str(home / "Roaming"),
+                                    "LOCALAPPDATA": str(home / "Local")}):
+            self.assertEqual(cli.main(["shortcuts", "--root", str(self.root)]), 0)
+        saved = p.read_current(self.root)
+        self.assertTrue(saved["shortcuts"]["enabled"])
+        self.assertEqual(Path(saved["shortcuts"]["home"]), home)
+        shortcut = home / ".local/share/applications/traslado.desktop"
+        self.assertRegex(shortcut.read_text(encoding="utf-8"),
+                         r"releases[\\/]+v1[\\/]+\.venv")
 
     def test_roots_and_interpreters(self):
         env = {'HOME': str(self.root), 'LOCALAPPDATA': str(self.root / 'local')}

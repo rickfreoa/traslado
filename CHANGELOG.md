@@ -4,6 +4,9 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 
 ## 2.0.1
 
+- **Correções do ciclo de vida**: reutilização do OCR recusa processo x86 em Windows x64; rollback atualiza também os locais distintos de atalhos da release abandonada quando a restaurada os habilita, sem criar quando desabilitados; comando `shortcuts` recupera o diretório pessoal pelo ambiente mesmo sem `shortcuts.home` no manifesto.
+- **Isolamento dos testes**: setup, rollback e desinstalação usam perfil temporário, inclusive no subprocesso de autorremoção; salvaguarda impede escrita ou remoção de atalhos fora do temporário de cada teste.
+
 - **Bootstrap OCR**: detecção do sistema operacional pela API (`RuntimeInformation::IsOSPlatform` ou `[Environment]::OSVersion.Platform -eq 'Win32NT'`) em vez da variável `$env:OS`; distinção correta entre arquitetura do sistema operacional e arquitetura do processo; validação da arquitetura do executável Tesseract pelo campo Machine do cabeçalho PE (0x8664 para x64) antes da execução; recusa explícita de arquiteturas ARM64 e x86.
 - **Distribuição e integridade do instalador OCR**: fonte única versionada em `src/traslado/assets/bootstrap_ocr.ps1`, com `scripts/bootstrap_ocr.ps1` removido do controle de versão e derivado no build com verificação de igualdade byte a byte; todos os consumidores adaptados à fonte única.
 - **Diagnóstico do setup**: código de saída e final do `stderr` do processo de bootstrap OCR (até 4 KB) incluídos na mensagem de erro do `traslado setup` em caso de falha, sem despejar saída volumosa de `stdout`.

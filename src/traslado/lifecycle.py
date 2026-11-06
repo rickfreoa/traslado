@@ -370,14 +370,14 @@ def _assert_platform_architecture(platform_name: str | None = None, env: dict[st
         raise RuntimeError("OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64")
     if nat_m == 0x014C:
         raise RuntimeError("OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64")
+    if sys.maxsize <= 2**32:
+        raise RuntimeError("OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64")
     if nat_m == 0x8664:
         return
     env_arch = (environment.get("PROCESSOR_ARCHITEW6432") or environment.get("PROCESSOR_ARCHITECTURE", "")).upper()
     if "ARM" in env_arch:
         raise RuntimeError("OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64")
     if env_arch == "X86" and not environment.get("PROCESSOR_ARCHITEW6432"):
-        raise RuntimeError("OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64")
-    if sys.maxsize <= 2**32:
         raise RuntimeError("OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64")
 
 

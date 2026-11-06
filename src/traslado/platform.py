@@ -215,6 +215,11 @@ def _rollback(root):
     saved_sc = saved.get('shortcuts', {})
     if isinstance(saved_sc, dict) and saved_sc.get('enabled'):
         refresh_shortcuts(root, saved)
+        abandoned_sc = data.get('shortcuts', {})
+        if (isinstance(abandoned_sc, dict) and abandoned_sc.get('enabled')
+                and (abandoned_sc.get('home'), abandoned_sc.get('dirs'), data.get('platform'))
+                != (saved_sc.get('home'), saved_sc.get('dirs'), saved.get('platform'))):
+            refresh_shortcuts(root, dict(saved, shortcuts=abandoned_sc))
     else:
         data_sc = data.get('shortcuts', {})
         if isinstance(data_sc, dict) and data_sc.get('enabled'):
