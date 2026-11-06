@@ -18,6 +18,26 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
+def ensure_tests_root_importable() -> Path | None:
+    """Disponibiliza a raiz dos testes no sys.path de forma segura.
+
+    Anexa a raiz ao final de sys.path para que módulos como 'tests.test_x' sejam
+    importáveis pelo runner sem que 'traslado' seja resolvido contra 'src' nos jobs
+    que testam o pacote instalado (onde 'traslado' vem do wheel no site-packages).
+    """
+    for candidate in [Path.cwd(), ROOT, Path(__file__).resolve().parent]:
+        tests_dir = candidate / "tests"
+        if tests_dir.is_dir():
+            cand_str = str(candidate.resolve())
+            if cand_str not in sys.path:
+                sys.path.append(cand_str)
+            return candidate.resolve()
+    return None
+
+
+ensure_tests_root_importable()
+
 FORBIDDEN_QUARANTINE_TESTS = {
     "test_errors_e3.ErrorsE3.test_execute_failure_matrix",
     "tests.test_errors_e3.ErrorsE3.test_execute_failure_matrix",
@@ -262,8 +282,13 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             if name.endswith(".py"):
                 # Caminho de arquivo
-                mod_name = Path(name).stem
-                full_suite.addTests(loader.loadTestsFromName(mod_name))
+                p = Path(name)
+                parts = list(p.with_suffix("").parts)
+                mod_path = ".".join(parts)
+                try:
+                    full_suite.addTests(loader.loadTestsFromName(mod_path))
+                except (ImportError, AttributeError):
+                    full_suite.addTests(loader.loadTestsFromName(p.stem))
             else:
                 full_suite.addTests(loader.loadTestsFromName(name))
 

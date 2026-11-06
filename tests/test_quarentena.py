@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Ricardo Peres Freoa
 """Validação do formato de ci/quarentena.json e do runner com faulthandler e quarentena."""
 import json
+import os
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -112,3 +113,19 @@ class QuarentenaContractTests(unittest.TestCase):
             mock_arm.assert_called_once_with(600.0, repeat=False, exit=True)
             result.stopTest(case)
             mock_cancel.assert_called_once()
+
+    def test_runner_carrega_modulo_com_prefixo_tests_com_pythonpath_src(self):
+        """O runner deve encontrar a raiz de 'tests' mesmo quando chamado com PYTHONPATH=src."""
+        import subprocess
+        import sys
+        cmd = [
+            sys.executable,
+            str(ROOT / "scripts" / "run_tests.py"),
+            "-v",
+            "tests.test_quarentena.QuarentenaContractTests.test_arquivo_quarentena_json_valido_e_inicialmente_vazio",
+        ]
+        env = {**os.environ, "PYTHONPATH": "src"}
+        res = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(res.returncode, 0, f"Falha ao executar runner: {res.stdout}\n{res.stderr}")
+        self.assertNotIn("ModuleNotFoundError: No module named 'tests'", res.stdout + res.stderr)
+
