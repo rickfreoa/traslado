@@ -212,10 +212,17 @@ def _rollback(root):
     saved['previous_release_id'] = data['release_id']
     saved['promoted_at'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     _atomic(root / 'current.json', saved)
-    refresh_shortcuts(root, saved)
-    # The newer release may have created shortcuts absent from the older manifest.
-    if data.get('shortcuts') != saved.get('shortcuts'):
-        refresh_shortcuts(root, dict(saved, shortcuts=data.get('shortcuts', {})))
+    saved_sc = saved.get('shortcuts', {})
+    if isinstance(saved_sc, dict) and saved_sc.get('enabled'):
+        refresh_shortcuts(root, saved)
+    else:
+        data_sc = data.get('shortcuts', {})
+        if isinstance(data_sc, dict) and data_sc.get('enabled'):
+            home_val = data_sc.get('home') or (saved_sc.get('home') if isinstance(saved_sc, dict) else None)
+            dirs = data_sc.get('dirs') if isinstance(data_sc.get('dirs'), dict) else {}
+            remove_shortcuts(['Traslado'], platform=saved.get('platform'),
+                             home=Path(home_val) if home_val else None,
+                             **{k: Path(v) if v else None for k, v in dirs.items()})
     return saved
 
 

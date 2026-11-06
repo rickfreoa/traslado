@@ -216,7 +216,9 @@ class PlatformE2(unittest.TestCase):
         updated["previous_release_id"] = "v0"
         p._atomic(managed / "current.json", updated)
 
-        rolled_back = p.rollback(managed)
+        with patch.object(p, "create_shortcut") as mock_create:
+            rolled_back = p.rollback(managed)
+            mock_create.assert_not_called()
         self.assertFalse(rolled_back["shortcuts"]["enabled"])
         self.assertFalse(p.read_current(managed)["shortcuts"]["enabled"])
 

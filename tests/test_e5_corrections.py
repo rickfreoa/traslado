@@ -120,7 +120,7 @@ class CorrectionsE5(unittest.TestCase):
             plat.rollback(self.root)
             self.assertEqual(seen, ["2.0.0_a", "2.0.0_b", "2.0.0_a"])
 
-    def test_06_rollback_updates_shortcuts_created_only_by_newer_release(self):
+    def test_06_rollback_respects_no_shortcut_state_of_restored_release(self):
         seen = []
         def shortcut(target, **kwargs):
             active = plat.read_current(self.root)
@@ -131,7 +131,7 @@ class CorrectionsE5(unittest.TestCase):
             self.setup("2.0.0_b", no_shortcut=False)
             self.assertEqual(seen, ["2.0.0_b"])
             plat.rollback(self.root)
-            self.assertEqual(seen, ["2.0.0_b", "2.0.0_a"])
+            self.assertEqual(seen, ["2.0.0_b"])
 
     def test_07_workflow_isolated_emitter_smoke(self):
         target = Path(self.tmp.name) / "emitter"
