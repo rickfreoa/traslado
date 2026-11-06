@@ -400,21 +400,95 @@ def verify_promotion(
     }
 
 
+def _normalize_revoked_entry(entry: dict) -> tuple:
+    ver = (entry.get("version") or "").strip().removeprefix("v")
+    raw_hashes = entry.get("sha256") or []
+    if isinstance(raw_hashes, str):
+        raw_hashes = [raw_hashes]
+    hashes = tuple(sorted(str(h).lower().removeprefix("sha256:") for h in raw_hashes if isinstance(h, str)))
+    reason = (entry.get("reason") or "").strip()
+    return (ver, hashes, reason)
+
+
+def _revoked_lists_match(list_a: object, list_b: object) -> bool:
+    if not isinstance(list_a, list) or not isinstance(list_b, list):
+        return False
+    norm_a = sorted(_normalize_revoked_entry(x) for x in list_a if isinstance(x, dict))
+    norm_b = sorted(_normalize_revoked_entry(x) for x in list_b if isinstance(x, dict))
+    return norm_a == norm_b
+
+
+def should_reissue(
+    previous_doc: dict | None,
+    source_path_or_data: Path | str | dict,
+    *,
+    now: datetime | str | None = None,
+    force: bool = False,
+) -> bool:
+    if force or previous_doc is None:
+        return True
+    if not isinstance(previous_doc, dict):
+        return True
+    try:
+        prev_issued = _parse_utc(previous_doc.get("issued_at"))
+    except RevocationError:
+        return True
+    now_dt = _ensure_utc(now)
+    if prev_issued.date() != now_dt.date():
+        return True
+
+    if isinstance(source_path_or_data, (str, Path)):
+        try:
+            source_raw = json.loads(Path(source_path_or_data).read_text(encoding="utf-8-sig"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return True
+    elif isinstance(source_path_or_data, dict):
+        source_raw = source_path_or_data
+    else:
+        return True
+
+    prev_revoked = previous_doc.get("revoked", [])
+    source_revoked = source_raw.get("revoked", [])
+    if _revoked_lists_match(prev_revoked, source_revoked):
+        return False
+    return True
+
+
 def issue_revoked_document(
     source_path: Path,
     *,
     previous_sequence: int = 0,
+    previous_document: dict | Path | str | None = None,
     now: datetime | str | None = None,
     ttl_days: int = 14,
-) -> dict:
+    force: bool = False,
+) -> dict | None:
+    now_dt = _ensure_utc(now)
+    prev_doc: dict | None = None
+    if isinstance(previous_document, (str, Path)):
+        p = Path(previous_document)
+        if p.is_file():
+            try:
+                prev_doc = json.loads(p.read_text(encoding="utf-8-sig"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                prev_doc = None
+    elif isinstance(previous_document, dict):
+        prev_doc = previous_document
+
+    if prev_doc is not None and not force:
+        if not should_reissue(prev_doc, source_path, now=now_dt, force=force):
+            return None
+
     raw = json.loads(Path(source_path).read_text(encoding="utf-8-sig"))
     if not isinstance(raw, dict) or raw.get("schema") != SCHEMA_REVOKED:
         raise RevocationError("Arquivo base de revogação inválido")
     base_seq = raw.get("sequence", 0)
     if type(base_seq) is not int or base_seq < 0:
         raise RevocationError("Sequência base inválida")
-    next_seq = max(base_seq, previous_sequence) + 1
-    now_dt = _ensure_utc(now)
+    effective_prev_seq = previous_sequence
+    if prev_doc and isinstance(prev_doc.get("sequence"), int):
+        effective_prev_seq = max(effective_prev_seq, prev_doc["sequence"])
+    next_seq = max(base_seq, effective_prev_seq) + 1
     expires_dt = now_dt + timedelta(days=ttl_days)
     doc = {
         "schema": SCHEMA_REVOKED,
@@ -423,7 +497,7 @@ def issue_revoked_document(
         "expires_at": _format_utc(expires_dt),
         "revoked": list(raw.get("revoked", [])),
     }
-    validate_revoked_document(doc, previous_sequence=previous_sequence if previous_sequence >= 1 else None, now=now_dt)
+    validate_revoked_document(doc, previous_sequence=effective_prev_seq if effective_prev_seq >= 1 else None, now=now_dt)
     return doc
 
 
@@ -432,9 +506,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input", type=Path, required=True, help="Caminho de revocation/revoked-list.json")
     parser.add_argument("--output", type=Path, required=True, help="Caminho de saída para revoked.json")
     parser.add_argument("--previous-sequence", type=int, default=0)
+    parser.add_argument("--previous-document", type=Path, default=None, help="Caminho do documento revoked.json anterior publicado")
     parser.add_argument("--ttl-days", type=int, default=14)
+    parser.add_argument("--force", "--forcar", action="store_true", dest="force", help="Forçar emissão mesmo com mesmo dia UTC e mesma lista")
     args = parser.parse_args(argv)
-    doc = issue_revoked_document(args.input, previous_sequence=args.previous_sequence, ttl_days=args.ttl_days)
+
+    doc = issue_revoked_document(
+        args.input,
+        previous_sequence=args.previous_sequence,
+        previous_document=args.previous_document,
+        ttl_days=args.ttl_days,
+        force=args.force,
+    )
+    if doc is None:
+        print("Idempotente: mesmo dia UTC e mesma lista de revogados. Nenhuma nova emissão necessária.")
+        return 0
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     return 0

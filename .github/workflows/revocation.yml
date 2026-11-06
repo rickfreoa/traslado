@@ -1,11 +1,17 @@
 name: Revocation
 
-# Reemite semanalmente (e por despacho manual) o documento revoked.json com sequence monotônica
+# Reemite diariamente (e por despacho manual) o documento revoked.json com sequence monotônica
 # e validade de 14 dias, gera attestation e publica na release fixa 'revocation'.
 on:
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "17 6 * * *"
   workflow_dispatch:
+    inputs:
+      forcar:
+        description: "Forçar emissão mesmo que já emitido hoje sem alterações"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: traslado-revocation
@@ -37,6 +43,7 @@ jobs:
       - name: Instalar emissor para execucao isolada
         run: python -m pip install --no-deps .
       - name: Obter sequence anterior e emitir novo revoked.json
+        id: emissao
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -62,16 +69,31 @@ jobs:
             *) echo "Falha ao obter sequencia anterior: HTTP $STATUS" >&2; exit 1 ;;
           esac
           echo "Sequência anterior: $PREV_SEQ"
+          EXTRA_ARGS=()
+          if [ "$STATUS" = "200" ]; then
+            EXTRA_ARGS+=(--previous-document /tmp/previous-revoked.json)
+          fi
+          if [ "${{ inputs.forcar }}" = "true" ]; then
+            EXTRA_ARGS+=(--force)
+          fi
           python -I -m traslado.revocation \
             --input revocation/revoked-list.json \
             --previous-sequence "$PREV_SEQ" \
+            "${EXTRA_ARGS[@]}" \
             --output dist/revoked.json
-          cat dist/revoked.json
+          if [ -f dist/revoked.json ]; then
+            cat dist/revoked.json
+            echo "emitido=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "emitido=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Attestation de proveniência de revoked.json
+        if: steps.emissao.outputs.emitido == 'true'
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: dist/revoked.json
       - name: Publicar asset na release fixa revocation
+        if: steps.emissao.outputs.emitido == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
