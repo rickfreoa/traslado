@@ -13,6 +13,10 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 - **Distribuição e integridade do instalador OCR**: fonte única versionada em `src/traslado/assets/bootstrap_ocr.ps1`, com `scripts/bootstrap_ocr.ps1` removido do controle de versão e derivado no build com verificação de igualdade byte a byte; todos os consumidores adaptados à fonte única.
 - **Diagnóstico do setup**: código de saída e final do `stderr` do processo de bootstrap OCR (até 4 KB) incluídos na mensagem de erro do `traslado setup` em caso de falha, sem despejar saída volumosa de `stdout`.
 - **Atalhos no CLI**: o comando `traslado shortcuts` passa a ser efetivo mesmo após instalação promovida com `--no-shortcut`, criando os atalhos solicitados e atualizando `shortcuts.enabled` para `true` no manifesto `current.json` de forma atômica; comandos `update` e `rollback` continuam respeitando o estado gravado.
+- **Revogação diária idempotente**: emissão agendada diariamente (`17 6 * * *`) do documento `revoked.json` com validade de 14 dias; o job conclui sem nova emissão (sequência inalterada) se o documento publicado tiver sido emitido no mesmo dia UTC e a lista de revogados for idêntica. Despacho manual via `workflow_dispatch` com `forcar: true` força a emissão.
+- **Sentinela de revogação**: workflow agendado a cada 6 h (`.github/workflows/revocation-sentinel.yml`) e script `scripts/revocation_sentinel.py` com permissões mínimas (`issues: write`, `contents: read`), que monitora o documento `revoked.json` e abre ou atualiza (sem duplicar) uma issue com o rótulo `revogacao` quando restarem menos de 7 dias para expiração ou quando a emissão tiver mais de 36 h, fechando-a automaticamente ao normalizar.
+- **Aviso no `traslado doctor`**: `doctor` informa o estado do último documento aceito pela instalação (`sequence`, `expires_at`, `days_remaining` / `dias_restantes`) e exibe aviso estável quando restarem menos de 7 dias ou quando não houver documento aceito, estritamente sem acesso à rede, mantendo o código de saída do doctor e a conversão instalada inalterados.
+- **Diagnóstico de travamento no CI e quarentena nominal**: runner `scripts/run_tests.py` com `faulthandler` ativo e timeout de 600 s por teste (despejando o traceback de todas as threads ao estourar o limite); mecanismo de quarentena nominal por célula via `ci/quarentena.json` (inicialmente vazio), com passo informativo (`continue-on-error: true`), validação obrigatória de issue em cada entrada e garantia de que `test_errors_e3.ErrorsE3.test_execute_failure_matrix` permanece bloqueante em todas as células.
 
 ## 2.0.0
 
@@ -68,52 +72,3 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 Primeira versão pública (antes Freoa Markdown Converter 6.0.0rc9). Ver a seção "Novidades da 1.0.0" do README.
 # Histórico de versões
 Ricardo Peres Freoa | Stocche Forbes Advogados
-## 2.0.1
-- **Revogação diária idempotente**: emissão agendada diariamente (`17 6 * * *`) do documento `revoked.json` com validade de 14 dias; o job conclui sem nova emissão (sequência inalterada) se o documento publicado tiver sido emitido no mesmo dia UTC e a lista de revogados for idêntica. Despacho manual via `workflow_dispatch` com `forcar: true` força a emissão.
-- **Sentinela de revogação**: workflow agendado a cada 6 h (`.github/workflows/revocation-sentinel.yml`) e script `scripts/revocation_sentinel.py` com permissões mínimas (`issues: write`, `contents: read`), que monitora o documento `revoked.json` e abre ou atualiza (sem duplicar) uma issue com o rótulo `revogacao` quando restarem menos de 7 dias para expiração ou quando a emissão tiver mais de 36 h, fechando-a automaticamente ao normalizar.
-- **Aviso no `traslado doctor`**: `doctor` informa o estado do último documento aceito pela instalação (`sequence`, `expires_at`, `days_remaining` / `dias_restantes`) e exibe aviso estável quando restarem menos de 7 dias ou quando não houver documento aceito, estritamente sem acesso à rede, mantendo o código de saída do doctor e a conversão instalada inalterados.
-- **Diagnóstico de travamento no CI e quarentena nominal**: runner `scripts/run_tests.py` com `faulthandler` ativo e timeout de 600 s por teste (despejando o traceback de todas as threads ao estourar o limite); mecanismo de quarentena nominal por célula via `ci/quarentena.json` (inicialmente vazio), com passo informativo (`continue-on-error: true`), validação obrigatória de issue em cada entrada e garantia de que `test_errors_e3.ErrorsE3.test_execute_failure_matrix` permanece bloqueante em todas as células.
-## 2.0.0
-- **Licença**: código próprio sob `AGPL-3.0-or-later` (`LICENCE`), cabeçalhos SPDX em todos os fontes; `THIRD-PARTY.md`, inventário e política de licenças (`LICENSE-POLICY.md`) atualizados.
-- **Instalação sem administrador e sem Python prévio** em Windows, Linux e macOS (one-liner, atalho clicável ou `traslado setup`): uv e Python 3.13 gerenciados e fixados por SHA-256, dependências com `--require-hashes`, release candidata em `releases/<id>/` promovida atomicamente a `current.json` só com doctor, fixture e revogação aprovados; `-NoPromote`/`--no-promote` qualifica a candidata lado a lado sem promover.
-- **Autenticidade em dois canais**: `SHA256SUMS` e GitHub Attestations do `release.yml`; no modo remoto, digests conferidos na API de releases antes de instalar qualquer coisa (sem exigir Python no sistema); revogação por `revoked.json` atestado, com sequência monotônica e validade de 14 dias. Exceção offline só explícita (`--allow-offline-promotion` com `TRASLADO_PROMOCAO_OFFLINE=rascunho|teste`).
-- **Ciclo de vida pelo CLI**: `where`, `update`, `rollback`, `uninstall` (preserva sempre `data_root`; no Windows, o que o próprio processo prende é removido logo após a saída dele), `shortcuts`.
-- **CI** em Windows, Ubuntu e macOS, Python 3.11 a 3.14, perfis Core, Full e legacy contra o wheel instalado; mutação, contenção, E2E em contêineres Debian e Fedora mínimos, Windows e macOS, auditoria das bibliotecas dinâmicas carregadas; release em rascunho com bytes idênticos aos testados no CI; PyPI por trusted publishing só após publicação manual.
-- **GUI**: prévia quebra visualmente sequências longas sem espaço (o texto não muda).
-- `needs_ocr` no Linux indica o comando do gerenciador da distribuição (apt, dnf, zypper, pacman ou apk, por `/etc/os-release`); ZIP com método de compressão, versão ou criptografia não suportados resulta em `unsupported`/`encrypted`, não em `internal`.
-- `--version` de `update` recusa o prefixo `v`; sem `gh`, a conferência do `revoked.json` não é criptográfica (presença e SAN declarado).
-- Limite conhecido: no Windows Server Core a extensão nativa do PyMuPDF não carrega (DLL de sistema ausente); a instalação falha fechada, sem promover.
-- **Instalação pelo ZIP extraído** (`INSTALAR.bat`, `instalar.sh`): `install.ps1`/`install.sh` com `-FromDir`/`--from-dir` procuram primeiro o layout do ZIP (`dist/`, `locks/`) e só depois o layout plano dos ativos da release. Antes, a raiz do ZIP trazia o `requirements-full.hashes.lock` do instalador legado (linha 1.x), homônimo do lock 2.0, e a instalação Full pelo ZIP recusava por SHA-256 divergente (falha fechada, sem instalar nada). Teste da instalação pelo ZIP passa a cobrir Core, Full e Full com `legacy`.
-- `install.ps1` com a saída redirecionada dentro do Windows PowerShell 5.1 (`*>`, `2>&1`) não aborta mais quando o uv escreve progresso em stderr; o resultado de cada etapa continua decidido pelo código de saída. README: seção de instalação no Windows reescrita para o fluxo 2.0; `INSTALAR.ps1` documentado como instalador legado da linha 1.x.
-- Extra `legacy` com anydoc 0.2.4 para DOC, RTF, ODT, ODS, ODP, PPT e EPUB,
-  somente com ativação explícita no CLI/TOML. XLS permanece não suportado.
-- Adaptador local no worker contido, erros tipados, notas, tabelas e proveniência
-  experimental em documento/manifesto; doctor informa disponibilidade.
-- Fixtures sintéticas públicas, gabaritos estruturais e mutações determinísticas.
-  A GUI ainda não oferece seleção do motor legado.
-- Detecção pelo conteúdo para PDF, OOXML, imagens cadastradas e HTML; extensão divergente gera `format_extension_mismatch`, com despacho pelo formato detectado. OLE2, RTF, ODF e EPUB são identificados para diagnóstico e recusados pelo perfil padrão.
-- Erros tipados no worker, no resultado por arquivo e no stderr do CLI, com `error_pages` para OCR indisponível; códigos de saída e mensagens anteriores preservados.
-- Distribuição e módulo `traslado`, com aliases de módulo `freoa_v6` na série 2.x.
-- Comandos `traslado` e `traslado-gui`; aliases `freoa-md` e `freoa-md-gui` mantidos.
-- Artefatos e avisos de conversão preservados; doctor informa o módulo.
-## 1.1.0
-### Conversão
-- **DOCX: notas de rodapé e de fim** como notas Markdown (`[^n]`), ligadas às definições de `footnotes.xml` e `endnotes.xml`, com famílias distintas e separadores ignorados. Vale também para `.doc`, `.rtf` e `.odt` que chegam como `.docx`. Avisos por espécie de perda remanescente substituem o aviso agregado da 1.0.0: `docx_note_reference_unresolved`, `docx_note_definition_unreferenced`, `docx_note_duplicate_or_missing_id`, `docx_note_complex_content_flattened`, `docx_headers_footers_not_extracted`, `docx_comments_not_extracted`.
-- **OCR com geometria**: um bloco por parágrafo do Tesseract, com caixa em coordenadas da folha (escala, origem e rotação do raster), confiança média por bloco e sequência de palavras idêntica à do TXT da mesma execução; divergência recai no texto sem geometria, com aviso `ocr_geometry_fallback`. O TSV é lido sem tratamento de aspas, e palavra sem escore conserva a caixa e fica fora da média. Efeito no Markdown das páginas com OCR: mesmas palavras, um parágrafo por linha.
-- **PDF nativo: linhas e spans** (caixa, tamanho de fonte, flags) sob os blocos, só em `document-layout.json`; o refino avançado não recebe essa geometria.
-- **Mobiliário de página** (`furniture = "mark"`, padrão; `--furniture off|mark`): cabeçalhos corridos, rodapés e fólios classificados com `role: furniture` nos chunks, nas faixas de borda da página exibida; romanos só quando canônicos. Nenhum texto é omitido.
-- **Folha escaneada com carimbo**: imagem única cobrindo ao menos metade da folha, com pouca área de texto visível ou camada invisível, vai a OCR.
-- **OCR concorrente** por folha (`ocr_workers`, 1 a 4, padrão 4; `--ocr-workers`), com fila limitada, ordem determinística e resultado idêntico ao serial. Em cinco obras escaneadas (18 a 134 folhas), o tempo total caiu de 833 s para 321 s. O Tesseract roda com `OMP_THREAD_LIMIT=1`, na sessão do worker, encerrado com ele.
-- **Registro único de conversores**: despacho por extensão, descoberta e `doctor` leem o mesmo cadastro; indisponibilidade vira recusa com motivo.
-### Distribuição
-- Versão única em `src/freoa_v6/__init__.py`; `converter_version` do documento deriva dela.
-- CI em Windows e Linux, perfis Core e Full, Python 3.11 a 3.14; release por tag cria apenas rascunho, depois da matriz verde no mesmo commit.
-- Seleção explícita dos arquivos distribuídos (`release-files.txt`), wheel construído da seleção, ZIP determinístico, `SHA256SUMS`, attestation e varredura de bytes de PyMuPDF/MuPDF no pacote.
-- Inventário de terceiros confrontado com locks, downloads, membros extraídos, modelos e licenças.
-- Windows: busca do Tesseract no PATH sem `shutil.which` (PATHEXT vazio usa o padrão; entradas relativas e o diretório corrente excluídos).
-### Fora desta versão
-- Ordem de leitura por calhas (`layout = gutters`): nas folhas de referência, as folhas fora de ordem passaram de 20 para 30. Não incluída.
-- Omissão de mobiliário (`furniture = omit`): exige mapa de paginação independente do texto.
-- Licença do perfil Full (PyMuPDF): questão aberta; consulte THIRD-PARTY.md.
-## 1.0.0
-Primeira versão pública (antes Freoa Markdown Converter 6.0.0rc9). Ver a seção "Novidades da 1.0.0" do README.
