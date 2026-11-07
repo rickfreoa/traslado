@@ -27,6 +27,10 @@ def finding_test(path, route):
     def test(self):
         if path.suffix == '.pdf' and importlib.util.find_spec('fitz') is None:
             self.skipTest('Achado PDF requer PyMuPDF (perfil Full)')
+        # Sem Pillow (perfil Core), imagem não é suportada: o código estável esperado é `unsupported`.
+        esperado = EXPECTED.get(path.name)
+        if path.suffix == '.png' and importlib.util.find_spec('PIL') is None:
+            esperado = 'unsupported'
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             if route == 'execute':
@@ -48,8 +52,8 @@ def finding_test(path, route):
                 self.assertFalse((root / 'artifacts').exists())
                 return
             self.assertIn(code, CODES - {'internal'})
-            if path.name in EXPECTED:
-                self.assertEqual(code, EXPECTED[path.name])
+            if esperado is not None:
+                self.assertEqual(code, esperado)
     return test
 
 

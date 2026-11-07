@@ -997,6 +997,7 @@ class LocksAndWrappersContractTests(unittest.TestCase):
             self.assertIn("CRITICAL_BOOTSTRAP_STDERR_SENTINEL", msg)
             self.assertNotIn("VOLUMINOUS_STDOUT_SENTINEL", msg)
 
+    @unittest.skipUnless(os.name == "nt", "Bootstrap OCR por PowerShell só existe no Windows")
     def test_cli_setup_failure_includes_stderr_and_exit_code(self) -> None:
         import io
         from contextlib import redirect_stderr
