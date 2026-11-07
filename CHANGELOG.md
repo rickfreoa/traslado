@@ -7,6 +7,12 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 - Falhas por limites configurados preservam `resource_limit` mesmo quando a limpeza do processo falha ou o diagnóstico de saída fica incompleto. O worker registra a causa fora do orçamento da pasta de saída; falhas de E/S sem causa de limite continuam como `io`.
 - Achados do fuzz passam a integrar as regressões automáticas, tanto em `execute()` quanto no caminho em processo: ZIP com flag 5 resulta em `unsupported`; árvore de páginas PDF inválida e modo de pixels inválido resultam em `malformed`.
 - A correção altera a classificação de falhas, preservando os bytes de `document.md` e `chunks.jsonl` para documentos válidos.
+- **Correções do ciclo de vida**: reutilização do OCR recusa processo x86 em Windows x64; rollback atualiza também os locais distintos de atalhos da release abandonada quando a restaurada os habilita, sem criar quando desabilitados; comando `shortcuts` recupera o diretório pessoal pelo ambiente mesmo sem `shortcuts.home` no manifesto.
+- **Isolamento dos testes**: setup, rollback e desinstalação usam perfil temporário, inclusive no subprocesso de autorremoção; salvaguarda impede escrita ou remoção de atalhos fora do temporário de cada teste.
+- **Bootstrap OCR**: detecção do sistema operacional pela API (`RuntimeInformation::IsOSPlatform` ou `[Environment]::OSVersion.Platform -eq 'Win32NT'`) em vez da variável `$env:OS`; distinção correta entre arquitetura do sistema operacional e arquitetura do processo; validação da arquitetura do executável Tesseract pelo campo Machine do cabeçalho PE (0x8664 para x64) antes da execução; recusa explícita de arquiteturas ARM64 e x86.
+- **Distribuição e integridade do instalador OCR**: fonte única versionada em `src/traslado/assets/bootstrap_ocr.ps1`, com `scripts/bootstrap_ocr.ps1` removido do controle de versão e derivado no build com verificação de igualdade byte a byte; todos os consumidores adaptados à fonte única.
+- **Diagnóstico do setup**: código de saída e final do `stderr` do processo de bootstrap OCR (até 4 KB) incluídos na mensagem de erro do `traslado setup` em caso de falha, sem despejar saída volumosa de `stdout`.
+- **Atalhos no CLI**: o comando `traslado shortcuts` passa a ser efetivo mesmo após instalação promovida com `--no-shortcut`, criando os atalhos solicitados e atualizando `shortcuts.enabled` para `true` no manifesto `current.json` de forma atômica; comandos `update` e `rollback` continuam respeitando o estado gravado.
 
 ## 2.0.0
 

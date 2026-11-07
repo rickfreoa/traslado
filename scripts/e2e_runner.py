@@ -92,9 +92,12 @@ def _build_post1_release_dir(dist_dir: Path, post_dir: Path, target_version: str
         src_a = dist_dir / extra_asset if (dist_dir / extra_asset).is_file() else (ROOT / extra_asset)
         if src_a.is_file():
             shutil.copyfile(src_a, post_dir / extra_asset)
-    if (ROOT / "scripts/bootstrap_ocr.ps1").is_file():
+    ocr_src = ROOT / "src/traslado/assets/bootstrap_ocr.ps1"
+    if not ocr_src.is_file():
+        ocr_src = ROOT / "scripts/bootstrap_ocr.ps1"
+    if ocr_src.is_file():
         (post_dir / "scripts").mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(ROOT / "scripts/bootstrap_ocr.ps1", post_dir / "scripts/bootstrap_ocr.ps1")
+        shutil.copyfile(ocr_src, post_dir / "scripts/bootstrap_ocr.ps1")
 
     ps1_src = (dist_dir / "install.ps1" if (dist_dir / "install.ps1").is_file() else ROOT / "install.ps1").read_text(encoding="utf-8-sig")
     ps1_out = re.sub(r'(\[string\]\$Version\s*=\s*)"[^"]+"', rf'\1"{target_version}"', ps1_src, count=1)

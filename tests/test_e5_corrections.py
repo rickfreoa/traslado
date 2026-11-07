@@ -22,6 +22,12 @@ try:
 except ImportError:  # suíte rodando de cópia dos testes, sem o pacote tests
     from test_lifecycle_e5 import synthetic_certificate_bundle
 
+try:
+    from tests.profile_safety import isolate_profile, profile_environment
+except ImportError:
+    from profile_safety import isolate_profile, profile_environment
+
+
 ROOT = Path(__file__).resolve().parents[1]
 WHEEL = f"traslado-{__version__}-py3-none-any.whl"
 DIGESTS = {WHEEL: "a" * 64, "requirements-core.hashes.lock": "b" * 64}
@@ -32,18 +38,28 @@ class CorrectionsE5(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="e5-corrections-")
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name) / "managed"
+        isolate_profile(self, Path(self.tmp.name))
 
     def setup(self, release="2.0.0_a", **kw):
         py = plat.release_python(self.root, release)
         py.parent.mkdir(parents=True, exist_ok=True)
         if not py.exists():
             py.write_bytes(b"interpreter sentinel")
-        options = dict(root=self.root, release_id=release, profile="Core", promote=True,
+        options = dict(home=Path(self.tmp.name), root=self.root, release_id=release, profile="Core", promote=True,
                        no_shortcut=True, skip_ocr=True, allow_offline_promotion=True,
                        env={"TRASLADO_PROMOCAO_OFFLINE": "teste"},
                        doctor_fn=lambda *a: {"capabilities": {}}, fixture_fn=lambda: True)
         options.update(kw)
         return lifecycle.setup_release(**options)
+
+    def test_fix3_setup_records_home_inside_its_own_temporary_directory(self):
+        with patch.object(plat, "create_shortcut"), patch.object(plat, "remove_shortcuts"):
+            manifest = self.setup()
+        self.assertTrue(Path(manifest["shortcuts"]["home"]).resolve().is_relative_to(
+            Path(self.tmp.name).resolve()))
+        for key in ("HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA"):
+            self.assertTrue(Path(os.environ[key]).resolve().is_relative_to(
+                Path(self.tmp.name).resolve()), key)
 
     def test_01_empty_incomplete_and_all_asset_digests(self):
         for values in ({}, {WHEEL: "a"*64}):
@@ -120,7 +136,7 @@ class CorrectionsE5(unittest.TestCase):
             plat.rollback(self.root)
             self.assertEqual(seen, ["2.0.0_a", "2.0.0_b", "2.0.0_a"])
 
-    def test_06_rollback_updates_shortcuts_created_only_by_newer_release(self):
+    def test_06_rollback_respects_no_shortcut_state_of_restored_release(self):
         seen = []
         def shortcut(target, **kwargs):
             active = plat.read_current(self.root)
@@ -131,7 +147,7 @@ class CorrectionsE5(unittest.TestCase):
             self.setup("2.0.0_b", no_shortcut=False)
             self.assertEqual(seen, ["2.0.0_b"])
             plat.rollback(self.root)
-            self.assertEqual(seen, ["2.0.0_b", "2.0.0_a"])
+            self.assertEqual(seen, ["2.0.0_b"])
 
     def test_07_workflow_isolated_emitter_smoke(self):
         target = Path(self.tmp.name) / "emitter"
@@ -322,11 +338,11 @@ class CorrectionsE5(unittest.TestCase):
         for name in ("current.json", "candidate.json"):
             (self.root / name).write_text("invalid json")
         with self.assertRaisesRegex(ValueError, "ilegiveis"):
-            lifecycle.uninstall_managed(root=self.root, yes=True)
+            lifecycle.uninstall_managed(root=self.root, yes=True, home=Path(self.tmp.name))
         self.assertTrue(self.root.exists())
         plat._atomic(self.root / "current.json", {"data_root": str(self.root.parent)})
         with self.assertRaisesRegex(ValueError, "ancestral"):
-            lifecycle.uninstall_managed(root=self.root, yes=True)
+            lifecycle.uninstall_managed(root=self.root, yes=True, home=Path(self.tmp.name))
         self.assertTrue((self.root / "current.json").exists())
 
     def test_n5_windows_uninstall_deferred_until_later_execution(self):
@@ -334,7 +350,7 @@ class CorrectionsE5(unittest.TestCase):
         current = self.setup()
         release = self.root / "releases" / current["release_id"]
         with patch.object(lifecycle, "release_in_use", return_value=True):
-            result = lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32")
+            result = lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32", home=Path(self.tmp.name))
         self.assertEqual(result["status"], "uninstall_pending")
         self.assertTrue(release.is_dir())
         self.assertTrue((self.root / "state/pending-uninstall.json").is_file())
@@ -368,7 +384,7 @@ class CorrectionsE5(unittest.TestCase):
         current = self.setup()
         release = self.root / "releases" / current["release_id"]
         with patch.object(lifecycle, "release_in_use", return_value=True):
-            lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32")
+            lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32", home=Path(self.tmp.name))
         marker = self.root / "state/pending-uninstall.json"
         self.assertTrue(marker.is_file())
         with patch.object(lifecycle, "release_in_use", return_value=False):
@@ -597,7 +613,7 @@ class RealBootstrapE5(unittest.TestCase):
             subprocess.run(build, cwd=ROOT, check=True, stdout=log, stderr=subprocess.STDOUT)
             # Local un-published artifacts have no attestations. Exclude gh from this
             # offline draft test; gh enforcement is exercised by separate unit regressions.
-            env = dict(os.environ)
+            env = dict(os.environ, **profile_environment(base))
             env.pop("TRASLADO_TEST_UV", None)
             win = Path(env.get("SystemRoot", r"C:\Windows"))
             env["PATH"] = os.pathsep.join(str(p) for p in (win / "System32", win, win / "System32/WindowsPowerShell/v1.0"))

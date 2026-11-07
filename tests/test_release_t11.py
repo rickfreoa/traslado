@@ -98,13 +98,51 @@ class Build(unittest.TestCase):
 
     def test_zip_contem_exatamente_o_listado(self):
         listados = {n for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").split() if n and n[0] not in "#!"}
-        esperado = listados | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{self.wheel.name}"}
+        esperado = listados | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{self.wheel.name}", "scripts/bootstrap_ocr.ps1"}
         self.assertEqual(self.membros(), esperado)
         self.assertFalse(any(n.startswith(("tests/", ".github/")) or n == "release-files.txt" for n in esperado))
         with zipfile.ZipFile(self.zip) as z:
             payload = json.loads(z.read(f"traslado-{versao_fonte()}-windows/INSTALL-PAYLOAD.json"))
         self.assertEqual(payload["checkout_limpo"], not self.flag)
         self.assertEqual({f["path"] for f in payload["files"]}, esperado - {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS"})
+
+    def test_git_ls_files_contem_exatamente_um_bootstrap_ocr(self):
+        resultado = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        arquivos = [
+            linha.strip()
+            for linha in resultado.stdout.splitlines()
+            if linha.strip().endswith("bootstrap_ocr.ps1")
+        ]
+        self.assertEqual(
+            arquivos,
+            ["src/traslado/assets/bootstrap_ocr.ps1"],
+            f"O índice git deve conter exatamente uma fonte de bootstrap_ocr.ps1, mas continha: {arquivos}",
+        )
+
+    def test_bootstrap_ocr_copia_adulterada_rejeitada_por_verificador_de_build(self):
+        br = carregar("build_release")
+        prefix = f"traslado-{versao_fonte()}-windows"
+        caminho_derived = f"{prefix}/scripts/bootstrap_ocr.ps1"
+        tmp_dir = self.tmp / "tampered-dir"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_zip = tmp_dir / self.zip.name
+        with zipfile.ZipFile(self.zip, "r") as z_in, zipfile.ZipFile(tmp_zip, "w") as z_out:
+            for item in z_in.infolist():
+                conteudo = z_in.read(item.filename)
+                if item.filename == caminho_derived:
+                    conteudo += b"\n# DIVERGENCIA ADULTERADA\n"
+                z_out.writestr(item, conteudo)
+        erros = br.conferir_composicao(tmp_zip)
+        self.assertTrue(
+            any("diverge da fonte única" in e for e in erros),
+            f"Verificador do produto/build deveria rejeitar divergência em scripts/bootstrap_ocr.ps1, mas erros foram: {erros}",
+        )
+        self.assertEqual(br.verificar([tmp_zip]), 1)
 
     def test_arquivo_nao_listado_na_raiz_nao_entra(self):
         extra = ROOT / "ARQUIVO-NAO-LISTADO-T11.txt"
@@ -200,7 +238,8 @@ class DeteccaoMuPDF(unittest.TestCase):
 
 class Inventario(unittest.TestCase):
     ARQUIVOS = ["THIRD-PARTY-INVENTORY.json", "THIRD-PARTY.md", "README.md", "ocr-assets.lock.json", "requirements-full.lock",
-                "requirements-full.hashes.lock", "requirements-test.hashes.lock", "scripts/bootstrap_ocr.ps1", "licenses-allowlist.json",
+                "requirements-full.hashes.lock", "requirements-test.hashes.lock",
+                "src/traslado/assets/bootstrap_ocr.ps1", "licenses-allowlist.json",
                 "locks/requirements-legacy.hashes.lock"]
 
     def setUp(self):

@@ -37,6 +37,11 @@ if str(ROOT / "src") not in sys.path:
 from traslado import __version__, cli, lifecycle, platform as plat, revocation  # noqa: E402
 from traslado.revocation import RevocationError  # noqa: E402
 
+try:
+    from tests.profile_safety import isolate_profile
+except ImportError:
+    from profile_safety import isolate_profile
+
 
 def _iso_offset(days: int) -> str:
     ts = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=days)
@@ -309,6 +314,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="e5-life-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
+        isolate_profile(self, self.tmp)
         self.root = self.tmp / "Traslado"
         self.data_root = self.tmp / "Documentos" / "Traslado"
         self.desktop_dir = self.tmp / "Desktop"
@@ -343,6 +349,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         self._preparar_release_candidata(rel_id)
 
         manifest1 = lifecycle.setup_release(
+            home=self.tmp,
             root=self.root,
             release_id=rel_id,
             profile="Core",
@@ -362,6 +369,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
 
         # Reinstalação idempotente da mesma release ativa: current.json não muda byte a byte
         manifest2 = lifecycle.setup_release(
+            home=self.tmp,
             root=self.root,
             release_id=rel_id,
             profile="Core",
@@ -382,6 +390,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         # 3a. Portão doctor falha
         with self.assertRaises(ValueError) as ctx_doc:
             lifecycle.setup_release(
+                home=self.tmp,
                 root=self.root,
                 release_id=rel_id,
                 profile="Core",
@@ -401,6 +410,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         # 3b. Portão doctor passa, mas portão fixture falha
         with self.assertRaises(ValueError) as ctx_fix:
             lifecycle.setup_release(
+                home=self.tmp,
                 root=self.root,
                 release_id=rel_id,
                 profile="Core",
@@ -420,6 +430,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         # 3c. Doctor e fixture passam, mas revogação online bloqueia
         with self.assertRaises(ValueError) as ctx_rev:
             lifecycle.setup_release(
+                home=self.tmp,
                 root=self.root,
                 release_id=rel_id,
                 profile="Core",
@@ -449,6 +460,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
 
         # Promove rel_a e depois rel_b
         lifecycle.setup_release(
+            home=self.tmp,
             root=self.root,
             release_id=rel_a,
             profile="Core",
@@ -459,6 +471,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
             data_root=self.data_root,
         )
         lifecycle.setup_release(
+            home=self.tmp,
             root=self.root,
             release_id=rel_b,
             profile="Core",
@@ -497,6 +510,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         # Uninstall sem --yes pede confirmação e aborta se o usuário responder 'n'
         with self.assertRaises(ValueError):
             lifecycle.uninstall_managed(
+                home=self.tmp,
                 root=self.root,
                 yes=False,
                 keep_data=False,
@@ -506,6 +520,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
 
         # Uninstall com --yes remove a raiz gerenciada mas preserva data_root intacta
         res_un = lifecycle.uninstall_managed(
+            home=self.tmp,
             root=self.root,
             yes=True,
             keep_data=False,
@@ -520,6 +535,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         rel_id = f"{__version__}-core"
         self._preparar_release_candidata(rel_id)
         lifecycle.setup_release(
+            home=self.tmp,
             root=self.root,
             release_id=rel_id,
             profile="Core",
@@ -559,6 +575,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         rel_id = f"{__version__}-core"
         self._preparar_release_candidata(rel_id)
         lifecycle.setup_release(
+            home=self.tmp,
             root=self.root,
             release_id=rel_id,
             profile="Core",
@@ -860,6 +877,113 @@ class LocksAndWrappersContractTests(unittest.TestCase):
             texto = (ROOT / nome).read_text(encoding="utf-8")
             self.assertIn("SPDX-License-Identifier: AGPL-3.0-or-later", texto, nome)
             self.assertIn(url_esperada, texto, nome)
+
+    def test_setup_ocr_failure_includes_exit_code_and_tail_stderr(self) -> None:
+        release_dir = Path(tempfile.mkdtemp(prefix="t-ocr-fail-"))
+        self.addCleanup(shutil.rmtree, release_dir, True)
+        mock_proc = subprocess.CompletedProcess(
+            args=["powershell.exe"],
+            returncode=42,
+            stdout="VOLUMINOUS_STDOUT_SENTINEL\n" * 500,
+            stderr="NOISE_STDERR\n" + ("x" * 5000) + "\nCRITICAL_BOOTSTRAP_STDERR_SENTINEL\n",
+        )
+        with mock.patch("traslado.lifecycle.subprocess.run", return_value=mock_proc):
+            with self.assertRaises(Exception) as ctx:
+                lifecycle.setup_ocr(release_dir, platform_name="win32", profile="Full")
+            msg = str(ctx.exception)
+            self.assertIn("42", msg)
+            self.assertIn("CRITICAL_BOOTSTRAP_STDERR_SENTINEL", msg)
+            self.assertNotIn("VOLUMINOUS_STDOUT_SENTINEL", msg)
+
+    def test_cli_setup_failure_includes_stderr_and_exit_code(self) -> None:
+        import io
+        from contextlib import redirect_stderr
+        managed = Path(tempfile.mkdtemp(prefix="t-cli-setup-"))
+        self.addCleanup(shutil.rmtree, managed, True)
+        mock_proc = subprocess.CompletedProcess(
+            args=["powershell.exe"],
+            returncode=17,
+            stdout="VOLUMINOUS_STDOUT_SENTINEL\n" * 500,
+            stderr="NOISE\n" + ("y" * 5000) + "\nCRITICAL_CLI_BOOTSTRAP_STDERR\n",
+        )
+        with mock.patch("traslado.lifecycle.subprocess.run", return_value=mock_proc):
+            err_buf = io.StringIO()
+            with redirect_stderr(err_buf):
+                exit_code = cli.main(["setup", "--root", str(managed), "--profile", "Full"])
+            self.assertEqual(exit_code, 2)
+            out_err = err_buf.getvalue()
+            self.assertIn("17", out_err)
+            self.assertIn("CRITICAL_CLI_BOOTSTRAP_STDERR", out_err)
+            self.assertNotIn("VOLUMINOUS_STDOUT_SENTINEL", out_err)
+
+    def test_fix3_reused_x64_ocr_rejects_x86_process_on_x64_windows(self):
+        temporary = tempfile.TemporaryDirectory(prefix="ocr-x86-process-")
+        self.addCleanup(temporary.cleanup)
+        release = Path(temporary.name)
+        ocr_dir = release / "ocr"
+        (ocr_dir / "tessdata").mkdir(parents=True)
+        pe = bytearray(128)
+        pe[:2] = b"MZ"
+        pe[0x3c:0x40] = (64).to_bytes(4, "little")
+        pe[64:68] = b"PE\0\0"
+        pe[68:70] = (0x8664).to_bytes(2, "little")
+        (ocr_dir / "tesseract.exe").write_bytes(pe)
+        with mock.patch.object(lifecycle, "_get_windows_native_machine", return_value=0x8664), \
+             mock.patch.object(lifecycle.sys, "maxsize", 2**31 - 1), \
+             mock.patch.object(lifecycle.subprocess, "run") as run:
+            with self.assertRaisesRegex(RuntimeError, "OCR:.*x86"):
+                lifecycle.setup_ocr(release, platform_name="win32", profile="Full")
+            run.assert_not_called()
+
+    def test_reused_ocr_validates_platform_and_pe_architecture(self) -> None:
+        def make_pe(machine: int) -> bytes:
+            header = bytearray(128)
+            header[0:2] = b"MZ"
+            pe_offset = 64
+            header[0x3C:0x40] = pe_offset.to_bytes(4, "little")
+            header[pe_offset:pe_offset+4] = b"PE\0\0"
+            header[pe_offset+4:pe_offset+6] = machine.to_bytes(2, "little")
+            return bytes(header)
+
+        # Caso 1: executável existente é ARM64 -> deve falhar com mensagem explícita e não reutilizar
+        release_dir = Path(tempfile.mkdtemp(prefix="t-ocr-arm64-"))
+        self.addCleanup(shutil.rmtree, release_dir, True)
+        ocr_dir = release_dir / "ocr"
+        ocr_dir.mkdir()
+        (ocr_dir / "tessdata").mkdir()
+        (ocr_dir / "tesseract.exe").write_bytes(make_pe(0xAA64))
+        with self.assertRaises(RuntimeError) as ctx:
+            lifecycle.setup_ocr(release_dir, platform_name="win32", profile="Full")
+        self.assertIn("OCR: Windows ARM64 nao suportado nesta versao; executavel tesseract e ARM64", str(ctx.exception))
+
+        # Caso 2: executável existente é x86 -> deve falhar com mensagem explícita e não reutilizar
+        release_dir_x86 = Path(tempfile.mkdtemp(prefix="t-ocr-x86-"))
+        self.addCleanup(shutil.rmtree, release_dir_x86, True)
+        ocr_dir_x86 = release_dir_x86 / "ocr"
+        ocr_dir_x86.mkdir()
+        (ocr_dir_x86 / "tessdata").mkdir()
+        (ocr_dir_x86 / "tesseract.exe").write_bytes(make_pe(0x014C))
+        with self.assertRaises(RuntimeError) as ctx_x86:
+            lifecycle.setup_ocr(release_dir_x86, platform_name="win32", profile="Full")
+        self.assertIn("OCR: executavel tesseract e x86 (32 bits); requer versao x64", str(ctx_x86.exception))
+
+        # Caso 3: executável x64 válido -> reutilizado com sucesso
+        release_dir_x64 = Path(tempfile.mkdtemp(prefix="t-ocr-x64-"))
+        self.addCleanup(shutil.rmtree, release_dir_x64, True)
+        ocr_dir_x64 = release_dir_x64 / "ocr"
+        ocr_dir_x64.mkdir()
+        (ocr_dir_x64 / "tessdata").mkdir()
+        (ocr_dir_x64 / "tesseract.exe").write_bytes(make_pe(0x8664))
+        res = lifecycle.setup_ocr(release_dir_x64, platform_name="win32", profile="Full")
+        self.assertTrue(res["ocr_installed"])
+        self.assertEqual(res["ocr"]["origin"], "lock")
+
+        # Caso 4: plataforma ARM64 (mesmo sob emulação x64) com executável x64 -> recusa de plataforma
+        with mock.patch("traslado.lifecycle._get_windows_native_machine", return_value=0xAA64, create=True):
+            with self.assertRaises(RuntimeError) as ctx_plat:
+                lifecycle.setup_ocr(release_dir_x64, platform_name="win32", profile="Full")
+            self.assertIn("OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64", str(ctx_plat.exception))
+
 
 
 if __name__ == "__main__":

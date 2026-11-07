@@ -22,6 +22,11 @@ if not os.environ.get('T11_EXIGE_INSTALADO'):
     sys.path.insert(0, str(ROOT / 'src'))
 from traslado import lifecycle
 
+try:
+    from tests.profile_safety import profile_environment
+except ImportError:
+    from profile_safety import profile_environment
+
 
 def script(name):
     spec = importlib.util.spec_from_file_location(name, ROOT / 'scripts' / (name+'.py'))
@@ -164,8 +169,10 @@ class ScriptsE6(unittest.TestCase):
                 self.skipTest('requires venv launcher')
             shutil.copyfile(config, release/'.venv/pyvenv.cfg')
             (managed/'current.json').write_text(json.dumps({'schema': 2, 'release_id': release.name, 'data_root': str(dados)}), encoding='utf-8')
-            env = {**os.environ, 'PYTHONPATH': str(Path(lifecycle.__file__).resolve().parents[1])}
-            proc = subprocess.run([str(python), '-c', 'from traslado.lifecycle import uninstall_managed; import sys,json; from pathlib import Path; print(json.dumps(uninstall_managed(root=Path(sys.argv[1]),yes=True)))', str(managed)],
+            env = {**os.environ, **profile_environment(raw),
+                   'PYTHONPATH': os.pathsep.join((str(Path(lifecycle.__file__).resolve().parents[1]),
+                                                str(ROOT / 'tests'), os.environ.get('PYTHONPATH', '')))}
+            proc = subprocess.run([str(python), '-c', 'from traslado.lifecycle import uninstall_managed; import sys,json; from pathlib import Path; from profile_safety import guard_shortcut_locations; guard_shortcut_locations(Path(sys.argv[2])).start(); print(json.dumps(uninstall_managed(root=Path(sys.argv[1]),yes=True,home=Path(sys.argv[2]))))', str(managed), raw],
                                   env=env, capture_output=True, text=True, timeout=40)
             self.assertEqual(proc.returncode, 0, proc.stderr)
             resultado = json.loads(proc.stdout)

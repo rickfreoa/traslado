@@ -132,7 +132,7 @@ def verificar(raiz: Path) -> tuple[list[str], list[str]]:
 
     # 2. Downloads fixados
     baixados = {d["name"]: d for d in inv["ocr_downloads"]}
-    bootstrap = ler("scripts/bootstrap_ocr.ps1")
+    bootstrap = ler("src/traslado/assets/bootstrap_ocr.ps1") if (raiz / "src/traslado/assets/bootstrap_ocr.ps1").is_file() else ler("scripts/bootstrap_ocr.ps1")
     for a in lock["assets"]:
         d = baixados.get(a["name"])
         if d is None:

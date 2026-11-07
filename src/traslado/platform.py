@@ -182,12 +182,14 @@ def _promote(root, now=None, *, allow_offline=False, offline_reason=None):
 
 def refresh_shortcuts(root, manifest):
     config = manifest.get('shortcuts', {})
-    if not config.get('enabled'):
+    if not isinstance(config, dict) or not config.get('enabled'):
         return
+    home_val = config.get('home')
+    dirs = config.get('dirs') if isinstance(config.get('dirs'), dict) else {}
     create_shortcut(release_python(root, manifest['release_id'], platform=manifest.get('platform')),
                     name='Traslado', platform=manifest.get('platform'),
-                    home=Path(config['home']),
-                    **{k: Path(v) if v else None for k, v in config.get('dirs', {}).items()})
+                    home=Path(home_val) if home_val else None,
+                    **{k: Path(v) if v else None for k, v in dirs.items()})
 
 
 def rollback(root):
@@ -210,10 +212,22 @@ def _rollback(root):
     saved['previous_release_id'] = data['release_id']
     saved['promoted_at'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     _atomic(root / 'current.json', saved)
-    refresh_shortcuts(root, saved)
-    # The newer release may have created shortcuts absent from the older manifest.
-    if data.get('shortcuts') != saved.get('shortcuts'):
-        refresh_shortcuts(root, dict(saved, shortcuts=data.get('shortcuts', {})))
+    saved_sc = saved.get('shortcuts', {})
+    if isinstance(saved_sc, dict) and saved_sc.get('enabled'):
+        refresh_shortcuts(root, saved)
+        abandoned_sc = data.get('shortcuts', {})
+        if (isinstance(abandoned_sc, dict) and abandoned_sc.get('enabled')
+                and (abandoned_sc.get('home'), abandoned_sc.get('dirs'), data.get('platform'))
+                != (saved_sc.get('home'), saved_sc.get('dirs'), saved.get('platform'))):
+            refresh_shortcuts(root, dict(saved, shortcuts=abandoned_sc))
+    else:
+        data_sc = data.get('shortcuts', {})
+        if isinstance(data_sc, dict) and data_sc.get('enabled'):
+            home_val = data_sc.get('home') or (saved_sc.get('home') if isinstance(saved_sc, dict) else None)
+            dirs = data_sc.get('dirs') if isinstance(data_sc.get('dirs'), dict) else {}
+            remove_shortcuts(['Traslado'], platform=saved.get('platform'),
+                             home=Path(home_val) if home_val else None,
+                             **{k: Path(v) if v else None for k, v in dirs.items()})
     return saved
 
 

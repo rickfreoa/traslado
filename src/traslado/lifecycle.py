@@ -315,6 +315,72 @@ def _parse_tesseract_version(raw_text: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _get_windows_native_machine() -> int | None:
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        if hasattr(kernel32, "IsWow64Process2"):
+            kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+            kernel32.IsWow64Process2.argtypes = [
+                ctypes.c_void_p,
+                ctypes.POINTER(ctypes.c_ushort),
+                ctypes.POINTER(ctypes.c_ushort),
+            ]
+            proc_m = ctypes.c_ushort()
+            nat_m = ctypes.c_ushort()
+            if kernel32.IsWow64Process2(kernel32.GetCurrentProcess(), ctypes.byref(proc_m), ctypes.byref(nat_m)):
+                return nat_m.value
+    except Exception:
+        pass
+    return None
+
+
+def _read_pe_machine(path: Path) -> int:
+    with open(path, "rb") as f:
+        header = f.read(64)
+        if len(header) < 64 or header[:2] != b"MZ":
+            raise RuntimeError(f"OCR: executavel sem cabecalho MZ: {path}")
+        pe_offset = int.from_bytes(header[0x3C:0x40], "little")
+        f.seek(pe_offset)
+        sig = f.read(24)
+        if len(sig) < 24 or sig[:4] != b"PE\0\0":
+            raise RuntimeError(f"OCR: assinatura PE ausente: {path}")
+        return int.from_bytes(sig[4:6], "little")
+
+
+def _assert_pe_architecture(path: Path, role: str = "tesseract") -> None:
+    machine = _read_pe_machine(path)
+    if machine == 0xAA64:
+        raise RuntimeError(f"OCR: Windows ARM64 nao suportado nesta versao; executavel {role} e ARM64")
+    if machine == 0x014C:
+        raise RuntimeError(f"OCR: executavel {role} e x86 (32 bits); requer versao x64")
+    if machine != 0x8664:
+        raise RuntimeError(f"OCR: arquitetura de executavel {role} inesperada (0x{machine:04X}); requer x64 (0x8664)")
+
+
+def _assert_platform_architecture(platform_name: str | None = None, env: dict[str, str] | None = None) -> None:
+    plat = platform_name or sys.platform
+    if plat != "win32":
+        raise RuntimeError("OCR: requer Windows x64")
+    environment = os.environ if env is None else env
+    nat_m = _get_windows_native_machine()
+    if nat_m == 0xAA64:
+        raise RuntimeError("OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64")
+    if nat_m == 0x014C:
+        raise RuntimeError("OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64")
+    if sys.maxsize <= 2**32:
+        raise RuntimeError("OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64")
+    if nat_m == 0x8664:
+        return
+    env_arch = (environment.get("PROCESSOR_ARCHITEW6432") or environment.get("PROCESSOR_ARCHITECTURE", "")).upper()
+    if "ARM" in env_arch:
+        raise RuntimeError("OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64")
+    if env_arch == "X86" and not environment.get("PROCESSOR_ARCHITEW6432"):
+        raise RuntimeError("OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64")
+
+
 def setup_ocr(
     release_dir: Path,
     *,
@@ -352,6 +418,8 @@ def setup_ocr(
     dest_ocr = release_dir / "ocr"
     if platform_name == "win32":
         if (dest_ocr / "tesseract.exe").is_file() and (dest_ocr / "tessdata").is_dir():
+            _assert_platform_architecture(platform_name, env)
+            _assert_pe_architecture(dest_ocr / "tesseract.exe", "tesseract")
             exe = str(dest_ocr / "tesseract.exe")
             version = "5.5.3"
             receipt_file = dest_ocr / "ocr-runtime.json"
@@ -393,15 +461,20 @@ def setup_ocr(
             ]
             if env.get("TRASLADO_OCR_OFFLINE") == "1":
                 cmd.append("-Offline")
-            subprocess.run(
+            proc = subprocess.run(
                 cmd,
-                check=True,
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
+            if proc.returncode != 0:
+                raw_err = proc.stderr if proc.stderr is not None else b""
+                if isinstance(raw_err, str):
+                    raw_err = raw_err.encode("utf-8", errors="replace")
+                tail_err = raw_err[-4096:].decode("utf-8", errors="replace").strip()
+                detalhe = f": {tail_err}" if tail_err else ""
+                raise RuntimeError(
+                    f"Falha no bootstrap OCR (código {proc.returncode}){detalhe}"
+                )
         finally:
             if temp_cache_ctx is not None:
                 temp_cache_ctx.cleanup()

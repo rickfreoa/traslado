@@ -28,7 +28,6 @@ requirements-test.hashes.lock
 revocation/revoked-list.json
 THIRD-PARTY.md
 THIRD-PARTY-INVENTORY.json
-scripts/bootstrap_ocr.ps1
 scripts/auditar_libs.py
 scripts/build_release.py
 scripts/ci_gate.py

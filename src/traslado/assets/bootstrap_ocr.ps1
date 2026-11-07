@@ -13,7 +13,13 @@ param(
 # The caller supplies a new directory inside its unpublished release stage.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-if (-not $LockPath) { $LockPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'ocr-assets.lock.json' }
+if (-not $LockPath) {
+    if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'ocr-assets.lock.json')) {
+        $LockPath = Join-Path $PSScriptRoot 'ocr-assets.lock.json'
+    } else {
+        $LockPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'ocr-assets.lock.json'
+    }
+}
 
 function Get-OcrReparseTag([string]$Path) {
     if (-not ('FreoaOcrReparseNative' -as [type])) {
@@ -195,12 +201,176 @@ function Invoke-OcrPrivateTool([string]$Executable, [string[]]$Arguments, [strin
     } finally { $process.Dispose() }
 }
 
+function Get-OcrPeMachine([string]$Path) {
+    Assert-OcrNoLinks $Path
+    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($stream.Length -lt 64) { throw "OCR: executavel PE invalido (tamanho insuficiente): $Path" }
+        $header = New-Object byte[] 64
+        $read = $stream.Read($header, 0, 64)
+        if ($read -lt 64 -or $header[0] -ne 0x4D -or $header[1] -ne 0x5A) {
+            throw "OCR: executavel sem cabecalho MZ: $Path"
+        }
+        $peOffset = [BitConverter]::ToInt32($header, 0x3C)
+        if ($peOffset -lt 64 -or $peOffset -gt $stream.Length - 24) {
+            throw "OCR: cabecalho PE fora dos limites: $Path"
+        }
+        $stream.Position = $peOffset
+        $peSig = New-Object byte[] 24
+        $read = $stream.Read($peSig, 0, 24)
+        if ($read -lt 24 -or $peSig[0] -ne 0x50 -or $peSig[1] -ne 0x45 -or $peSig[2] -ne 0 -or $peSig[3] -ne 0) {
+            throw "OCR: assinatura PE ausente: $Path"
+        }
+        $machine = [BitConverter]::ToUInt16($peSig, 4)
+        return $machine
+    } finally {
+        $stream.Dispose()
+    }
+}
+
+function Assert-OcrPeArchitecture([string]$Path, [string]$Role = 'tesseract') {
+    $machine = Get-OcrPeMachine $Path
+    if ($machine -eq 0xAA64) {
+        throw "OCR: Windows ARM64 nao suportado nesta versao; executavel $Role e ARM64"
+    }
+    if ($machine -eq 0x014C) {
+        throw "OCR: executavel $Role e x86 (32 bits); requer versao x64"
+    }
+    if ($machine -ne 0x8664) {
+        throw ("OCR: arquitetura de executavel {0} inesperada (0x{1:X4}); requer x64 (0x8664)" -f $Role, $machine)
+    }
+}
+
+function Get-OcrProcessArchitecture {
+    if ('System.Runtime.InteropServices.RuntimeInformation' -as [type]) {
+        try {
+            $arch = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+            return $arch.ToString().ToUpperInvariant()
+        } catch {}
+    }
+    if (-not [Environment]::Is64BitProcess) {
+        return 'X86'
+    }
+    return 'X64'
+}
+
+function Get-OcrNativeMachine {
+    if (-not ('FreoaOcrSystemNative' -as [type])) {
+        try {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class FreoaOcrSystemNative {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWow64Process2(IntPtr hProcess, out ushort processMachine, out ushort nativeMachine);
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetCurrentProcess();
+    public static bool TryGetNativeMachine(out ushort nativeMachine) {
+        nativeMachine = 0;
+        ushort proc = 0;
+        try {
+            return IsWow64Process2(GetCurrentProcess(), out proc, out nativeMachine);
+        } catch {
+            return false;
+        }
+    }
+}
+'@
+        } catch {
+            return $null
+        }
+    }
+    try {
+        [UInt16]$native = 0
+        if ([FreoaOcrSystemNative]::TryGetNativeMachine([ref]$native)) {
+            return [int]$native
+        }
+    } catch {}
+    return $null
+}
+
+function Resolve-OcrOsArchitecture($NativeMachine = $null, [string]$RuntimeArch = $null) {
+    $nm = if ($null -ne $NativeMachine) { [int]$NativeMachine } else { 0 }
+    if ($nm -eq 0xAA64) {
+        return 'ARM64'
+    }
+    if ($nm -eq 0x014C) {
+        return 'X86'
+    }
+    if ($nm -eq 0x8664) {
+        return 'X64'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($RuntimeArch)) {
+        return $RuntimeArch.Trim().ToUpperInvariant()
+    }
+    foreach ($target in @([System.EnvironmentVariableTarget]::Process, [System.EnvironmentVariableTarget]::Machine)) {
+        try {
+            $val = [Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITEW6432', $target)
+            if ($val) { return $val.Trim().ToUpperInvariant() }
+        } catch {}
+    }
+    foreach ($target in @([System.EnvironmentVariableTarget]::Process, [System.EnvironmentVariableTarget]::Machine)) {
+        try {
+            $val = [Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITECTURE', $target)
+            if ($val) { return $val.Trim().ToUpperInvariant() }
+        } catch {}
+    }
+    if (-not [Environment]::Is64BitOperatingSystem) {
+        return 'X86'
+    }
+    return 'X64'
+}
+
+function Get-OcrOsArchitecture {
+    $nativeMachine = Get-OcrNativeMachine
+    $runtimeArch = $null
+    if ('System.Runtime.InteropServices.RuntimeInformation' -as [type]) {
+        try {
+            $runtimeArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+        } catch {}
+    }
+    return Resolve-OcrOsArchitecture $nativeMachine $runtimeArch
+}
+
+function Assert-OcrExecutionPlatform {
+    $isWindows = if ('System.Runtime.InteropServices.RuntimeInformation' -as [type]) {
+        try {
+            [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+        } catch {
+            [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+        }
+    } else {
+        [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+    }
+    if (-not $isWindows) { throw 'OCR: requer Windows x64' }
+
+    $procArch = Get-OcrProcessArchitecture
+    if ($procArch -in @('ARM64', 'ARM')) {
+        throw 'OCR: Windows ARM64 nao suportado nesta versao; processo PowerShell e ARM64'
+    }
+    if ($procArch -eq 'X86' -or -not [Environment]::Is64BitProcess) {
+        throw 'OCR: processo PowerShell x86 (32 bits) nao suportado; requer PowerShell x64 em Windows x64'
+    }
+
+    $osArch = Get-OcrOsArchitecture
+    if ($osArch -in @('ARM64', 'ARM')) {
+        throw 'OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64'
+    }
+    if ($osArch -eq 'X86' -or -not [Environment]::Is64BitOperatingSystem) {
+        throw 'OCR: Windows x86 (32 bits) nao suportado nesta versao; requer Windows x64'
+    }
+    if ($osArch -notin @('AMD64', 'X64') -or $procArch -notin @('AMD64', 'X64')) {
+        throw 'OCR: requer Windows x64'
+    }
+}
+
 function Install-FreoaOcr {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Destination,
           [string[]]$Languages = @('por', 'eng', 'spa', 'ita', 'fra', 'deu'),
           [string]$CacheDirectory, [Parameter(Mandatory)][string]$LockPath, [switch]$Offline)
-    if ($env:OS -ne 'Windows_NT' -or -not [Environment]::Is64BitOperatingSystem) { throw 'OCR: requer Windows x64' }
+    Assert-OcrExecutionPlatform
     if (-not [IO.Path]::IsPathRooted($Destination)) { throw 'OCR: destino deve ser absoluto' }
     $destinationFull = [IO.Path]::GetFullPath($Destination).TrimEnd('\', '/')
     $parent = [IO.Path]::GetDirectoryName($destinationFull)
@@ -272,6 +442,7 @@ function Install-FreoaOcr {
             $bound = Get-OcrLockedFile (Join-Path $destinationFull ('tessdata/' + $language + '.traineddata')) $spec; $held.Add($bound)
         }
         $exe = Join-Path $destinationFull 'tesseract.exe'; $tessdata = Join-Path $destinationFull 'tessdata'
+        Assert-OcrPeArchitecture $exe 'tesseract'
         $version = Invoke-OcrPrivateTool $exe @('--version') $destinationFull 15
         if ($version.Stdout -notmatch '(?m)^tesseract v?5\.5\.3(?:\.|\s|$)') { throw 'OCR: versao inesperada' }
         $listed = Invoke-OcrPrivateTool $exe @('--tessdata-dir', $tessdata, '--list-langs') $destinationFull 15

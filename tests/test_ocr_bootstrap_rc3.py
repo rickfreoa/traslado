@@ -15,13 +15,23 @@ import unittest
 import uuid
 
 PACKAGE = Path(__file__).resolve().parents[1]
-SCRIPT = PACKAGE / 'scripts/bootstrap_ocr.ps1'
+SCRIPT = PACKAGE / 'src/traslado/assets/bootstrap_ocr.ps1'
 LOCK = PACKAGE / 'ocr-assets.lock.json'
 POWERSHELL = Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
 
 
 def quoted(value):
     return "'" + str(value).replace("'", "''") + "'"
+
+
+def make_pe(machine: int) -> bytes:
+    header = bytearray(128)
+    header[0:2] = b'MZ'
+    pe_offset = 64
+    header[0x3C:0x40] = pe_offset.to_bytes(4, 'little')
+    header[pe_offset:pe_offset+4] = b'PE\0\0'
+    header[pe_offset+4:pe_offset+6] = machine.to_bytes(2, 'little')
+    return bytes(header)
 
 
 @unittest.skipUnless(os.name == 'nt' and POWERSHELL.is_file(), 'Windows PowerShell required; native bootstrap NOT_RUN')
@@ -160,6 +170,69 @@ class OcrBootstrapRC3(unittest.TestCase):
         self.assertTrue((destination / 'doc/7ZIP-LICENSE.txt').is_file())
         for language in receipt['result']['Languages']:
             self.assertTrue((destination / 'tessdata' / (language + '.traineddata')).is_file())
+
+    def test_windows_detected_via_api_when_env_os_missing(self):
+        destination = self.root / 'new'
+        command = 'Remove-Item env:OS -ErrorAction SilentlyContinue; '
+        command += '& ' + quoted(SCRIPT) + ' -Destination ' + quoted(destination) + ' -Offline -CacheDirectory ' + quoted(self.root / 'cache') + ' | ConvertTo-Json -Compress -Depth 8'
+        result = self.ps(command)
+        self.failed_with(result, 'cache offline incompleto')
+        self.assertNotIn('requer Windows x64', result.stderr.decode('utf-8', errors='replace'))
+
+    def test_pe_architecture_checks_reject_arm64_and_x86(self):
+        pe_x64 = self.root / 'tess_x64.exe'
+        pe_x64.write_bytes(make_pe(0x8664))
+        pe_arm64 = self.root / 'tess_arm64.exe'
+        pe_arm64.write_bytes(make_pe(0xAA64))
+        pe_x86 = self.root / 'tess_x86.exe'
+        pe_x86.write_bytes(make_pe(0x014C))
+
+        probe = lambda target: self.ps('. ' + quoted(SCRIPT) + '; Assert-OcrPeArchitecture ' + quoted(target) + " 'tesseract'")
+
+        r_x64 = probe(pe_x64)
+        self.assertEqual(r_x64.returncode, 0, r_x64.stderr)
+
+        r_arm64 = probe(pe_arm64)
+        self.failed_with(r_arm64, 'OCR: Windows ARM64 nao suportado nesta versao;')
+
+        r_x86 = probe(pe_x86)
+        self.failed_with(r_x86, 'OCR: executavel tesseract e x86')
+
+    def test_platform_architecture_checks_reject_arm64_and_x86(self):
+        command_arm64 = '. ' + quoted(SCRIPT) + "; function Get-OcrOsArchitecture { 'ARM64' }; Assert-OcrExecutionPlatform"
+        r_arm64 = self.ps(command_arm64)
+        self.failed_with(r_arm64, 'OCR: Windows ARM64 nao suportado nesta versao;')
+
+        command_x86 = '. ' + quoted(SCRIPT) + "; function Get-OcrOsArchitecture { 'X86' }; Assert-OcrExecutionPlatform"
+        r_x86 = self.ps(command_x86)
+        self.failed_with(r_x86, 'OCR: Windows x86')
+
+    def test_os_architecture_resolution_handles_emulated_arm64_and_all_cases(self):
+        # 1. Native x64
+        cmd_x64 = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0x8664 'X64'"
+        self.assertEqual(self.ps(cmd_x64).stdout.decode('utf-8').strip(), 'X64')
+
+        # 2. Native ARM64
+        cmd_arm = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0xAA64 'ARM64'"
+        self.assertEqual(self.ps(cmd_arm).stdout.decode('utf-8').strip(), 'ARM64')
+
+        # 3. x64 emulated on ARM64 (.NET runtime reports X64, but nativeMachine is 0xAA64)
+        cmd_emulated = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0xAA64 'X64'"
+        self.assertEqual(self.ps(cmd_emulated).stdout.decode('utf-8').strip(), 'ARM64')
+
+        # 4. x86
+        cmd_x86 = '. ' + quoted(SCRIPT) + "; Resolve-OcrOsArchitecture 0x014C 'X86'"
+        self.assertEqual(self.ps(cmd_x86).stdout.decode('utf-8').strip(), 'X86')
+
+        # 5. End-to-end rejection under emulated ARM64: Get-OcrNativeMachine reports 0xAA64 while Runtime reports X64
+        cmd_e2e_emulated = (
+            '. ' + quoted(SCRIPT) + '; '
+            'function Get-OcrNativeMachine { 0xAA64 }; '
+            'Assert-OcrExecutionPlatform'
+        )
+        r_e2e = self.ps(cmd_e2e_emulated)
+        self.failed_with(r_e2e, 'OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64')
+
 
 
 if __name__ == '__main__':
