@@ -1,53 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ricardo Peres Freoa
-"""Configuração do pytest com faulthandler ativo e limite de 600 s por teste."""
-from __future__ import annotations
-
-import faulthandler
-
-try:
-    import pytest
-except ImportError:
-    pytest = None  # type: ignore[assignment]
-
-TIMEOUT_SEGUNDOS = 600.0
+"""O plugin nativo do pytest controla o único temporizador por teste."""
 
 
-def _arm_faulthandler():
-    try:
-        faulthandler.dump_traceback_later(TIMEOUT_SEGUNDOS, repeat=False, exit=True)
-    except Exception:
-        pass
-
-
-def _cancel_faulthandler():
-    try:
-        faulthandler.cancel_dump_traceback_later()
-    except Exception:
-        pass
-
-
-if pytest is not None:
-    @pytest.hookimpl(tryfirst=True)
-    def pytest_configure(config):
-        if not faulthandler.is_enabled():
-            faulthandler.enable()
-
-    @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtest_protocol(item, nextitem):
-        _arm_faulthandler()
-        try:
-            yield
-        finally:
-            _cancel_faulthandler()
-else:
-    def pytest_configure(config):
-        if not faulthandler.is_enabled():
-            faulthandler.enable()
-
-    def pytest_runtest_protocol(item, nextitem):
-        _arm_faulthandler()
-        try:
-            yield
-        finally:
-            _cancel_faulthandler()
+def pytest_configure(config):
+    # O CI fixa pytest 9.1.1, que oferece encerramento no timeout.
+    # As opções -o do comando prevalecem sobre estes valores padrão.
+    config.inicfg.setdefault('faulthandler_timeout', '600')
+    config.inicfg.setdefault('faulthandler_exit_on_timeout', 'true')

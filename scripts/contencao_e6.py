@@ -9,6 +9,9 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+# Importação do runner sem adicionar src: o produto vem do wheel instalado.
+sys.path.append(str(ROOT))
+from scripts.run_tests import run_tests_with_runner
 
 
 def main():
@@ -21,10 +24,10 @@ def main():
     source.unlink(missing_ok=True)
     # Classe inteira: as provas de estouro e também os parsers de RSS e a contagem de rasters do OCR.
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ContainmentE2)
-    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    success = run_tests_with_runner(suite, timeout=600.0, verbosity=2)
     args.saida.parent.mkdir(parents=True, exist_ok=True)
     report = json.loads(source.read_text(encoding='utf-8')) if source.exists() else {}
-    report['success'] = result.wasSuccessful()
+    report['success'] = success
     report['platform'] = sys.platform
     report['memory_enforced_by_os'] = sys.platform in ('win32', 'linux')
     report['memory_mechanism'] = {'win32': 'Job Object: committed job memory',
@@ -33,7 +36,7 @@ def main():
     report['peak_measurement'] = 'PeakJobMemoryUsed (committed bytes)' if sys.platform == 'win32' else 'sampled aggregate RSS'
     report['supervisor_monitors'] = ['deadline', 'disk', 'log'] + ([] if sys.platform == 'win32' else ['process-group RSS'])
     args.saida.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
-    return 0 if result.wasSuccessful() else 1
+    return 0 if success else 1
 
 
 if __name__ == '__main__':

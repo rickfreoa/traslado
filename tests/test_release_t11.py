@@ -429,7 +429,7 @@ class Workflows(unittest.TestCase):
 
     def test_ci_pytest_executa_com_faulthandler_e_timeout(self):
         t = self.texto("ci.yml")
-        self.assertIn('"$PY" -I -X faulthandler -m pytest -v -o faulthandler_timeout=600 tests/test_review_e23fix.py', t)
+        self.assertIn('"$PY" -I -X faulthandler -m pytest -v -o faulthandler_timeout=600 -o faulthandler_exit_on_timeout=true tests/test_review_e23fix.py', t)
 
     def test_ci_quarentena_inclui_perfil_core(self):
         t = self.texto("ci.yml")

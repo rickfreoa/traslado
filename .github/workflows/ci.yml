@@ -196,6 +196,7 @@ jobs:
           mkdir -p "$PKG/scripts"
           cp fonte/scripts/run_tests.py "$PKG/scripts/run_tests.py"
           cp fonte/scripts/revocation_sentinel.py "$PKG/scripts/revocation_sentinel.py"
+          cp fonte/scripts/contencao_e6.py "$PKG/scripts/contencao_e6.py"
           cp fonte/scripts/run_tests.py "$PKG/run_tests.py"
           mkdir -p "$PKG/ci"
           cp fonte/ci/quarentena.json "$PKG/ci/quarentena.json"
@@ -243,7 +244,7 @@ jobs:
         run: |
           cd "$PKG"
           unset PYTHONPATH
-          "$PY" -I -X faulthandler -m pytest -v -o faulthandler_timeout=600 tests/test_review_e23fix.py
+          "$PY" -I -X faulthandler -m pytest -v -o faulthandler_timeout=600 -o faulthandler_exit_on_timeout=true tests/test_review_e23fix.py
 
 
   contencao:

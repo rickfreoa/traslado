@@ -152,7 +152,9 @@ class QuarentenaContractTests(unittest.TestCase):
         case = unittest.FunctionTestCase(lambda: None)
 
         with patch("scripts.run_tests.faulthandler.dump_traceback_later") as mock_arm, \
-             patch("scripts.run_tests.faulthandler.cancel_dump_traceback_later") as mock_cancel:
+             patch("scripts.run_tests.faulthandler.cancel_dump_traceback_later") as mock_cancel, \
+             patch("scripts.run_tests._TIMEOUT_DEADLINES", []), \
+             patch("scripts.run_tests.time.monotonic", return_value=1000.0):
             result.startTest(case)
             mock_arm.assert_called_once_with(600.0, repeat=False, exit=True)
             result.stopTest(case)
@@ -220,19 +222,15 @@ class QuarentenaContractTests(unittest.TestCase):
                 self.assertEqual(rc, 0)
                 mock_arm.assert_called()
 
-    def test_conftest_pytest_arma_e_cancela_faulthandler(self):
-        """tests/conftest.py deve armar dump_traceback_later(600) e cancelar ao fim de cada teste."""
+    def test_conftest_pytest_configura_timeout_nativo_com_encerramento(self):
+        """O plugin nativo deve encerrar em 600 s, sem temporizador concorrente."""
+        from types import SimpleNamespace
         from tests import conftest
-        with patch("tests.conftest.faulthandler.dump_traceback_later") as mock_arm, \
-             patch("tests.conftest.faulthandler.cancel_dump_traceback_later") as mock_cancel:
-            gen = conftest.pytest_runtest_protocol(None, None)
-            next(gen)
-            mock_arm.assert_called_once_with(600.0, repeat=False, exit=True)
-            try:
-                next(gen)
-            except StopIteration:
-                pass
-            mock_cancel.assert_called_once()
+        config = SimpleNamespace(inicfg={})
+        conftest.pytest_configure(config)
+        self.assertEqual(config.inicfg['faulthandler_timeout'], '600')
+        self.assertEqual(config.inicfg['faulthandler_exit_on_timeout'], 'true')
+        self.assertFalse(hasattr(conftest, 'pytest_runtest_protocol'))
 
 
 

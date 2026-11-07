@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import time
 from typing import Callable
 import unittest
 
@@ -178,26 +179,42 @@ def get_quarantined_tests_for_cell(current_cell: dict, quarantine_entries: list[
     }
 
 
+# O temporizador é global, inclusive quando este arquivo é carregado como
+# __main__, run_tests e scripts.run_tests no mesmo processo.
+if not hasattr(faulthandler, "_traslado_test_deadlines"):
+    faulthandler._traslado_test_deadlines = []
+_TIMEOUT_DEADLINES = faulthandler._traslado_test_deadlines
+
+
+def _arm_timeout(now: float) -> None:
+    deadline = min(deadline for _, deadline in _TIMEOUT_DEADLINES)
+    faulthandler.dump_traceback_later(max(deadline - now, 0.000001), repeat=False, exit=True)
+
+
 class TimeoutTestResult(unittest.TextTestResult):
     """TextTestResult que ativa faulthandler.dump_traceback_later por teste."""
 
     def __init__(self, *args, per_test_timeout: float = 600.0, **kwargs):
         super().__init__(*args, **kwargs)
         self.per_test_timeout = per_test_timeout
+        self._timeout_tokens = []
 
     def startTest(self, test):
         super().startTest(test)
         if self.per_test_timeout and self.per_test_timeout > 0:
-            try:
-                faulthandler.dump_traceback_later(self.per_test_timeout, repeat=False, exit=True)
-            except Exception:
-                pass
+            token = object()
+            now = time.monotonic()
+            _TIMEOUT_DEADLINES.append((token, now + self.per_test_timeout))
+            self._timeout_tokens.append(token)
+            _arm_timeout(now)
 
     def stopTest(self, test):
-        try:
+        if self._timeout_tokens:
+            token = self._timeout_tokens.pop()
+            _TIMEOUT_DEADLINES[:] = [(t, d) for t, d in _TIMEOUT_DEADLINES if t is not token]
             faulthandler.cancel_dump_traceback_later()
-        except Exception:
-            pass
+            if _TIMEOUT_DEADLINES:
+                _arm_timeout(time.monotonic())
         super().stopTest(test)
 
 
@@ -220,6 +237,8 @@ def run_tests_with_runner(
     timeout: float = 600.0,
     verbosity: int = 1,
 ) -> bool:
+    if not faulthandler.is_enabled():
+        faulthandler.enable()
     runner = unittest.TextTestRunner(
         verbosity=verbosity,
         resultclass=lambda *args, **kwargs: TimeoutTestResult(*args, per_test_timeout=timeout, **kwargs),

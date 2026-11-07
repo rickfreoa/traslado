@@ -401,7 +401,7 @@ def verify_promotion(
 
 
 def _normalize_revoked_entry(entry: dict) -> tuple:
-    ver = (entry.get("version") or "").strip().removeprefix("v")
+    ver = (entry.get("version") or "").removeprefix("v")
     raw_hashes = entry.get("sha256") or []
     if isinstance(raw_hashes, str):
         raw_hashes = [raw_hashes]
