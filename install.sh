@@ -1,12 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ricardo Peres Freoa
-# Fonte correspondente: https://github.com/rickfreoa/traslado/tree/v2.0.0
+# Fonte correspondente: https://github.com/rickfreoa/traslado/tree/v2.0.1
 # Códigos de saída: 0 = instalado/ativo; 1 = erro de download, hash ou attestation; 2 = falha nos gates ou parâmetros.
 main() {
 set -eu
 
-VERSION="2.0.0"
+VERSION="2.0.1"
 PROFILE="Full"
 EXTRAS=""
 LANGUAGES="por,eng,spa,ita,fra,deu"

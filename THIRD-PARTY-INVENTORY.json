@@ -1,7 +1,7 @@
 {
   "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]",
   "platform": "win32",
-  "scope": "Traslado 2.0.0 inventory of resolved Python dependencies (Full and legacy locks) and authenticated Windows OCR download/member/model assets, under AGPL-3.0-or-later for own code. MinerU and advanced vision weights are not bundled.",
+  "scope": "Traslado 2.0.1 inventory of resolved Python dependencies (Full and legacy locks) and authenticated Windows OCR download/member/model assets, under AGPL-3.0-or-later for own code. MinerU and advanced vision weights are not bundled.",
   "dependencies": [
     {
       "name": "et-xmlfile",
@@ -109,7 +109,7 @@
     },
     {
       "name": "traslado",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "license_expression": "AGPL-3.0-or-later",
       "license_metadata": "GNU Affero General Public License v3 (or later)",
       "license_files": [
@@ -127,8 +127,8 @@
       "note": "Optional legacy extra pinned in locks/requirements-legacy.hashes.lock. Embedded Rust crates are inventoried in the wheel's own CycloneDX SBOM: firecrawl_anydoc-0.2.4.dist-info/sboms/anydoc-python.cyclonedx.json"
     }
   ],
-  "candidate_version": "2.0.0",
-  "python_dependencies_snapshot_note": "The traslado 2.0.0 entry reflects the own package licensed under AGPL-3.0-or-later.",
+  "candidate_version": "2.0.1",
+  "python_dependencies_snapshot_note": "The traslado 2.0.1 entry reflects the own package licensed under AGPL-3.0-or-later.",
   "ocr_assets_lock_sha256": "4c3c319711bc8b03459252c832ea64891ff2abc810580377a24346d6ac1084d1",
   "ocr_downloads": [
     {

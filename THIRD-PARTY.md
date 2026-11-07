@@ -1,4 +1,4 @@
-# Dependências e licenças — 2.0.0
+# Dependências e licenças — 2.0.1
 
 Licença do código próprio: AGPL-3.0-or-later
 
@@ -6,7 +6,7 @@ Este arquivo descreve dependências do projeto; não declara que toda redistribu
 
 | Componente | Uso/perfil | Fonte e condição observada |
 |---|---|---|
-| Traslado 2.0.0 | Código de autoria própria | `AGPL-3.0-or-later` (`LICENCE`, SHA-256 `8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef`). |
+| Traslado 2.0.1 | Código de autoria própria | `AGPL-3.0-or-later` (`LICENCE`, SHA-256 `8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef`). |
 | Python / Tcl-Tk | Ambiente e interface local | [Python](https://www.python.org/about/legal/) (`PSF-2.0`) e [Tcl/Tk](https://www.tcl-lang.org/software/tcltk/license.html) (`TCL`). |
 | PyMuPDF 1.28.2 | PDF, Full ou pdf | [Licenciamento oficial](https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright): `AGPL-3.0-only` ou licença comercial Artifex (o `COPYING` da 1.28.2 não traz "ou posterior"; ramo adotado `AGPL-3.0-only`, de modo que quem redistribuir a combinação a distribui sob a AGPL-3.0). |
 | Pillow 12.3.0 | Imagens/PDF, extras | [Licença MIT-CMU / HPND e notices](https://github.com/python-pillow/Pillow/blob/main/LICENSE). |
