@@ -307,6 +307,108 @@ class RevocationTests(unittest.TestCase):
         self.assertEqual(dados["revoked"], [])
         self.assertEqual(revocation.validate_revoked_document(dados)["sequence"], 42)
 
+    def test_fluxo_emissao_e_aceitacao_idempotente_ponta_a_ponta(self) -> None:
+        source = self.tmp / "revoked-list.json"
+        source.write_text(json.dumps({
+            "schema": revocation.SCHEMA_REVOKED,
+            "sequence": 1,
+            "revoked": [],
+        }), encoding="utf-8")
+
+        t0 = "2026-11-06T10:00:00Z"
+        # 1. Emissão inicial
+        doc1 = revocation.issue_revoked_document(source, previous_sequence=0, now=t0, ttl_days=14)
+        self.assertEqual(doc1["sequence"], 2)
+
+        # Aceitação inicial de ponta a ponta
+        root = self.tmp / "root_e2e"
+        fb1, fj1 = self._mock_fetchers(doc1, self._release_info())
+        res1 = self._verify(root, "2.0.0", fetch_bytes=fb1, fetch_json=fj1, gh_cmd=False, now=t0)
+        self.assertEqual(res1["status"], "ok")
+        self.assertEqual(res1["sequence"], 2)
+        estado1 = revocation.read_revocation_state(root)
+        self.assertEqual(estado1["sequence"], 2)
+
+        # 2. Sequência menor recusada
+        doc_menor = dict(doc1, sequence=1)
+        fb_menor, fj_menor = self._mock_fetchers(doc_menor, self._release_info())
+        with self.assertRaises(RevocationError) as ctx:
+            self._verify(root, "2.0.0", fetch_bytes=fb_menor, fetch_json=fj_menor, gh_cmd=False, now=t0)
+        self.assertIn("Sequência regressiva", str(ctx.exception))
+
+        # 3. Documento vencido recusado
+        doc_vencido = dict(doc1, sequence=3, issued_at="2026-11-01T00:00:00Z", expires_at="2026-11-05T00:00:00Z")
+        fb_vencido, fj_vencido = self._mock_fetchers(doc_vencido, self._release_info())
+        with self.assertRaises(RevocationError) as ctx:
+            self._verify(root, "2.0.0", fetch_bytes=fb_vencido, fetch_json=fj_vencido, gh_cmd=False, now=t0)
+        self.assertIn("vencido", str(ctx.exception))
+
+        # 4. Documento do mesmo dia não reemitido (idempotência)
+        t1 = "2026-11-06T18:00:00Z"
+        doc_mesmo_dia = revocation.issue_revoked_document(
+            source,
+            previous_sequence=doc1["sequence"],
+            previous_document=doc1,
+            now=t1,
+        )
+        self.assertIsNone(doc_mesmo_dia)
+
+        # Teste via CLI: com mesmo dia e mesma lista, arquivo de saída não é gerado (congelando o relógio)
+        saida_cli = self.tmp / "nao_gerar.json"
+        prev_doc_path = self.tmp / "doc1.json"
+        prev_doc_path.write_text(json.dumps(doc1), encoding="utf-8")
+        orig_ensure = revocation._ensure_utc
+        with mock.patch.object(
+            revocation,
+            "_ensure_utc",
+            side_effect=lambda instant=None: revocation._parse_utc(t1) if instant is None else orig_ensure(instant),
+        ):
+            rc = revocation.main([
+                "--input", str(source),
+                "--output", str(saida_cli),
+                "--previous-sequence", str(doc1["sequence"]),
+                "--previous-document", str(prev_doc_path),
+            ])
+        self.assertEqual(rc, 0)
+        self.assertFalse(saida_cli.exists())
+
+        # Despacho forçado no mesmo dia emite com nova sequência
+        doc_forcado = revocation.issue_revoked_document(
+            source,
+            previous_sequence=doc1["sequence"],
+            previous_document=doc1,
+            now=t1,
+            force=True,
+        )
+        self.assertIsNotNone(doc_forcado)
+        self.assertEqual(doc_forcado["sequence"], 3)
+
+        # 5. Lista diferente no mesmo dia é reemitida
+        source.write_text(json.dumps({
+            "schema": revocation.SCHEMA_REVOKED,
+            "sequence": 1,
+            "revoked": [{"version": "1.0.0", "reason": "CVE-2026-0001"}],
+        }), encoding="utf-8")
+        t2 = "2026-11-06T20:00:00Z"
+        doc2 = revocation.issue_revoked_document(
+            source,
+            previous_sequence=doc1["sequence"],
+            previous_document=doc1,
+            now=t2,
+        )
+        self.assertIsNotNone(doc2)
+        self.assertEqual(doc2["sequence"], 3)
+        self.assertEqual(len(doc2["revoked"]), 1)
+
+        # Aceitação do novo documento com nova lista
+        fb2, fj2 = self._mock_fetchers(doc2, self._release_info())
+        res2 = self._verify(root, "2.0.0", fetch_bytes=fb2, fetch_json=fj2, gh_cmd=False, now=t2)
+        self.assertEqual(res2["status"], "ok")
+        self.assertEqual(res2["sequence"], 3)
+        estado2 = revocation.read_revocation_state(root)
+        self.assertEqual(estado2["sequence"], 3)
+
+
 
 class LifecycleGatesAndCommandsTests(unittest.TestCase):
     """Testes dos itens 2, 3, 4, 5, 6, 8 e 9 sobre lifecycle.py e cli.py."""

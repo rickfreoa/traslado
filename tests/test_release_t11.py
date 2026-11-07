@@ -7,6 +7,7 @@ T11_EXIGE_INSTALADO=1 faz `test_importa_do_venv` conferir que traslado não vem 
 """
 from __future__ import annotations
 
+import faulthandler
 import importlib.util
 import io
 import json
@@ -454,6 +455,30 @@ class Workflows(unittest.TestCase):
         self.assertIn("actions: read", t)
         self.assertIn("--draft", t)
 
+    def test_ci_copia_scripts_necessarios_para_pacote_de_testes_instalado(self):
+        t = self.texto("ci.yml")
+        # Deve copiar run_tests.py e revocation_sentinel.py para $PKG/scripts/
+        self.assertIn('mkdir -p "$PKG/scripts"', t)
+        self.assertIn('cp fonte/scripts/run_tests.py "$PKG/scripts/run_tests.py"', t)
+        self.assertIn('cp fonte/scripts/revocation_sentinel.py "$PKG/scripts/revocation_sentinel.py"', t)
+        # Scripts não devem constar em release-files.txt / ZIP do produto
+        release_files = (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines()
+        self.assertNotIn("scripts/run_tests.py", release_files)
+        self.assertNotIn("scripts/revocation_sentinel.py", release_files)
+
+    def test_ci_pytest_executa_com_faulthandler_e_timeout(self):
+        t = self.texto("ci.yml")
+        self.assertIn('"$PY" -I -X faulthandler -m pytest -v -o faulthandler_timeout=600 -o faulthandler_exit_on_timeout=true tests/test_review_e23fix.py', t)
+
+    def test_ci_quarentena_inclui_perfil_core(self):
+        t = self.texto("ci.yml")
+        quarantine_block = t[t.index("name: Testes em quarentena"):t.index("name: Regressões de função pytest")]
+        self.assertNotIn("matrix.perfil != 'core'", quarantine_block)
+        self.assertIn('tests/test_release_t11.py --core', quarantine_block)
+
+
+
+
 
 @unittest.skipUnless(os.environ.get("T11_EXIGE_OCR"), "qualificação de OCR real só nas células Full que exigem o motor")
 class QualificacaoOCR(unittest.TestCase):
@@ -520,11 +545,29 @@ def declaracoes_de_skip(arquivo: Path) -> set[tuple[str, str]]:
     return pares
 
 
-def executar_core(pasta: Path | None = None, opcionais=OPCIONAIS, fluxo=None) -> int:
+try:
+    from scripts.run_tests import TimeoutTestResult
+except ImportError:
+    try:
+        from run_tests import TimeoutTestResult
+    except ImportError:
+        TimeoutTestResult = unittest.TextTestResult
+
+
+def executar_core(
+    pasta: Path | None = None,
+    opcionais=OPCIONAIS,
+    fluxo=None,
+    *,
+    timeout: float = 600.0,
+    suite_filter=None,
+) -> int:
     """Roda a suíte no perfil Core: ausência de módulo de extra opcional vira skip; qualquer outra falha continua falha.
 
     Cada módulo de teste é importado aqui, com o tipo da exceção à vista (o loader do unittest só guarda o texto).
     """
+    if not faulthandler.is_enabled():
+        faulthandler.enable()
     pasta = pasta or Path(__file__).resolve().parent
     declarados, usados = declaracoes_de_skip(pasta / "core-skips.txt"), set()
 
@@ -536,7 +579,10 @@ def executar_core(pasta: Path | None = None, opcionais=OPCIONAIS, fluxo=None) ->
         usados.add(par)
         return par in declarados
 
-    class Resultado(unittest.TextTestResult):
+    class Resultado(TimeoutTestResult):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, per_test_timeout=timeout, **kwargs)
+
         def addError(self, test, err):
             if autorizado(type(test).__module__, err[1]):
                 return self.addSkip(test, f"Core: extra ausente ({err[1].name})")
@@ -555,6 +601,8 @@ def executar_core(pasta: Path | None = None, opcionais=OPCIONAIS, fluxo=None) ->
                     suite.addTest(falha_de_importacao(arquivo.stem, exc))
                 continue
             suite.addTests(loader.loadTestsFromModule(modulo))
+        if suite_filter is not None:
+            suite = suite_filter(suite)
         resultado = unittest.TextTestRunner(stream=fluxo, verbosity=1, resultclass=Resultado).run(suite)
     finally:
         sys.path.remove(str(pasta))

@@ -1,0 +1,41 @@
+name: Revocation Sentinel
+
+# Monitora revoked.json na release fixa 'revocation' a cada 6 h.
+# Abre ou atualiza uma issue com rótulo 'revogacao' se faltarem menos de 7 dias para expirar
+# ou se a última emissão tiver mais de 36 h. Fecha a issue quando a condição for normalizada.
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: traslado-revocation-sentinel
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  sentinel:
+    name: Verificar saúde de revoked.json
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+      - name: Executar verificação da sentinela
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python -I scripts/revocation_sentinel.py
