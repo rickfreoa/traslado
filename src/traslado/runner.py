@@ -248,13 +248,22 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
         env["PYTHONNOUSERSITE"] = "1"
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         measurements = {}
-        code = run_bounded([sys.executable, "-P", "-m", "traslado.worker", str(request_file)],
-                           private, options.job_timeout, private / "worker.log", cancel, env,
-                           max_memory_bytes=options.max_memory_mb * 1024 * 1024,
-                           budget_root=package, max_directory_bytes=options.max_output_bytes,
-                           on_poll=notify_progress, measurements=measurements)
+        try:
+            code = run_bounded([sys.executable, "-P", "-m", "traslado.worker", str(request_file)],
+                               private, options.job_timeout, private / "worker.log", cancel, env,
+                               max_memory_bytes=options.max_memory_mb * 1024 * 1024,
+                               budget_root=package, max_directory_bytes=options.max_output_bytes,
+                               on_poll=notify_progress, measurements=measurements)
+        except Exception as exc:
+            if measurements.get("resource_limit"):
+                raise ConversionError('resource_limit', "Limite configurado excedido: " + measurements["resource_limit"]) from exc
+            raise
+        if measurements.get("resource_limit"):
+            raise ConversionError('resource_limit', "Limite configurado excedido: " + measurements["resource_limit"])
         if code != 0:
-            error = package / "error.json"
+            error = private / "worker-error.json"
+            if not error.is_file():
+                error = package / "error.json"
             # A process killed at its memory quota may not be able to write JSON.
             exhausted = (code & 0xffffffff) in {0xc0000017, 0xc000009a, 0xc000012d}
             if not error.is_file() and (private / "worker.log").is_file():
@@ -266,8 +275,10 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
                 exhausted |= (measurements.get("detected_after_s") is not None or
                               (measurements.get("rlimit_applied", False) and
                                measurements.get("peak_bytes", 0) >= .9 * measurements.get("limit_bytes", float("inf"))))
+            if exhausted:
+                raise ConversionError('resource_limit', "Processo de extração excedeu limite de memória")
             info = json.loads(error.read_text(encoding="utf-8")) if error.is_file() else {
-                "error": "Processo de extração falhou", "code": "resource_limit" if exhausted else "internal"}
+                "error": "Processo de extração falhou", "code": "internal"}
             raise ConversionError(info.get("code", "internal"), info["error"], info.get("data"))
         partial_info = private / "partial-error.json"
         if partial_info.is_file():

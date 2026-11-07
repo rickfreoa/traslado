@@ -43,17 +43,19 @@ def classify(exc: Exception) -> ConversionError:
     elif isinstance(exc, UnicodeError):
         code = "malformed"
     elif isinstance(exc, NotImplementedError) and any(t in str(exc).lower() for t in (
-            "compression method", "zip file version", "strong encryption")):
+            "compression method", "zip file version", "strong encryption", "compressed patched data")):
         # zipfile: método de compressão, versão ou criptografia não suportados (mesma regra do legado).
         code = "unsupported"
     elif isinstance(exc, RuntimeError) and "zip" in str(exc).lower() and (
             "password" in str(exc).lower() or "encrypted" in str(exc).lower()):
         code = "encrypted"
     elif type(exc).__name__ in {"FileDataError", "EmptyFileError", "XMLSyntaxError",
-                                "UnidentifiedImageError", "InvalidXmlError"}:
+                                "UnidentifiedImageError", "InvalidXmlError", "FzErrorFormat"}:
         code = "malformed"
     elif type(exc).__name__ in {"DecompressionBombError", "DecompressionBombWarning"}:
         code = "resource_limit"
+    elif isinstance(exc, ValueError) and str(exc).startswith("unknown raw mode"):
+        code = "malformed"
     elif isinstance(exc, ValueError) and str(exc) in {
             "Tabela renderizada excede limite de células", "Quantidade de chunks excede limite",
             "Chunks excedem limite de saída"}:

@@ -146,15 +146,36 @@ def construir_sdist(destino: Path, nomes: list[str], wheel: Path) -> Path:
     return sdist
 
 
+FIXTURE_FUZZ = re.compile(r"(^|/)tests/fixtures/fuzz/[^/!]+$")
+FIXTURE_FUZZ_MAX = 64 * 1024
+
+
 def membros_proibidos(nome: str, dados: bytes, caminho: str = "") -> list[str]:
     """Motivos pelos quais um membro (e, recursivamente, um zip/wheel/tar.gz aninhado) contém PyMuPDF/MuPDF."""
     achados = []
+    if FIXTURE_FUZZ.search(nome):
+        # Fixture do fuzz pode ter membros ilegíveis: teto de tamanho (um binário MuPDF tem megabytes)
+        # e varredura de conteúdo sobre os bytes brutos, além da varredura recursiva abaixo.
+        if len(dados) > FIXTURE_FUZZ_MAX:
+            achados.append(f"{caminho}{nome}: fixture do fuzz excede {FIXTURE_FUZZ_MAX} bytes")
+        if CONTEUDO_MUPDF.search(dados):
+            achados.append(f"{caminho}{nome}: conteúdo")
     if NOME_MUPDF.search(nome):
         achados.append(f"{caminho}{nome}: nome")
     if zipfile.is_zipfile(io.BytesIO(dados)):
         with zipfile.ZipFile(io.BytesIO(dados)) as z:
             for info in z.infolist():
-                achados += membros_proibidos(info.filename, z.read(info), f"{caminho}{nome}!")
+                try:
+                    conteudo = z.read(info)
+                except Exception as exc:  # flag 5, deflate corrompido, CRC, criptografia: o membro não pode ser lido
+                    # Fixtures do fuzz são ZIPs deliberadamente ilegíveis: opacas, com o nome conferido.
+                    if FIXTURE_FUZZ.search(nome):
+                        if NOME_MUPDF.search(info.filename):
+                            achados.append(f"{caminho}{nome}!{info.filename}: nome")
+                        continue
+                    achados.append(f"{caminho}{nome}!{info.filename}: ilegível ({type(exc).__name__})")
+                    continue
+                achados += membros_proibidos(info.filename, conteudo, f"{caminho}{nome}!")
     elif nome.lower().endswith((".tar.gz", ".tgz", ".tar")) and tarfile.is_tarfile(io.BytesIO(dados)):
         with tarfile.open(fileobj=io.BytesIO(dados), mode="r:*") as tf:
             for info in tf.getmembers():
