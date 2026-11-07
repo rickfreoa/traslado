@@ -112,7 +112,7 @@ class ScriptsE6(unittest.TestCase):
     def test_composition_rejects_added_member_and_missing_licence(self):
         build = script('build_release')
         with tempfile.TemporaryDirectory() as raw:
-            wheel = Path(raw)/'traslado-2.0.0-py3-none-any.whl'
+            wheel = Path(raw)/f'traslado-{build.VERSION}-py3-none-any.whl'
             with zipfile.ZipFile(wheel, 'w') as z:
                 z.writestr('unlisted.txt', 'public sabotage fixture')
             self.assertTrue(build.conferir_composicao(wheel))
