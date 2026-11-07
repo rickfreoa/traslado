@@ -41,15 +41,29 @@ def _sha256(data: bytes | Path) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _build_post1_release_dir(dist_dir: Path, post_dir: Path, target_version: str = "2.0.0.post1") -> Path:
-    """Gera um diretório de release local 2.0.0.post1 a partir de dist/ para testar traslado update."""
+def _versao_dist(dist_dir: Path) -> str:
+    """Versão do wheel em dist/ (versão única do produto, sem literal no orquestrador)."""
+    wheels = sorted(dist_dir.glob("traslado-*-py3-none-any.whl"))
+    if len(wheels) != 1:
+        raise RuntimeError(f"Esperado exatamente um wheel em {dist_dir}: {[w.name for w in wheels]}")
+    m = re.match(r"^traslado-(.+)-py3-none-any\.whl$", wheels[0].name)
+    if not m:
+        raise RuntimeError(f"Nome de wheel inesperado: {wheels[0].name}")
+    return m.group(1)
+
+
+def _build_post1_release_dir(dist_dir: Path, post_dir: Path, target_version: str | None = None) -> Path:
+    """Gera um diretório de release local <versão>.post1 a partir de dist/ para testar traslado update."""
+    target_version = target_version or _versao_dist(dist_dir) + ".post1"
     post_dir.mkdir(parents=True, exist_ok=True)
     orig_wheels = list(dist_dir.glob("traslado-*-py3-none-any.whl"))
     if not orig_wheels:
         raise RuntimeError(f"Nenhum wheel encontrado em {dist_dir}")
     orig_wheel = orig_wheels[0]
     m = re.match(r"^traslado-(.+)-py3-none-any\.whl$", orig_wheel.name)
-    orig_version = m.group(1) if m else "2.0.0"
+    if not m:
+        raise RuntimeError(f"Nome de wheel inesperado: {orig_wheel.name}")
+    orig_version = m.group(1)
 
     new_wheel = post_dir / f"traslado-{target_version}-py3-none-any.whl"
     old_dist_info = f"traslado-{orig_version}.dist-info/"
@@ -182,7 +196,7 @@ def _verify_common_lifecycle(
     )
     where_data = json.loads(where_proc.stdout.strip())
     report["where_initial"] = where_data
-    assert where_data["current"]["version"] == "2.0.0", where_data
+    assert where_data["current"]["version"] == _versao_dist(dist_dir), where_data
     assert where_data["current"]["profile"] == "Full", where_data
 
     # 2. Auditoria de bibliotecas carregadas durante conversão Full
@@ -287,8 +301,9 @@ def _verify_common_lifecycle(
             "error": err_msg,
         }
 
-    # 5. Update local de 2.0.0 para 2.0.0.post1 a partir de diretório local
-    post1_dir = _build_post1_release_dir(dist_dir, work_dir / "dist-2.0.0.post1", "2.0.0.post1")
+    # 5. Update local da versão do wheel para <versão>.post1 a partir de diretório local
+    versao = _versao_dist(dist_dir)
+    post1_dir = _build_post1_release_dir(dist_dir, work_dir / f"dist-{versao}.post1", f"{versao}.post1")
     upd_proc = subprocess.run(
         [
             str(py_exe),
@@ -314,7 +329,7 @@ def _verify_common_lifecycle(
         raise RuntimeError(f"Falha no traslado update local: {upd_proc.stdout}\n{upd_proc.stderr}")
     upd_data = json.loads(upd_proc.stdout.strip())
     after_upd = json.loads((managed_root / "current.json").read_text(encoding="utf-8"))
-    assert after_upd["version"] == "2.0.0.post1", after_upd
+    assert after_upd["version"] == f"{versao}.post1", after_upd
     assert after_upd["previous_release_id"] == release_id, after_upd
     report["update_to_post1"] = {
         "command_result": upd_data,
@@ -323,7 +338,7 @@ def _verify_common_lifecycle(
         "previous_release_id": after_upd["previous_release_id"],
     }
 
-    # 6. Rollback de 2.0.0.post1 de volta para 2.0.0
+    # 6. Rollback de <versão>.post1 de volta para a versão do wheel
     post1_py = _managed_python(managed_root, after_upd["release_id"])
     rb_proc = subprocess.run(
         [str(post1_py), "-I", "-X", "utf8", "-m", "traslado", "rollback", "--root", str(managed_root)],
@@ -335,7 +350,7 @@ def _verify_common_lifecycle(
     )
     rb_data = json.loads(rb_proc.stdout.strip())
     after_rb = json.loads((managed_root / "current.json").read_text(encoding="utf-8"))
-    assert after_rb["version"] == "2.0.0", after_rb
+    assert after_rb["version"] == versao, after_rb
     assert after_rb["release_id"] == release_id, after_rb
     report["rollback_to_2_0_0"] = {
         "active_version": after_rb["version"],

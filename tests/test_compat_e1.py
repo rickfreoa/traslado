@@ -13,6 +13,8 @@ import unittest
 import venv
 import zipfile
 
+from traslado import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -114,7 +116,7 @@ class CompatE1(unittest.TestCase):
                         self.assertEqual(stderr.splitlines()[-1], canonical_stderr.splitlines()[-1])
                     else:
                         self.assertEqual(result.returncode, 0, stderr)
-                        self.assertEqual(result.stdout.strip(), b"2.0.0")
+                        self.assertEqual(result.stdout.strip(), __version__.encode())
                         self.assertEqual(result.stderr.split(b"\n", 1)[1], canonical.stderr)
                     self.assertEqual(result.stdout, canonical.stdout)
                     self.assertNotIn(b"Deprecia", result.stdout)
@@ -136,7 +138,7 @@ class CompatE1(unittest.TestCase):
             with self.subTest(module=module):
                 result = self.run_module(module, "--version")
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(result.stdout.strip(), "2.0.0")
+                self.assertEqual(result.stdout.strip(), __version__)
                 self.assertEqual(len(result.stderr.splitlines()), int(module.startswith("freoa_v6")))
                 if module.startswith("freoa_v6"):
                     self.assertIn("deprecia", result.stderr.lower())
@@ -211,9 +213,9 @@ class CompatE1(unittest.TestCase):
                                  "-w", str(dist)],
                                 cwd=self.root, capture_output=True, text=True, encoding="utf-8", timeout=180)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        with zipfile.ZipFile(dist / "traslado-2.0.0-py3-none-any.whl") as wheel:
+        with zipfile.ZipFile(dist / f"traslado-{__version__}-py3-none-any.whl") as wheel:
             parser = configparser.ConfigParser()
-            parser.read_string(wheel.read("traslado-2.0.0.dist-info/entry_points.txt").decode())
+            parser.read_string(wheel.read(f"traslado-{__version__}.dist-info/entry_points.txt").decode())
         for name in ("traslado", "freoa-md"):
             self.assertEqual(parser["console_scripts"][name], "traslado.cli:main")
         for name in ("traslado-gui", "freoa-md-gui"):
@@ -263,7 +265,7 @@ class CompatE1(unittest.TestCase):
                 a, b = json.loads(member.read_bytes()), json.loads(other.read_bytes())
                 for obj in (a, b):
                     field = "converter_version" if member.name == "document.json" else "converter"
-                    self.assertEqual(obj[field], "2.0.0", member.name)
+                    self.assertEqual(obj[field], __version__, member.name)
                     obj.pop(field)
                 self.assertEqual(a, b, member.name)
             else:

@@ -377,7 +377,7 @@ class SelecaoDoWheel(unittest.TestCase):
             with zipfile.ZipFile(wheel, "w") as z:
                 for m in membros:
                     z.writestr(m, b"")
-        base = ("traslado/__init__.py", "traslado/cli.py", "traslado-2.0.0.dist-info/METADATA")
+        base = ("traslado/__init__.py", "traslado/cli.py", f"traslado-{b.VERSION}.dist-info/METADATA")
         montar(*base)
         b.conferir_wheel(wheel, nomes)  # não levanta
         montar(*base, "traslado/extra_nao_listado.py")

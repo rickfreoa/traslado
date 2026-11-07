@@ -22,6 +22,18 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 
 
+def versao_unica(raiz: Path = RAIZ) -> str:
+    """Versão única do produto; raiz sem src (cópias de teste do inventário) usa a do repositório."""
+    fonte = raiz / "src/traslado/__init__.py"
+    if not fonte.is_file():
+        fonte = RAIZ / "src/traslado/__init__.py"
+    texto = fonte.read_text(encoding="utf-8")
+    m = re.search(r'^__version__\s*=\s*"([^"]+)"\s*$', texto, re.M)
+    if not m:
+        raise ValueError("src/traslado/__init__.py não define __version__")
+    return m.group(1)
+
+
 
 def licenca_admitida(expr: str, selecionada, permitidas: set) -> bool:
     """LICENSE-POLICY §5.2: expressão simples na allowlist; com OR, ao menos um ramo admitido e o ramo adotado
@@ -89,15 +101,16 @@ def verificar(raiz: Path) -> tuple[list[str], list[str]]:
             div.append(f"{nome_doc} sem a linha exata '{linha}' (LICENSE-POLICY.md §5.6)")
     if "6.0.0rc" in raw_inv or "6.0.0rc" in raw_md:
         div.append("menção proibida a 6.0.0rc em THIRD-PARTY-INVENTORY.json ou THIRD-PARTY.md")
-    if inv.get("candidate_version") != "2.0.0":
-        div.append(f"candidate_version no inventário deve ser 2.0.0 (atual: {inv.get('candidate_version')})")
+    versao_propria = versao_unica(raiz)
+    if inv.get("candidate_version") != versao_propria:
+        div.append(f"candidate_version no inventário deve ser {versao_propria} (atual: {inv.get('candidate_version')})")
 
     fixas = lock_python(ler("requirements-full.lock"))
     com_hash = hashes_por_pacote(ler("requirements-full.hashes.lock"))
     inventariadas = {norm(d["name"]): d for d in inv["dependencies"]}
     proprio = inventariadas.get("traslado")
-    if proprio is None or proprio.get("version") != "2.0.0" or proprio.get("license_expression") != "AGPL-3.0-or-later":
-        div.append("pacote próprio traslado 2.0.0 (AGPL-3.0-or-later) ausente ou divergente em THIRD-PARTY-INVENTORY.json")
+    if proprio is None or proprio.get("version") != versao_propria or proprio.get("license_expression") != "AGPL-3.0-or-later":
+        div.append(f"pacote próprio traslado {versao_propria} (AGPL-3.0-or-later) ausente ou divergente em THIRD-PARTY-INVENTORY.json")
     if "traslado-md-converter" in inventariadas or "freoa-md-converter" in inventariadas:
         div.append("entrada legada freoa-md-converter não permitida em THIRD-PARTY-INVENTORY.json")
 

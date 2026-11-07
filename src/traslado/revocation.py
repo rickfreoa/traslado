@@ -17,6 +17,7 @@ from typing import Callable
 import urllib.error
 import urllib.request
 
+from . import __version__
 from . import platform as plat
 
 SCHEMA_REVOKED = "traslado-revoked-1"
@@ -25,7 +26,7 @@ DEFAULT_REPO = "rickfreoa/traslado"
 REVOCATION_TAG = "revocation"
 REVOCATION_WORKFLOW = ".github/workflows/revocation.yml"
 REVOCATION_REF = "refs/heads/main"
-USER_AGENT = "Traslado-Revocation/2.0.0"
+USER_AGENT = f"Traslado-Revocation/{__version__}"
 
 
 class RevocationError(ValueError):
