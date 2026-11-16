@@ -187,10 +187,12 @@ class ReviewE23Fix(unittest.TestCase):
         foreign = tmp_path / 'foreign'
         home = tmp_path / 'home'
         self.enterContext(patch.dict(os.environ, {'APPDATA': str(foreign)}))
-        with patch.object(platform, '_desktop', wraps=platform._desktop) as desk, patch.object(platform.subprocess, 'run'):
+        with patch.object(platform.subprocess, 'run'):
             paths = platform.create_shortcut('python', platform='win32', home=home)
-            self.assertEqual(desk.call_args.args, (home, 'win32', True))
-            self.assertTrue(all((path.is_relative_to(home) for path in paths)))
+        self.assertEqual(paths, [
+            home / 'Desktop/Traslado.lnk',
+            home / 'AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Traslado.lnk',
+        ])
         self.assertFalse(foreign.exists())
         self.assertEqual(platform.remove_shortcuts(['Traslado'], platform='win32', home=home), [])
 
