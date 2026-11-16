@@ -97,6 +97,15 @@ class Build(unittest.TestCase):
             metadata = z.read(next(n for n in z.namelist() if n.endswith(".dist-info/METADATA"))).decode("utf-8")
         self.assertEqual(re.search(r"^Version: (\S+)\s*$", metadata, re.M)[1], versao_fonte())
 
+    def test_zip_multiplataforma_inclui_guia_e_inicializadores_executaveis(self):
+        name = f"traslado-{versao_fonte()}-instaladores"
+        with zipfile.ZipFile(self.a / f"{name}.zip") as archive:
+            self.assertIn(f"{name}/COMECE-AQUI.md", archive.namelist())
+            self.assertIn(f"{name}/INSTALAR.bat", archive.namelist())
+            for launcher in ("instalar.command", "instalar.sh", "install.sh"):
+                self.assertEqual((archive.getinfo(f"{name}/{launcher}").external_attr >> 16) & 0o777, 0o755)
+        self.assertEqual((self.a / f"{name}.zip").read_bytes(), (self.b / f"{name}.zip").read_bytes())
+
     def test_zip_contem_exatamente_o_listado(self):
         listados = {n for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").split() if n and n[0] not in "#!"}
         esperado = listados | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{self.wheel.name}", "scripts/bootstrap_ocr.ps1"}

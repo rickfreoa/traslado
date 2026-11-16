@@ -115,9 +115,13 @@ fi
 
 echo "=== 5. Executando install.sh --from-dir padrão (com atalhos .desktop e .png) ==="
 VENV_PY="$(echo "$MANAGED_ROOT"/releases/*/.venv/bin/python)"
+set -- "$DIST_DIR"/traslado-*-instaladores.zip
+test "$#" -eq 1
+"$VENV_PY" -m zipfile -e "$1" /tmp/e2e-work/instaladores
+PACKAGE_NAME="$(basename "$1" .zip)"
 "$VENV_PY" -I -m traslado uninstall --yes --root "$MANAGED_ROOT"
 test ! -e "$MANAGED_ROOT"
-sh "$DIST_DIR/install.sh" --from-dir "$DIST_DIR" --root "$MANAGED_ROOT" --yes --allow-offline-promotion
+sh "/tmp/e2e-work/instaladores/$PACKAGE_NAME/instalar.sh" --root "$MANAGED_ROOT" --yes --allow-offline-promotion
 
 VENV_PY="$(echo "$MANAGED_ROOT"/releases/*/.venv/bin/python)"
 if [ -z "$VENV_PY" ] || [ ! -x "$VENV_PY" ]; then

@@ -730,8 +730,12 @@ def run_macos_e2e(dist_dir: Path, audit_output: Path) -> dict:
         env["TRASLADO_DATA_ROOT"] = str(data_root)
         env["TRASLADO_PROMOCAO_OFFLINE"] = "teste"
 
+        package_name = f"traslado-{_versao_dist(dist_dir)}-instaladores"
+        subprocess.run(["ditto", "-x", "-k", str(dist_dir / f"{package_name}.zip"), str(work_dir)], check=True)
+        entry = work_dir / package_name / "instalar.command"
+        assert os.access(entry, os.X_OK), f"Inicializador sem permissão de execução: {entry}"
         inst_proc = subprocess.run(
-            ["sh", str(dist_dir / "install.sh"), "--from-dir", str(dist_dir), "--root", str(managed_root), "--yes",
+            [str(entry), "--root", str(managed_root), "--yes",
              "--allow-offline-promotion"],
             env=_sem_gh(env),
             capture_output=True,

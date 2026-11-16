@@ -187,6 +187,19 @@ class PlatformE2(unittest.TestCase):
             self.assertEqual(run.call_count, 2)
             self.assertIn('-I -m traslado.gui', run.call_args.args[0][-1])
 
+    def test_windows_locations_respect_redirected_folders_and_test_profile(self):
+        actual = self.root / "profile"
+        desktop = actual / "OneDrive" / "Desktop"
+        menu = actual / "redirected" / "Programs"
+        with patch.object(p.sys, "platform", "win32"), patch.object(
+            p, "_windows_known_folder", side_effect=[actual, desktop, menu, actual]
+        ):
+            self.assertEqual(p._locations("win32", actual, None, None, None, None, True)[:2],
+                             (desktop, menu))
+            temporary = self.root / "temp-profile"
+            self.assertEqual(p._locations("win32", temporary, None, None, None, None, True)[0],
+                             temporary / "Desktop")
+
     def test_shortcuts_command_enables_shortcuts_after_no_shortcut(self):
         from traslado import cli
         fake_home = self.root / "fake_home"

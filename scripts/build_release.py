@@ -248,14 +248,15 @@ def conferir_composicao(p: Path) -> list[str]:
     nomes = {n.strip() for n in (ROOT / "release-files.txt").read_text(encoding="utf-8").splitlines()
              if n.strip() and not n.startswith(("#", "!"))}
     prefix = f"traslado-{VERSION}"
+    is_installer_zip = p.name.endswith(("-windows.zip", "-instaladores.zip"))
     if p.name == prefix + "-py3-none-any.whl":
         info = prefix + ".dist-info/"
         expected = {n.removeprefix("src/") for n in nomes if n.startswith("src/")}
         expected |= {info + n for n in ("METADATA", "WHEEL", "entry_points.txt", "top_level.txt", "RECORD", "licenses/LICENCE")}
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
-    elif p.name == prefix + "-windows.zip" or p.name.endswith("-windows.zip"):
-        expected = {prefix + "-windows/" + n for n in nomes | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{prefix}-py3-none-any.whl", "scripts/bootstrap_ocr.ps1"}}
+    elif is_installer_zip:
+        expected = {p.stem + "/" + n for n in nomes | {"INSTALL-PAYLOAD.json", "PAYLOAD-SHA256SUMS", f"dist/{prefix}-py3-none-any.whl", "scripts/bootstrap_ocr.ps1"}}
         with zipfile.ZipFile(p) as z:
             actual = z.namelist()
     elif p.name == prefix + ".tar.gz":
@@ -271,12 +272,16 @@ def conferir_composicao(p: Path) -> list[str]:
         errors.append(f"{p.name}: membros duplicados")
     if set(actual) != expected:
         errors.append(f"{p.name}: composição diverge: a mais {sorted(set(actual)-expected)}; a menos {sorted(expected-set(actual))}")
-    if p.name == prefix + "-windows.zip" or p.name.endswith("-windows.zip"):
-        prefix_zip = prefix + "-windows/"
+    if is_installer_zip:
+        prefix_zip = p.stem + "/"
         caminho_derived = prefix_zip + "scripts/bootstrap_ocr.ps1"
         caminho_canonical = prefix_zip + "src/traslado/assets/bootstrap_ocr.ps1"
         with zipfile.ZipFile(p) as z:
             membros_z = z.namelist()
+            for name in ("instalar.command", "instalar.sh", "install.sh"):
+                member = prefix_zip + name
+                if member in membros_z and not (z.getinfo(member).external_attr >> 16) & 0o111:
+                    errors.append(f"{p.name}: inicializador sem permissão de execução: {member}")
             if caminho_derived in membros_z and caminho_canonical in membros_z:
                 if z.read(caminho_derived) != z.read(caminho_canonical):
                     errors.append(f"{p.name}: cópia em scripts/bootstrap_ocr.ps1 diverge da fonte única em src/traslado/assets/bootstrap_ocr.ps1")
@@ -345,16 +350,20 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
     ).encode("utf-8")
     internal_sums = dist / "PAYLOAD-SHA256SUMS"
     internal_sums.write_bytes(itens["PAYLOAD-SHA256SUMS"])
-    nome = f"traslado-{VERSION}-windows"
-    zipado = dist / f"{nome}.zip"
-    with zipfile.ZipFile(zipado, "w", zipfile.ZIP_DEFLATED) as z:
-        for caminho, dados in sorted(itens.items()):
-            info = zipfile.ZipInfo(f"{nome}/{caminho}", DATA_FIXA)
-            info.compress_type, info.create_system, info.external_attr = zipfile.ZIP_DEFLATED, 3, 0o100644 << 16
-            z.writestr(info, dados)
+    pacotes = []
+    for sufixo in ("windows", "instaladores"):
+        nome = f"traslado-{VERSION}-{sufixo}"
+        zipado = dist / f"{nome}.zip"
+        pacotes.append(zipado)
+        with zipfile.ZipFile(zipado, "w", zipfile.ZIP_DEFLATED) as z:
+            for caminho, dados in sorted(itens.items()):
+                info = zipfile.ZipInfo(f"{nome}/{caminho}", DATA_FIXA)
+                mode = 0o100755 if caminho in {"instalar.command", "instalar.sh", "install.sh"} else 0o100644
+                info.compress_type, info.create_system, info.external_attr = zipfile.ZIP_DEFLATED, 3, mode << 16
+                z.writestr(info, dados)
     inventario_dist = dist / "THIRD-PARTY-INVENTORY.json"
     shutil.copyfile(ROOT / "THIRD-PARTY-INVENTORY.json", inventario_dist)
-    todos_artefatos = [zipado, wheel, sdist, internal_sums, *extras_dist, inventario_dist]
+    todos_artefatos = [*pacotes, wheel, sdist, internal_sums, *extras_dist, inventario_dist]
     if verificar(todos_artefatos):
         for arq in todos_artefatos:
             arq.unlink(missing_ok=True)
@@ -364,7 +373,7 @@ def construir(dist: Path, permitir_sujo: bool = False) -> tuple[Path, Path]:
         encoding="utf-8",
         newline="\n",
     )
-    return zipado, wheel
+    return pacotes[0], wheel
 
 
 def main() -> None:

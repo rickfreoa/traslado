@@ -143,6 +143,7 @@ try {
                 $ActiveArgs = @("-I", "-m", "traslado", "setup", "--check-active", "--expected-version", $CleanVersion,
                                 "--root", $RootFull, "--profile", $NormProfile, "--languages", $Languages)
                 if ($Extras) { $ActiveArgs += @("--extras", $Extras) }
+                if (-not $AllowOfflinePromotion) { $ActiveArgs += @("--require-online") }
                 Invoke-Native $activePy @ActiveArgs
                 if ($LASTEXITCODE -ne 0) { throw "Release ativa sem integridade" }
                 Write-Host "Traslado $CleanVersion ($NormProfile) já está ativo em $RootFull ($ReleaseId)."

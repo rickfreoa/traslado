@@ -703,10 +703,14 @@ def release_integrity(release_dir: Path) -> dict[str, str]:
             if p.is_file() and "__pycache__" not in p.parts and p.name != "release-integrity.json"}
 
 
-def active_release_matches(root: Path, version: str, profile: str, extras=None, languages=None) -> bool:
+def active_release_matches(root: Path, version: str, profile: str, extras=None, languages=None,
+                           *, require_online: bool = False) -> bool:
     current = plat.read_current(root)
     if not current or (current.get("version"), current.get("profile"), current.get("extras"), current.get("languages")) != (
             version, profile, normalize_extras(extras), normalize_languages(languages)):
+        return False
+    gates = current.get("gates")
+    if require_online and (not isinstance(gates, dict) or gates.get("revocation") != "ok"):
         return False
     try:
         release = plat._release(root, current["release_id"])

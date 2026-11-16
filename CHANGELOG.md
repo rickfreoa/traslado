@@ -2,12 +2,15 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
-## 2.0.2 (16/11/2026) — manutenção local
+## 2.0.2 (16/11/2026)
 
 - Geração de chunks localiza intervalos protegidos, blocos e títulos por posição e atualiza a hierarquia de títulos à medida que os chunks avançam.
 - O worker entrega ao chunker o mesmo mapa usado em `document-layout.json`. A escrita reaproveita a detecção de imagens avançadas e o Markdown é renderizado uma vez por conversão.
 - Os critérios de corte, offsets, IDs, textos, metadados e esquema dos chunks seguem o contrato 2.x. A mudança dispensa dependências novas.
 - Arquitetura, resultados e roteiro de evolução em `docs/ARQUITETURA-E-PLANO.md`.
+- ZIP de instalação para Windows, macOS e Linux, com guia de primeiro uso e permissões de execução preservadas nos inicializadores Unix.
+- No Windows, os atalhos seguem a Área de Trabalho e o Menu Iniciar definidos pelo usuário, inclusive com redirecionamento para o OneDrive.
+- O instalador público qualifica a versão publicada mesmo quando já existe um build local da mesma versão.
 
 ## 2.0.1 (07/11/2026)
 

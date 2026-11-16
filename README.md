@@ -1,10 +1,5 @@
 # Traslado 2.0.2
 
-A 2.0.2 é uma compilação local de manutenção. Para instalar o ZIP gerado nesta
-árvore, use o instalador da pasta extraída com `-FromDir`, `-Version 2.0.2`
-e os parâmetros locais aplicáveis. Os exemplos remotos fixados em 2.0.1 abaixo
-referem-se à versão anterior. Consulte [arquitetura e plano](docs/ARQUITETURA-E-PLANO.md).
-
 Conversor local de documentos para Markdown rastreável: texto nativo rápido, OCR seletivo (Tesseract) e chunks com offsets exatos, hashes e páginas de origem, prontos para busca e RAG. O nome vem do *traslado* forense: a cópia fiel que remete sempre ao original.
 
 Traslado é a primeira versão pública do antigo Freoa Markdown Converter v6 (6.0.0rc9). O pacote Python e o módulo passam a `traslado`; `freoa_v6`, `freoa-md` e `freoa-md-gui` permanecem compatíveis durante a série 2.x.
@@ -15,12 +10,14 @@ Licença do código próprio: AGPL-3.0-or-later
 
 ## Instalação
 
+Baixe **traslado-2.0.2-instaladores.zip** na [release 2.0.2](https://github.com/rickfreoa/traslado/releases/tag/v2.0.2) e extraia o pacote. Abra `INSTALAR.bat` no Windows, `instalar.command` no macOS ou execute `sh instalar.sh` no Linux. O [guia de primeiros passos](COMECE-AQUI.md) mostra onde abrir o aplicativo em cada sistema e como verificar o download.
+
 ### Controle primário: download verificado com GitHub Attestations
 
 Para verificação criptográfica de proveniência antes de executar qualquer script ou instalar o pacote, baixe os artefatos da [página de releases](https://github.com/rickfreoa/traslado/releases), confira o `SHA256SUMS` e valide a attestation oficial:
 
 ```bash
-gh attestation verify traslado-2.0.1-py3-none-any.whl \
+gh attestation verify traslado-2.0.2-instaladores.zip \
   --repo rickfreoa/traslado \
   --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
 
@@ -38,13 +35,13 @@ gh attestation verify install.sh \
 **Windows (PowerShell 5.1+):**
 
 ```powershell
-irm https://github.com/rickfreoa/traslado/releases/download/v2.0.1/install.ps1 | iex
+irm https://github.com/rickfreoa/traslado/releases/download/v2.0.2/install.ps1 | iex
 ```
 
 **Linux e macOS (`/bin/sh` POSIX):**
 
 ```sh
-curl -fsSL https://github.com/rickfreoa/traslado/releases/download/v2.0.1/install.sh | sh
+curl -fsSL https://github.com/rickfreoa/traslado/releases/download/v2.0.2/install.sh | sh
 ```
 
 > **Aviso de segurança e assinatura:** O comando one-liner (`irm ... | iex` ou `curl ... | sh`) é **apenas um atalho de conveniência** e não substitui a verificação prévia com `gh attestation verify` e `SHA256SUMS`. Os scripts e pacotes do Traslado **não são assinados por certificado de assinatura de código** (Authenticode no Windows ou Developer ID / notarização Apple no macOS); por isso, alertas de segurança do sistema operacional (como Windows SmartScreen ou macOS Gatekeeper) podem aparecer ao baixar ou executar os instaladores clicáveis (`INSTALAR.bat`, `instalar.command`, `instalar.sh`).
@@ -90,7 +87,7 @@ Fora da 1.1, por decisão medida: a ordem de leitura por calhas (`layout = gutte
 
 ## Obter
 
-Baixe `traslado-2.0.1-windows.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar o pacote a partir do código: `python scripts/build_release.py` (gera o wheel, o `INSTALL-PAYLOAD.json`, o ZIP e as somas em `dist/`).
+Baixe `traslado-2.0.2-instaladores.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar os pacotes a partir do código, execute `python scripts/build_release.py`. O comando gera o wheel, os ZIPs, o pacote-fonte e os hashes em `dist/`.
 
 ## Instalar e abrir no Windows
 

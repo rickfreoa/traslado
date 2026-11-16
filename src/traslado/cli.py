@@ -75,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     setup.add_argument("--release-id")
     setup.add_argument("--expected-digests", type=Path)
     setup.add_argument("--check-active", action="store_true")
+    setup.add_argument("--require-online", action="store_true", help=argparse.SUPPRESS)
     setup.add_argument("--expected-version", default=__version__)
     setup.add_argument("--profile", choices=["Full", "Core", "full", "core"], default="Full")
     setup.add_argument("--extras")
@@ -147,7 +148,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "setup":
             if args.check_active:
                 return 0 if lifecycle.active_release_matches(args.root or plat.managed_root(), args.expected_version,
-                    "Core" if args.profile.lower() == "core" else "Full", args.extras, args.languages) else 1
+                    "Core" if args.profile.lower() == "core" else "Full", args.extras, args.languages,
+                    require_online=args.require_online) else 1
             manifest = lifecycle.setup_release(
                 root=args.root,
                 release_id=args.release_id,

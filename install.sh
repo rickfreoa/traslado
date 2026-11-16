@@ -144,7 +144,9 @@ if [ -f "$ROOT/current.json" ]; then
     case "$ACTIVE_ID" in
         *[!a-zA-Z0-9_.-]*|'') ;;
         *) ACTIVE_PY="$ROOT/releases/$ACTIVE_ID/.venv/bin/python"
-           if [ -x "$ACTIVE_PY" ] && "$ACTIVE_PY" -I -m traslado setup --check-active --expected-version "$CLEAN_VERSION" --root "$ROOT" --profile "$NORM_PROFILE" --extras "$EXTRAS" --languages "$LANGUAGES"; then
+           ACTIVE_ONLINE=""
+           if [ "$ALLOW_OFFLINE_PROMOTION" -eq 0 ]; then ACTIVE_ONLINE="--require-online"; fi
+           if [ -x "$ACTIVE_PY" ] && "$ACTIVE_PY" -I -m traslado setup --check-active --expected-version "$CLEAN_VERSION" --root "$ROOT" --profile "$NORM_PROFILE" --extras "$EXTRAS" --languages "$LANGUAGES" ${ACTIVE_ONLINE:+"$ACTIVE_ONLINE"}; then
                echo "Traslado $CLEAN_VERSION ($NORM_PROFILE) ja esta ativo e integro."
                return 0
            fi ;;

@@ -262,26 +262,34 @@ def where(root=None, *, platform=None, env=None) -> dict:
                 platform=platform, arch=host.machine(), errors=errors)
 
 
-def _desktop(home, platform=None, injected=False):
-    if (platform or sys.platform) == 'win32' and not injected:
-        import ctypes
-        import uuid
-        folder = (ctypes.c_byte * 16).from_buffer_copy(uuid.UUID('B4BFCC3A-DB2C-424C-B029-7FE99A87C641').bytes_le)
-        value = ctypes.c_wchar_p()
-        try:
-            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(folder), 0, None, ctypes.byref(value)) == 0:
-                try:
-                    return Path(value.value)
-                finally:
-                    ctypes.windll.ole32.CoTaskMemFree(value)
-        except (OSError, AttributeError):
-            pass
-    return home / 'Desktop'
+def _windows_known_folder(folder_id):
+    import ctypes
+    import uuid
+    folder = (ctypes.c_byte * 16).from_buffer_copy(uuid.UUID(folder_id).bytes_le)
+    value = ctypes.c_wchar_p()
+    try:
+        if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(folder), 0, None, ctypes.byref(value)) == 0:
+            try:
+                return Path(value.value)
+            finally:
+                ctypes.windll.ole32.CoTaskMemFree(value)
+    except (OSError, AttributeError):
+        pass
+    return None
 
 
 def _locations(platform, home, desktop_dir, start_menu_dir, applications_dir, icons_dir, injected=False):
-    return (Path(desktop_dir) if desktop_dir else _desktop(home, platform, injected),
-            Path(start_menu_dir) if start_menu_dir else Path(os.environ.get('APPDATA', home / 'AppData/Roaming') if platform == 'win32' and not injected else home / 'AppData/Roaming') / 'Microsoft/Windows/Start Menu/Programs',
+    desktop = Path(desktop_dir) if desktop_dir else None
+    programs = Path(start_menu_dir) if start_menu_dir else None
+    if platform == sys.platform == 'win32' and (desktop is None or programs is None):
+        # The manifest persists home even for the real user. Query the OS to
+        # distinguish that profile from a temporary profile supplied by a caller.
+        profile = _windows_known_folder('5E6C858F-0E22-4760-9AFE-EA3317B67173')
+        if not injected or profile == home:
+            desktop = desktop or _windows_known_folder('B4BFCC3A-DB2C-424C-B029-7FE99A87C641')
+            programs = programs or _windows_known_folder('A77F5D77-2E2B-44C3-A6A2-ABA601054A51')
+    return (desktop or home / 'Desktop',
+            programs or home / 'AppData/Roaming/Microsoft/Windows/Start Menu/Programs',
             Path(applications_dir) if applications_dir else home / ('Applications' if platform == 'darwin' else '.local/share/applications'),
             Path(icons_dir) if icons_dir else home / '.local/share/icons/hicolor/256x256/apps')
 

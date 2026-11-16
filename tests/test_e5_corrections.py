@@ -248,6 +248,7 @@ class CorrectionsE5(unittest.TestCase):
         a = self.setup("2.0.0_a")
         before = (self.root / "current.json").read_bytes()
         self.assertTrue(lifecycle.active_release_matches(self.root, __version__, "Core"))
+        self.assertFalse(lifecycle.active_release_matches(self.root, __version__, "Core", require_online=True))
         self.setup("2.0.0_a")
         self.assertEqual((self.root / "current.json").read_bytes(), before)
         a_py = plat.release_python(self.root, "2.0.0_a")
