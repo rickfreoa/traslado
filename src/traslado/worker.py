@@ -71,8 +71,7 @@ def main() -> int:
         if any(p.warnings for p in document.pages) or document.warnings:
             document.status = "partial"
         document.duration_seconds = time.monotonic() - start
-        effective_layout = (lambda doc: _content_layout(doc, snapshot.suffix)) if request.get("warnings") else layout
-        rendered = effective_layout(document)
+        rendered = _content_layout(document, snapshot.suffix) if request.get("warnings") else layout(document)
         data = document.to_dict()
         data["fidelity"] = "unverified"
         data["presentation"] = {"markdown": "document.md", "layout": "document-layout.json",
@@ -91,20 +90,13 @@ def main() -> int:
         review = review_text(document)
         (workspace / "LEIA-AVISOS.txt").write_text(review, encoding="utf-8")
         if options.chunks:
-            from . import chunks
+            from .chunks import write_chunks
             remaining = options.max_output_bytes - sum(p.stat().st_size for p in workspace.rglob("*") if p.is_file())
             if remaining < 1:
                 raise ConversionError('resource_limit', "Conversão excede limite de saída antes dos chunks")
-            # One isolated worker per document. Reuse the same presentation
-            # adapter for the chunk module's exact-Markdown/span validation.
-            previous_layout = chunks.layout
-            try:
-                chunks.layout = effective_layout
-                chunks.write_chunks(document, markdown, workspace / "chunks",
-                                    size_chars=options.chunk_size_chars, overlap_chars=options.chunk_overlap_chars,
-                                    max_output_bytes=remaining)
-            finally:
-                chunks.layout = previous_layout
+            write_chunks(document, markdown, workspace / "chunks",
+                         size_chars=options.chunk_size_chars, overlap_chars=options.chunk_overlap_chars,
+                         max_output_bytes=remaining, rendered=rendered)
         (workspace / "progress.json").unlink(missing_ok=True)
         (workspace / ".progress.json.tmp").unlink(missing_ok=True)
         total = sum(p.stat().st_size for p in workspace.rglob("*") if p.is_file())

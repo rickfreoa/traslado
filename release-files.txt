@@ -8,6 +8,7 @@ ocr-assets.lock.json
 pyproject.toml
 README.md
 CHANGELOG.md
+docs/ARQUITETURA-E-PLANO.md
 ci/libs-permitidas-linux.txt
 ci/libs-permitidas-macos.txt
 ci/libs-permitidas-windows.txt

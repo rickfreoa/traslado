@@ -15,16 +15,7 @@ import re
 from typing import Any, Iterator
 
 from .model import Document
-from .render import layout
-
-
-def _layout(document: Document, markdown: str) -> tuple[list[dict[str, Any]], list[tuple[int, int]]]:
-    # The renderer owns both presentation and spans. Never discover source
-    # provenance by parsing marker-looking text supplied by the input document.
-    effective = layout(document)
-    if effective.markdown != markdown:
-        raise ValueError("Chunks exigem o Markdown exato produzido por render(document)")
-    return effective.refs, effective.atomic
+from .render import MarkdownLayout, layout
 
 
 def _block_ends(blocks: list[tuple[int, int]] | None):
@@ -221,6 +212,14 @@ def _advanced_images(markdown: str, refs: list[dict[str, Any]]) -> list[tuple[in
     return images
 
 
+def _atom_at(atomic: list[tuple[int, int]], offset: int) -> tuple[int, int] | None:
+    """Find the protected half-open interval containing an offset."""
+    index = bisect.bisect_left(atomic, (offset + 1,))
+    if index and offset < atomic[index - 1][1]:
+        return atomic[index - 1]
+    return None
+
+
 def _overlap_start(markdown: str, start: int, end: int, overlap: int,
                    atomic: list[tuple[int, int]]) -> tuple[int, str]:
     """Reduce overlap to the next whitespace if its start bisects a word.
@@ -233,11 +232,10 @@ def _overlap_start(markdown: str, start: int, end: int, overlap: int,
     next_start = max(start + 1, end - overlap)
     word_adjusted = atom_adjusted = False
     while next_start < end:
-        for a, b in atomic:
-            if a < next_start < b:
-                next_start = b
-                atom_adjusted = True
-                break
+        atom = _atom_at(atomic, next_start)
+        if atom is not None and atom[0] < next_start:
+            next_start = atom[1]
+            atom_adjusted = True
         if next_start >= end:
             break
         if markdown[next_start].isspace():
@@ -267,16 +265,15 @@ def _ranges(markdown: str, size: int, overlap: int, atomic: list[tuple[int, int]
         minimum_end = max(start + overlap, previous_end)
         if end < len(markdown):
             # Prefer complete paragraphs, then lines, then words.
-            window = markdown[start:end]
             for delimiter in ("\n\n", "\n", " "):
-                cut = window.rfind(delimiter)
-                if cut >= size // 2 and start + cut + len(delimiter) > minimum_end:
-                    end = start + cut + len(delimiter)
+                cut = markdown.rfind(delimiter, start + size // 2, end)
+                if cut >= 0 and cut + len(delimiter) > minimum_end:
+                    end = cut + len(delimiter)
                     break
-        for a, b in atomic:
-            if a < end < b:
-                end = a if a > minimum_end else b
-                break
+        atom = _atom_at(atomic, end)
+        if atom is not None and atom[0] < end:
+            begin, limit = atom
+            end = begin if begin > minimum_end else limit
         if len(ranges) >= 200_000:
             raise ValueError("Quantidade de chunks excede limite")
         ranges.append((start, end))
@@ -289,14 +286,17 @@ def _ranges(markdown: str, size: int, overlap: int, atomic: list[tuple[int, int]
     return ranges
 
 
-def _iter_chunks(document: Document, markdown: str, *, size_chars: int = 6000,
-                 overlap_chars: int = 600) -> Iterator[dict[str, Any]]:
+def _iter_chunks(document: Document, markdown: str, rendered: MarkdownLayout,
+                 images: list[tuple[int, int, str]], *, size_chars: int,
+                 overlap_chars: int) -> Iterator[dict[str, Any]]:
     if type(size_chars) is not int or not 256 <= size_chars <= 200_000:
         raise ValueError("Tamanho de chunk deve ter de 256 a 200000 caracteres")
     if type(overlap_chars) is not int or not 0 <= overlap_chars < size_chars:
         raise ValueError("Sobreposição deve ser menor que o tamanho do chunk")
-    refs, atomic = _layout(document, markdown)
-    atomic.extend((begin, end) for begin, end, _ in _advanced_images(markdown, refs))
+    if rendered.markdown != markdown:
+        raise ValueError("Chunks exigem o Markdown exato produzido por render(document)")
+    refs = rendered.refs
+    atomic = rendered.atomic + [(begin, end) for begin, end, _ in images]
     unclosed: list[dict[str, Any]] = []
     prose = [(ref["char_start"], ref["char_end"]) for ref in refs
              if ref["kind"] == "text" and ref["engine"] in {"pymupdf", "tesseract"}]
@@ -314,18 +314,27 @@ def _iter_chunks(document: Document, markdown: str, *, size_chars: int = 6000,
 
     headings = []
     for match in re.finditer(r"(?m)^ {0,3}(#{1,6})\s+(.+?)\s*#*\s*$", markdown):
-        if not any(a <= match.start() < b for a, b in atomic):
+        if _atom_at(atomic, match.start()) is None:
             headings.append((match.start(), len(match.group(1)), match.group(2)))
+    heading_offsets = [offset for offset, _, _ in headings]
+    ref_starts = [ref["char_start"] for ref in refs]
+    ref_ends = [ref["char_end"] for ref in refs]
     markdown_hash = hashlib.sha256(markdown.encode("utf-8")).hexdigest()
     ranges = _ranges(markdown, size_chars, overlap_chars, atomic)
+    context: list[tuple[int, str]] = []
+    next_heading = 0
     for index, (start, end) in enumerate(ranges, 1):
-        selected = [dict(ref) for ref in refs if ref["char_start"] < end and ref["char_end"] > start]
-        context: list[dict[str, Any]] = []
-        for offset, level, title in headings:
-            if offset > start:
-                break
-            context = [heading for heading in context if heading["level"] < level]
-            context.append({"level": level, "title": title})
+        first_ref = bisect.bisect_right(ref_ends, start)
+        last_ref = bisect.bisect_left(ref_starts, end)
+        selected = [dict(ref) for ref in refs[first_ref:last_ref]]
+        first_heading = bisect.bisect_left(heading_offsets, start)
+        last_heading = bisect.bisect_left(heading_offsets, end)
+        while next_heading < len(headings) and headings[next_heading][0] <= start:
+            _, level, title = headings[next_heading]
+            while context and context[-1][0] >= level:
+                context.pop()
+            context.append((level, title))
+            next_heading += 1
         warnings = list(document.warnings)
         for ref in selected:
             warnings.extend(ref["warnings"])
@@ -347,9 +356,9 @@ def _iter_chunks(document: Document, markdown: str, *, size_chars: int = 6000,
                        "target_size_chars": size_chars, "requested_overlap_chars": overlap_chars,
                        "actual_overlap_chars": actual_overlap, "overlap_adjustment": adjustment,
                        "total": len(ranges),
-                       "headings": context,
+                       "headings": [{"level": level, "title": title} for level, title in context],
                        "headings_in_chunk": [{"level": level, "title": title, "char_start": offset}
-                                             for offset, level, title in headings if start <= offset < end],
+                                             for offset, level, title in headings[first_heading:last_heading]],
                        "pages": sorted({ref["page"] for ref in selected}), "blocks": selected,
                        "document_status": document.status, "fidelity": "unverified",
                        "warnings": list(dict.fromkeys(warnings)), "text": markdown[start:end]}
@@ -358,16 +367,21 @@ def _iter_chunks(document: Document, markdown: str, *, size_chars: int = 6000,
 def generate_chunks(document: Document, markdown: str, *, size_chars: int = 6000,
                     overlap_chars: int = 600) -> list[dict[str, Any]]:
     """List API for callers; the disk writer consumes the iterator directly."""
-    return list(_iter_chunks(document, markdown, size_chars=size_chars, overlap_chars=overlap_chars))
+    rendered = layout(document)
+    images = _advanced_images(markdown, rendered.refs)
+    return list(_iter_chunks(document, markdown, rendered, images,
+                             size_chars=size_chars, overlap_chars=overlap_chars))
 
 
 def write_chunks(document: Document, markdown: str, directory: Path, *, size_chars: int = 6000,
-                 overlap_chars: int = 600, max_output_bytes: int | None = None) -> dict[str, Any]:
+                 overlap_chars: int = 600, max_output_bytes: int | None = None,
+                 rendered: MarkdownLayout | None = None) -> dict[str, Any]:
     """Write a new chunks directory; no overwrites, YAML library or token claims."""
-    chunks = _iter_chunks(document, markdown, size_chars=size_chars, overlap_chars=overlap_chars)
-    effective = layout(document)
+    effective = rendered if rendered is not None else layout(document)
     review_notice = effective.review_notice
     advanced_images = _advanced_images(markdown, effective.refs)
+    chunks = _iter_chunks(document, markdown, effective, advanced_images,
+                          size_chars=size_chars, overlap_chars=overlap_chars)
     directory = Path(directory)
     if directory.exists() or directory.is_symlink():
         raise ValueError("Pasta de chunks já existe")

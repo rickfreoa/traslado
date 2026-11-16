@@ -7,10 +7,11 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from traslado.chunks import generate_chunks, write_chunks
 from traslado.model import Block, Document, Page
-from traslado.render import render
+from traslado.render import layout, render
 
 
 class ChunkTests(unittest.TestCase):
@@ -109,6 +110,21 @@ class ChunkTests(unittest.TestCase):
         document = self.doc()
         with self.assertRaises(ValueError):
             generate_chunks(document, render(document) + "alteração")
+
+    def test_writer_reuses_renderer_spans_and_preserves_output(self):
+        document = self.doc([Block("text", "## Seção A\n\n" + "Início " * 80),
+                             Block("table", rows=[["célula " * 70]]),
+                             Block("text", "## Seção B\n\n" + "Depois " * 80)])
+        rendered = layout(document)
+        expected = generate_chunks(document, rendered.markdown, size_chars=300, overlap_chars=50)
+        original_atoms = rendered.atomic.copy()
+        with tempfile.TemporaryDirectory() as tmp, patch("traslado.chunks.layout", side_effect=AssertionError):
+            directory = Path(tmp) / "chunks"
+            write_chunks(document, rendered.markdown, directory, size_chars=300,
+                         overlap_chars=50, rendered=rendered)
+            actual = [json.loads(line) for line in (directory / "chunks.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(actual, expected)
+        self.assertEqual(rendered.atomic, original_atoms)
 
     def test_config_types_and_ranges(self):
         document = self.doc()

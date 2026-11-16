@@ -2,6 +2,13 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
+## 2.0.2 (16/11/2026) — manutenção local
+
+- Geração de chunks localiza intervalos protegidos, blocos e títulos por posição e atualiza a hierarquia de títulos à medida que os chunks avançam.
+- O worker entrega ao chunker o mesmo mapa usado em `document-layout.json`. A escrita reaproveita a detecção de imagens avançadas e o Markdown é renderizado uma vez por conversão.
+- Os critérios de corte, offsets, IDs, textos, metadados e esquema dos chunks seguem o contrato 2.x. A mudança dispensa dependências novas.
+- Arquitetura, resultados e roteiro de evolução em `docs/ARQUITETURA-E-PLANO.md`.
+
 ## 2.0.1 (07/11/2026)
 
 - Falhas por limites configurados preservam `resource_limit` mesmo quando a limpeza do processo falha ou o diagnóstico de saída fica incompleto. O worker registra a causa fora do orçamento da pasta de saída; falhas de E/S sem causa de limite continuam como `io`.

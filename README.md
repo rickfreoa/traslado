@@ -1,4 +1,9 @@
-# Traslado 2.0.1
+# Traslado 2.0.2
+
+A 2.0.2 é uma compilação local de manutenção. Para instalar o ZIP gerado nesta
+árvore, use o instalador da pasta extraída com `-FromDir`, `-Version 2.0.2`
+e os parâmetros locais aplicáveis. Os exemplos remotos fixados em 2.0.1 abaixo
+referem-se à versão anterior. Consulte [arquitetura e plano](docs/ARQUITETURA-E-PLANO.md).
 
 Conversor local de documentos para Markdown rastreável: texto nativo rápido, OCR seletivo (Tesseract) e chunks com offsets exatos, hashes e páginas de origem, prontos para busca e RAG. O nome vem do *traslado* forense: a cópia fiel que remete sempre ao original.
 
