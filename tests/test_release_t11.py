@@ -184,6 +184,7 @@ class Build(unittest.TestCase):
         linhas = (self.a / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
         esperados = [
             self.zip.name,
+            f"traslado-{versao_fonte()}-instaladores.zip",
             self.wheel.name,
             self.sdist.name,
             "PAYLOAD-SHA256SUMS",
@@ -196,7 +197,11 @@ class Build(unittest.TestCase):
         ]
         self.assertEqual(sorted(l.split("  ")[1] for l in linhas), sorted(esperados))
         with zipfile.ZipFile(self.zip) as z:
-            self.assertTrue(all(i.date_time == (1980, 1, 1, 0, 0, 0) and i.external_attr >> 16 == 0o100644 for i in z.infolist()))
+            launchers = {"instalar.command", "instalar.sh", "install.sh"}
+            for info in z.infolist():
+                self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
+                mode = 0o100755 if info.filename.split("/", 1)[1] in launchers else 0o100644
+                self.assertEqual(info.external_attr >> 16, mode)
             self.assertEqual(z.namelist(), sorted(z.namelist()))
 
     def test_sem_mupdf_no_zip_e_no_wheel(self):

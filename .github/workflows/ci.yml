@@ -3,7 +3,7 @@ name: CI
 # Core e Full em ambientes separados; a suíte roda contra o WHEEL INSTALADO, a partir de uma cópia fora do checkout.
 on:
   push:
-    tags-ignore: ["v*"]
+    branches: ["**"]
   pull_request:
 
 permissions:
