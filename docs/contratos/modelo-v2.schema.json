@@ -2,25 +2,70 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/rickfreoa/traslado/docs/contratos/modelo-v2.schema.json",
   "title": "Traslado - modelo de documento v2 (document.json, schema_version 2)",
-  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Offsets em pontos de codigo Unicode, intervalo semiaberto, sobre o document.md final, quebra de linha LF, sem normalizacao posterior.",
+  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Offsets em pontos de codigo Unicode, intervalo semiaberto, sobre o document.md final, quebra de linha LF, sem normalizacao posterior. Emenda D2 de 09/11/2026 (pdf-craft) aplicada em 17/11/2026.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "source_name", "source_sha256", "converter_version", "status", "fidelity", "config", "engines", "representation", "pages", "sections", "relations", "render_map", "warnings"],
+  "required": [
+    "schema_version",
+    "source_name",
+    "source_sha256",
+    "converter_version",
+    "status",
+    "fidelity",
+    "config",
+    "engines",
+    "representation",
+    "pages",
+    "sections",
+    "notes",
+    "relations",
+    "render_map",
+    "warnings"
+  ],
   "properties": {
-    "schema_version": { "const": 2 },
-    "source_name": { "type": "string", "minLength": 1 },
-    "source_sha256": { "$ref": "#/$defs/sha256" },
-    "converter_version": { "type": "string", "minLength": 1 },
-    "status": { "enum": ["complete", "partial"] },
-    "fidelity": { "const": "unverified", "description": "Por documento, a fidelidade continua nao verificada; a qualidade e sinalizada por pagina." },
-    "duration_seconds": { "type": "number", "minimum": 0 },
+    "schema_version": {
+      "const": 2
+    },
+    "source_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "converter_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "partial"
+      ]
+    },
+    "fidelity": {
+      "const": "unverified",
+      "description": "Por documento, a fidelidade continua nao verificada; a qualidade e sinalizada por pagina."
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
     "config": {
       "type": "object",
-      "required": ["config_sha256", "options"],
+      "required": [
+        "config_sha256",
+        "options"
+      ],
       "additionalProperties": false,
       "properties": {
-        "config_sha256": { "$ref": "#/$defs/sha256", "description": "SHA-256 do JSON canonico (sort_keys, separadores (',', ':'), UTF-8) de options, sem caminhos absolutos." },
-        "options": { "type": "object" }
+        "config_sha256": {
+          "$ref": "#/$defs/sha256",
+          "description": "SHA-256 do JSON canonico (sort_keys, separadores (',', ':'), UTF-8) de options, sem caminhos absolutos."
+        },
+        "options": {
+          "type": "object"
+        }
       }
     },
     "engines": {
@@ -29,18 +74,47 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "version", "role", "models"],
+        "required": [
+          "name",
+          "version",
+          "role",
+          "models"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "version": { "type": "string", "minLength": 1 },
-          "role": { "enum": ["layout", "ocr", "table", "structure"] },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "layout",
+              "ocr",
+              "table",
+              "structure"
+            ]
+          },
           "models": {
             "type": "array",
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["id", "sha256"],
-              "properties": { "id": { "type": "string", "minLength": 1 }, "sha256": { "$ref": "#/$defs/sha256" } }
+              "required": [
+                "id",
+                "sha256"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
             }
           }
         }
@@ -49,18 +123,51 @@
     "representation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["markdown_file", "markdown_sha256", "offset_unit", "interval"],
+      "required": [
+        "markdown_file",
+        "markdown_sha256",
+        "offset_unit",
+        "interval"
+      ],
       "properties": {
-        "markdown_file": { "const": "document.md" },
-        "markdown_sha256": { "$ref": "#/$defs/sha256" },
-        "offset_unit": { "const": "unicode_code_points" },
-        "interval": { "const": "half_open" }
+        "markdown_file": {
+          "const": "document.md"
+        },
+        "markdown_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "offset_unit": {
+          "const": "unicode_code_points"
+        },
+        "interval": {
+          "const": "half_open"
+        }
       }
     },
-    "pages": { "type": "array", "items": { "$ref": "#/$defs/page" } },
-    "sections": { "type": "array", "items": { "$ref": "#/$defs/section" } },
-    "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } },
-    "render_map": { "type": "array", "items": { "$ref": "#/$defs/render_interval" } },
+    "pages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/section"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "render_map": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/render_interval"
+      }
+    },
     "projections": {
       "type": "object",
       "additionalProperties": false,
@@ -68,20 +175,38 @@
         "schema1": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["markdown_sha256", "intervals"],
+          "required": [
+            "markdown_sha256",
+            "intervals"
+          ],
           "properties": {
-            "markdown_sha256": { "$ref": "#/$defs/sha256" },
+            "markdown_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
             "intervals": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["v2_char_start", "v2_char_end", "schema1_char_start", "schema1_char_end"],
+                "required": [
+                  "v2_char_start",
+                  "v2_char_end",
+                  "schema1_char_start",
+                  "schema1_char_end"
+                ],
                 "properties": {
-                  "v2_char_start": { "$ref": "#/$defs/offset" },
-                  "v2_char_end": { "$ref": "#/$defs/offset" },
-                  "schema1_char_start": { "$ref": "#/$defs/offset" },
-                  "schema1_char_end": { "$ref": "#/$defs/offset" }
+                  "v2_char_start": {
+                    "$ref": "#/$defs/offset"
+                  },
+                  "v2_char_end": {
+                    "$ref": "#/$defs/offset"
+                  },
+                  "schema1_char_start": {
+                    "$ref": "#/$defs/offset"
+                  },
+                  "schema1_char_end": {
+                    "$ref": "#/$defs/offset"
+                  }
                 }
               }
             }
@@ -89,30 +214,128 @@
         }
       }
     },
-    "warnings": { "type": "array", "items": { "type": "string" } }
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/note"
+      }
+    }
   },
   "$defs": {
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "offset": { "type": "integer", "minimum": 0 },
-    "bbox": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }, { "type": "number" }], "items": false, "minItems": 4 },
-    "block_id": { "type": "string", "pattern": "^b-[0-9a-f]{32}$", "description": "b- + 32 primeiros hex de SHA-256(source_sha256|config_sha256|pagina|ordinal|bbox canonico|SHA-256 do texto). Deterministico para mesma fonte, configuracao e resultado; sem promessa entre motores." },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "bbox": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "items": false,
+      "minItems": 4
+    },
+    "block_id": {
+      "type": "string",
+      "pattern": "^b-[0-9a-f]{32}$",
+      "description": "b- + 32 primeiros hex de SHA-256(source_sha256|config_sha256|pagina|ordinal|bbox canonico|SHA-256 do texto). Deterministico para mesma fonte, configuracao e resultado; sem promessa entre motores."
+    },
     "fragment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["page", "bbox", "block_id"],
-      "properties": { "page": { "type": "integer", "minimum": 1 }, "bbox": { "$ref": "#/$defs/bbox" }, "block_id": { "$ref": "#/$defs/block_id" } }
+      "required": [
+        "page",
+        "bbox",
+        "block_id",
+        "text_start",
+        "text_end"
+      ],
+      "description": "Regiao observada de um bloco logico com duas ou mais regioes (pagina seguinte, coluna seguinte, paragrafo interrompido por figura). text_start/text_end em pontos de codigo, semiaberto, sobre block.text. Fragmentos e block.generated particionam block.text, sem lacuna nem sobreposicao.",
+      "properties": {
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bbox": {
+          "$ref": "#/$defs/bbox"
+        },
+        "block_id": {
+          "$ref": "#/$defs/block_id",
+          "description": "Bloco que contem o fragmento (o proprio bloco logico)."
+        },
+        "text_start": {
+          "$ref": "#/$defs/offset"
+        },
+        "text_end": {
+          "$ref": "#/$defs/offset"
+        }
+      }
     },
     "page_labels": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["declared", "observed", "inferred", "state"],
+      "required": [
+        "declared",
+        "observed",
+        "inferred",
+        "state"
+      ],
       "description": "Campos distintos: declared vem de /PageLabels, observed do folio visivel, inferred da sequencia. Nenhum substitui outro. Sem fonte: null.",
       "properties": {
-        "declared": { "type": ["string", "null"] },
-        "observed": { "type": ["string", "null"] },
-        "inferred": { "type": ["string", "null"] },
-        "state": { "enum": ["confirmed", "inferred", "divergent", "unknown"], "description": "confirmed exige o gate da tabela normativa para o estrato; em scan real sem o minimo de casos, nunca confirmed." },
-        "divergence": { "type": ["string", "null"] }
+        "declared": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "null quando o catalogo do PDF nao declara /PageLabels; rotulo sintetizado pela biblioteca de PDF e recusado."
+        },
+        "observed": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inferred": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "enum": [
+            "confirmed",
+            "inferred",
+            "divergent",
+            "unknown"
+          ],
+          "description": "confirmed exige o gate da tabela normativa para o estrato; em scan real sem o minimo de casos, nunca confirmed."
+        },
+        "divergence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "quality_signals": {
@@ -123,104 +346,739 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
-            "invalid_char_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-            "fragmentation": { "type": "number", "minimum": 0 },
-            "repetition": { "type": "number", "minimum": 0, "maximum": 1 },
-            "lexicon": { "type": "number", "minimum": 0, "maximum": 1 },
-            "chosen": { "type": ["string", "null"] },
-            "versions": { "type": "object" },
-            "reason": { "type": ["string", "null"] }
+            "coverage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "invalid_char_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "fragmentation": {
+              "type": "number",
+              "minimum": 0
+            },
+            "repetition": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "lexicon": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "chosen": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "versions": {
+              "type": "object"
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         },
-        "structure_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-        "fallback_reason": { "type": ["string", "null"] }
+        "structure_confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "fallback_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "page": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["index", "width", "height", "rotation", "route", "labels", "blocks", "quality_signals", "warnings"],
+      "required": [
+        "index",
+        "width",
+        "height",
+        "rotation",
+        "route",
+        "labels",
+        "blocks",
+        "quality_signals",
+        "warnings"
+      ],
       "properties": {
-        "index": { "type": "integer", "minimum": 1, "description": "Indice fisico (folha), a partir de 1." },
-        "width": { "type": "number", "exclusiveMinimum": 0 },
-        "height": { "type": "number", "exclusiveMinimum": 0 },
-        "rotation": { "enum": [0, 90, 180, 270] },
-        "route": { "type": "string", "minLength": 1 },
-        "labels": { "$ref": "#/$defs/page_labels" },
-        "blocks": { "type": "array", "items": { "$ref": "#/$defs/block" } },
-        "quality_signals": { "$ref": "#/$defs/quality_signals" },
-        "warnings": { "type": "array", "items": { "type": "string" } }
+        "index": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Indice fisico (folha), a partir de 1."
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rotation": {
+          "enum": [
+            0,
+            90,
+            180,
+            270
+          ]
+        },
+        "route": {
+          "type": "string",
+          "minLength": 1
+        },
+        "labels": {
+          "$ref": "#/$defs/page_labels"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "quality_signals": {
+          "$ref": "#/$defs/quality_signals"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "block": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "page", "ordinal", "bbox", "coord_system", "text", "role", "level", "engine", "warnings"],
+      "required": [
+        "id",
+        "page",
+        "ordinal",
+        "bbox",
+        "coord_system",
+        "text",
+        "role",
+        "level",
+        "engine",
+        "warnings"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/block_id" },
-        "page": { "type": "integer", "minimum": 1 },
-        "ordinal": { "type": "integer", "minimum": 0, "description": "Ordem normalizada de leitura na pagina, contigua a partir de 0." },
-        "bbox": { "$ref": "#/$defs/bbox" },
-        "coord_system": { "const": "pdf_points_top_left" },
-        "text": { "type": "string", "description": "Texto observado, sem contexto sintetico." },
-        "role": { "enum": ["body", "heading", "list_item", "footnote", "footnote_ref", "caption", "table", "figure", "furniture", "unknown"] },
-        "role_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-        "level": { "type": ["integer", "null"], "minimum": 1, "description": "Nivel de titulo; null = desconhecido ou nao aplicavel." },
-        "engine": { "type": "string", "minLength": 1 },
-        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-        "rows": { "type": ["array", "null"], "items": { "type": "array", "items": { "type": "string" } } },
-        "asset": { "type": ["string", "null"], "pattern": "^assets/[a-zA-Z0-9_.-]+$" },
-        "fragments": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/fragment" }, "description": "So em bloco transpaginal; proveniencia por fragmento." },
-        "warnings": { "type": "array", "items": { "type": "string" } }
+        "id": {
+          "$ref": "#/$defs/block_id"
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Ordem normalizada de leitura na pagina, contigua a partir de 0."
+        },
+        "bbox": {
+          "$ref": "#/$defs/bbox"
+        },
+        "coord_system": {
+          "const": "pdf_points_top_left"
+        },
+        "text": {
+          "type": "string",
+          "description": "Texto observado, sempre sem remocao (o hifen de fim de linha permanece). Remocao so na renderizacao (render_map.removed)."
+        },
+        "role": {
+          "enum": [
+            "body",
+            "heading",
+            "list_item",
+            "footnote",
+            "caption",
+            "table",
+            "figure",
+            "furniture",
+            "unknown"
+          ],
+          "description": "footnote_ref saiu do enum (emenda D2): chamada de nota e anchor, nao bloco."
+        },
+        "role_confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "level": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Nivel de titulo; null = desconhecido ou nao aplicavel."
+        },
+        "engine": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rows": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "asset": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^assets/[a-zA-Z0-9_.-]+$"
+        },
+        "fragments": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/fragment"
+          },
+          "description": "Todo bloco logico com duas ou mais regioes; proveniencia por fragmento."
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generated": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/generated"
+          }
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          }
+        }
       },
       "allOf": [
-        { "if": { "properties": { "role": { "const": "heading" } } }, "else": { "properties": { "level": { "const": null } } } }
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "const": "heading"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "level": {
+                "const": null
+              }
+            }
+          }
+        }
       ]
     },
     "section": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "level", "title_block_id", "block_ids", "char_start", "char_end", "children"],
+      "required": [
+        "id",
+        "level",
+        "title_block_id",
+        "block_ids",
+        "char_start",
+        "char_end",
+        "children"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^s-[0-9a-f]{32}$" },
-        "level": { "type": ["integer", "null"], "minimum": 1 },
-        "title_block_id": { "$ref": "#/$defs/block_id" },
-        "block_ids": { "type": "array", "items": { "$ref": "#/$defs/block_id" } },
-        "char_start": { "$ref": "#/$defs/offset" },
-        "char_end": { "$ref": "#/$defs/offset" },
-        "children": { "type": "array", "items": { "$ref": "#/$defs/section" } }
+        "id": {
+          "type": "string",
+          "pattern": "^s-[0-9a-f]{32}$"
+        },
+        "level": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "title_block_id": {
+          "$ref": "#/$defs/block_id"
+        },
+        "block_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block_id"
+          }
+        },
+        "char_start": {
+          "$ref": "#/$defs/offset"
+        },
+        "char_end": {
+          "$ref": "#/$defs/offset"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        }
       }
     },
     "relation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "from", "to", "state", "method", "evidence"],
+      "required": [
+        "id",
+        "type",
+        "from",
+        "to",
+        "state",
+        "method",
+        "evidence"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^r-[0-9a-f]{32}$" },
-        "type": { "enum": ["footnote_link", "caption_of", "continuation"] },
-        "from": { "$ref": "#/$defs/block_id" },
-        "to": { "$ref": "#/$defs/block_id" },
-        "state": { "enum": ["confirmed", "candidate"], "description": "Continuidade entre paginas so vira confirmed com evidencia adicional; em scan real sem o minimo de casos a ligacao de notas fica candidate." },
-        "method": { "type": "string", "minLength": 1 },
-        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "id": {
+          "type": "string",
+          "pattern": "^r-[0-9a-f]{32}$"
+        },
+        "type": {
+          "enum": [
+            "footnote_link",
+            "caption_of",
+            "continuation",
+            "anchored_in"
+          ]
+        },
+        "from": {
+          "$ref": "#/$defs/block_id"
+        },
+        "to": {
+          "$ref": "#/$defs/block_id"
+        },
+        "state": {
+          "enum": [
+            "confirmed",
+            "candidate"
+          ],
+          "description": "Continuidade entre paginas so vira confirmed com evidencia adicional; em scan real sem o minimo de casos a ligacao de notas fica candidate."
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
         "evidence": {
           "type": "array",
           "minItems": 1,
-          "items": { "enum": ["superscript", "smaller_font", "numbering", "page_sequence", "layout_footnote_region", "geometry", "lexical", "explicit_marker"] }
+          "items": {
+            "enum": [
+              "superscript",
+              "smaller_font",
+              "numbering",
+              "page_sequence",
+              "layout_footnote_region",
+              "geometry",
+              "lexical",
+              "explicit_marker",
+              "flattened_pattern"
+            ]
+          }
+        },
+        "from_anchor": {
+          "$ref": "#/$defs/anchor_id"
+        },
+        "to_note": {
+          "$ref": "#/$defs/note_id"
         }
-      }
+      },
+      "description": "footnote_link: from = bloco da chamada, from_anchor = chamada, to = primeira parte da nota, to_note = nota; chamadas repetidas geram varias relacoes para a mesma nota (n:1). anchored_in: from_anchor = ancora object_position, to = figura. caption_of so para legenda.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "footnote_link"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "from_anchor",
+              "to_note"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "anchored_in"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "from_anchor"
+            ]
+          }
+        }
+      ]
     },
     "render_interval": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["char_start", "char_end", "block_id", "transform"],
-      "description": "Lista ordenada por char_start, sem sobreposicao; o que nao coberto e separador gerado.",
+      "required": [
+        "char_start",
+        "char_end",
+        "block_id",
+        "transform",
+        "source_start",
+        "source_end"
+      ],
+      "description": "Lista ordenada por char_start, sem sobreposicao; o que nao coberto e separador gerado. source_start/source_end apontam o trecho de block.text; a particao de block.text prova a cobertura e removed prova a conservacao da proveniencia.",
       "properties": {
-        "char_start": { "$ref": "#/$defs/offset" },
-        "char_end": { "$ref": "#/$defs/offset" },
-        "block_id": { "$ref": "#/$defs/block_id" },
-        "transform": { "enum": ["literal", "line_join", "soft_hyphen_join", "geometry_continuation", "table_render", "image_ref", "heading_mark", "footnote_mark"] }
+        "char_start": {
+          "$ref": "#/$defs/offset"
+        },
+        "char_end": {
+          "$ref": "#/$defs/offset"
+        },
+        "block_id": {
+          "$ref": "#/$defs/block_id"
+        },
+        "transform": {
+          "enum": [
+            "literal",
+            "line_join",
+            "soft_hyphen_join",
+            "geometry_continuation",
+            "table_render",
+            "image_ref",
+            "heading_mark",
+            "footnote_mark"
+          ]
+        },
+        "source_start": {
+          "$ref": "#/$defs/offset",
+          "description": "Inicio do trecho de block.text renderizado."
+        },
+        "source_end": {
+          "$ref": "#/$defs/offset"
+        },
+        "removed": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text_start",
+              "text_end"
+            ],
+            "properties": {
+              "text_start": {
+                "$ref": "#/$defs/offset"
+              },
+              "text_end": {
+                "$ref": "#/$defs/offset"
+              }
+            }
+          },
+          "description": "So em soft_hyphen_join: caracteres de block.text (dentro de source_start..source_end) omitidos no Markdown."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "transform": {
+                "const": "soft_hyphen_join"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "removed"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "anchor_id": {
+      "type": "string",
+      "pattern": "^a-[0-9a-f]{32}$"
+    },
+    "note_id": {
+      "type": "string",
+      "pattern": "^n-[0-9a-f]{32}$"
+    },
+    "generated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text_start",
+        "text_end",
+        "transform"
+      ],
+      "description": "Caracteres inseridos pela juncao (nao observados).",
+      "properties": {
+        "text_start": {
+          "$ref": "#/$defs/offset"
+        },
+        "text_end": {
+          "$ref": "#/$defs/offset"
+        },
+        "transform": {
+          "enum": [
+            "line_join",
+            "soft_hyphen_join",
+            "geometry_continuation"
+          ]
+        }
+      }
+    },
+    "mark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "printed",
+        "form",
+        "presentation",
+        "number"
+      ],
+      "description": "Forma e apresentacao sao dimensoes separadas; classe e numero podem ser desconhecidos.",
+      "properties": {
+        "printed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "form": {
+          "enum": [
+            "digits",
+            "roman",
+            "letter",
+            "asterisk",
+            "dagger",
+            "symbol",
+            "unknown"
+          ]
+        },
+        "presentation": {
+          "enum": [
+            "superscript",
+            "inline",
+            "parenthesized",
+            "flattened",
+            "unknown"
+          ]
+        },
+        "number": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "located",
+        "text_start",
+        "text_end",
+        "evidence",
+        "confidence"
+      ],
+      "description": "Sinal dentro do texto. footnote_call: chamada de nota. object_position: posicao de objeto (figura) no fluxo, largura zero. Sem posicao segura: located false, offsets nulos, page e bbox obrigatorios; nunca offset inventado.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/anchor_id"
+        },
+        "kind": {
+          "enum": [
+            "footnote_call",
+            "object_position"
+          ]
+        },
+        "located": {
+          "type": "boolean"
+        },
+        "text_start": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "text_end": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "bbox": {
+          "$ref": "#/$defs/bbox"
+        },
+        "mark": {
+          "$ref": "#/$defs/mark"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "superscript",
+              "smaller_font",
+              "flattened_pattern",
+              "numbering",
+              "explicit_marker"
+            ]
+          }
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "located": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "text_start": {
+                "type": "integer"
+              },
+              "text_end": {
+                "type": "integer"
+              }
+            }
+          },
+          "else": {
+            "required": [
+              "page",
+              "bbox"
+            ],
+            "properties": {
+              "text_start": {
+                "const": null
+              },
+              "text_end": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "footnote_call"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "mark"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "mark"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "mark",
+        "parts",
+        "state"
+      ],
+      "description": "Identidade de nota. Parte alem da primeira so com continuacao confirmed; continuacao candidate fica so em relations.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/note_id"
+        },
+        "mark": {
+          "$ref": "#/$defs/mark"
+        },
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block_id"
+          }
+        },
+        "state": {
+          "enum": [
+            "confirmed",
+            "candidate"
+          ]
+        }
       }
     }
   }

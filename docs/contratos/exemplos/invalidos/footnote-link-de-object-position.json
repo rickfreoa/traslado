@@ -1,0 +1,421 @@
+{
+ "schema_version": 2,
+ "source_name": "exemplo-sintetico.pdf",
+ "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+ "converter_version": "3.0.0.dev0",
+ "status": "partial",
+ "fidelity": "unverified",
+ "config": {
+  "config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "options": {}
+ },
+ "engines": [
+  {
+   "name": "classic",
+   "version": "3.0.0.dev0",
+   "role": "layout",
+   "models": []
+  }
+ ],
+ "representation": {
+  "markdown_file": "document.md",
+  "markdown_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "offset_unit": "unicode_code_points",
+  "interval": "half_open"
+ },
+ "pages": [
+  {
+   "index": 1,
+   "width": 595,
+   "height": 842,
+   "rotation": 0,
+   "route": "native",
+   "labels": {
+    "declared": null,
+    "observed": "12",
+    "inferred": null,
+    "state": "inferred",
+    "divergence": null
+   },
+   "blocks": [
+    {
+     "id": "b-45e84635bc4803c5cc5d456c798a13d3",
+     "page": 1,
+     "ordinal": 0,
+     "bbox": [
+      72.0,
+      90.0,
+      523.0,
+      120.0
+     ],
+     "coord_system": "pdf_points_top_left",
+     "text": "Capítulo I",
+     "role": "heading",
+     "level": 1,
+     "engine": "classic",
+     "warnings": []
+    },
+    {
+     "id": "b-0aeaecd2b4b0cf37c97ce2551919d904",
+     "page": 1,
+     "ordinal": 1,
+     "bbox": [
+      72.0,
+      130.0,
+      523.0,
+      160.0
+     ],
+     "coord_system": "pdf_points_top_left",
+     "text": "a responsabi-\nlidade continua, conforme a obrigação1 do contrato.",
+     "role": "body",
+     "level": null,
+     "engine": "classic",
+     "warnings": [],
+     "fragments": [
+      {
+       "page": 1,
+       "bbox": [
+        72.0,
+        708.0,
+        130.0,
+        723.0
+       ],
+       "block_id": "b-0aeaecd2b4b0cf37c97ce2551919d904",
+       "text_start": 0,
+       "text_end": 13
+      },
+      {
+       "page": 2,
+       "bbox": [
+        72.0,
+        50.0,
+        400.0,
+        65.0
+       ],
+       "block_id": "b-0aeaecd2b4b0cf37c97ce2551919d904",
+       "text_start": 14,
+       "text_end": 65
+      }
+     ],
+     "generated": [
+      {
+       "text_start": 13,
+       "text_end": 14,
+       "transform": "soft_hyphen_join"
+      }
+     ],
+     "anchors": [
+      {
+       "id": "a-d8cc5d9a98aafdc22af74d0ffba98b1d",
+       "kind": "footnote_call",
+       "located": true,
+       "text_start": 51,
+       "text_end": 52,
+       "mark": {
+        "printed": "1",
+        "form": "digits",
+        "presentation": "superscript",
+        "number": 1
+       },
+       "evidence": [
+        "superscript",
+        "smaller_font"
+       ],
+       "confidence": 0.97
+      }
+     ]
+    }
+   ],
+   "quality_signals": {},
+   "warnings": []
+  },
+  {
+   "index": 2,
+   "width": 595,
+   "height": 842,
+   "rotation": 0,
+   "route": "native",
+   "labels": {
+    "declared": null,
+    "observed": "13",
+    "inferred": "13",
+    "state": "inferred",
+    "divergence": null
+   },
+   "blocks": [
+    {
+     "id": "b-a2364a0f3ba55913fabd08e514feeabf",
+     "page": 2,
+     "ordinal": 0,
+     "bbox": [
+      72.0,
+      90.0,
+      523.0,
+      120.0
+     ],
+     "coord_system": "pdf_points_top_left",
+     "text": "1 Nota de rodapé sintética.",
+     "role": "footnote",
+     "level": null,
+     "engine": "classic",
+     "warnings": []
+    },
+    {
+     "id": "b-beb532c759c6a68f35c01ec055416704",
+     "page": 2,
+     "ordinal": 1,
+     "bbox": [
+      72.0,
+      130.0,
+      523.0,
+      160.0
+     ],
+     "coord_system": "pdf_points_top_left",
+     "text": "",
+     "role": "figure",
+     "level": null,
+     "engine": "classic",
+     "warnings": [],
+     "asset": "assets/figura-1.png"
+    },
+    {
+     "id": "b-2d651bd0c11e07894decce130d5005c7",
+     "page": 2,
+     "ordinal": 2,
+     "bbox": [
+      72.0,
+      170.0,
+      523.0,
+      200.0
+     ],
+     "coord_system": "pdf_points_top_left",
+     "text": "Figura 1 - Exemplo.",
+     "role": "caption",
+     "level": null,
+     "engine": "classic",
+     "warnings": []
+    },
+    {
+     "id": "b-ef711214d392e39a493571c9e0a8421d",
+     "page": 2,
+     "ordinal": 3,
+     "bbox": [
+      72.0,
+      210.0,
+      523.0,
+      240.0
+     ],
+     "coord_system": "pdf_points_top_left",
+     "text": "Antes da figura. Depois da figura, com chamada sem posição segura.",
+     "role": "body",
+     "level": null,
+     "engine": "classic",
+     "warnings": [
+      "unlocated_footnote_call"
+     ],
+     "fragments": [
+      {
+       "page": 2,
+       "bbox": [
+        72.0,
+        200.0,
+        523.0,
+        215.0
+       ],
+       "block_id": "b-ef711214d392e39a493571c9e0a8421d",
+       "text_start": 0,
+       "text_end": 16
+      },
+      {
+       "page": 2,
+       "bbox": [
+        72.0,
+        400.0,
+        523.0,
+        415.0
+       ],
+       "block_id": "b-ef711214d392e39a493571c9e0a8421d",
+       "text_start": 17,
+       "text_end": 66
+      }
+     ],
+     "generated": [
+      {
+       "text_start": 16,
+       "text_end": 17,
+       "transform": "geometry_continuation"
+      }
+     ],
+     "anchors": [
+      {
+       "id": "a-cece231d7f8b12917517b1b3e025810e",
+       "kind": "object_position",
+       "located": true,
+       "text_start": 17,
+       "text_end": 17,
+       "evidence": [],
+       "confidence": 0.9
+      },
+      {
+       "id": "a-d5bce77c0f7b388d0c49ea7337b38e55",
+       "kind": "footnote_call",
+       "located": false,
+       "text_start": null,
+       "text_end": null,
+       "page": 2,
+       "bbox": [
+        300.0,
+        410.0,
+        305.0,
+        416.0
+       ],
+       "mark": {
+        "printed": "*",
+        "form": "asterisk",
+        "presentation": "unknown",
+        "number": null
+       },
+       "evidence": [
+        "smaller_font"
+       ],
+       "confidence": null
+      }
+     ]
+    }
+   ],
+   "quality_signals": {},
+   "warnings": []
+  }
+ ],
+ "sections": [
+  {
+   "id": "s-45e84635bc4803c5cc5d456c798a13d3",
+   "level": 1,
+   "title_block_id": "b-45e84635bc4803c5cc5d456c798a13d3",
+   "block_ids": [
+    "b-45e84635bc4803c5cc5d456c798a13d3",
+    "b-0aeaecd2b4b0cf37c97ce2551919d904",
+    "b-a2364a0f3ba55913fabd08e514feeabf",
+    "b-beb532c759c6a68f35c01ec055416704",
+    "b-2d651bd0c11e07894decce130d5005c7",
+    "b-ef711214d392e39a493571c9e0a8421d"
+   ],
+   "char_start": 0,
+   "char_end": 221,
+   "children": []
+  }
+ ],
+ "notes": [
+  {
+   "id": "n-a2364a0f3ba55913fabd08e514feeabf",
+   "mark": {
+    "printed": "1",
+    "form": "digits",
+    "presentation": "inline",
+    "number": 1
+   },
+   "parts": [
+    "b-a2364a0f3ba55913fabd08e514feeabf"
+   ],
+   "state": "confirmed"
+  }
+ ],
+ "relations": [
+  {
+   "id": "r-8e9fa224f488a601af1b14e867eb6bf8",
+   "type": "footnote_link",
+   "from": "b-ef711214d392e39a493571c9e0a8421d",
+   "to": "b-a2364a0f3ba55913fabd08e514feeabf",
+   "state": "confirmed",
+   "method": "sintetico",
+   "confidence": 1.0,
+   "evidence": [
+    "geometry"
+   ],
+   "from_anchor": "a-cece231d7f8b12917517b1b3e025810e",
+   "to_note": "n-a2364a0f3ba55913fabd08e514feeabf"
+  },
+  {
+   "id": "r-2d651bd0c11e07894decce130d5005c7",
+   "type": "caption_of",
+   "from": "b-2d651bd0c11e07894decce130d5005c7",
+   "to": "b-beb532c759c6a68f35c01ec055416704",
+   "state": "confirmed",
+   "method": "sintetico",
+   "confidence": 1.0,
+   "evidence": [
+    "geometry"
+   ]
+  },
+  {
+   "id": "r-1479a8f92b6c064d31dfeaf9a6633594",
+   "type": "anchored_in",
+   "from": "b-ef711214d392e39a493571c9e0a8421d",
+   "to": "b-beb532c759c6a68f35c01ec055416704",
+   "state": "confirmed",
+   "method": "sintetico",
+   "confidence": 1.0,
+   "evidence": [
+    "geometry"
+   ],
+   "from_anchor": "a-cece231d7f8b12917517b1b3e025810e"
+  }
+ ],
+ "render_map": [
+  {
+   "char_start": 0,
+   "char_end": 12,
+   "block_id": "b-45e84635bc4803c5cc5d456c798a13d3",
+   "transform": "heading_mark",
+   "source_start": 0,
+   "source_end": 10
+  },
+  {
+   "char_start": 14,
+   "char_end": 77,
+   "block_id": "b-0aeaecd2b4b0cf37c97ce2551919d904",
+   "transform": "soft_hyphen_join",
+   "source_start": 0,
+   "source_end": 65,
+   "removed": [
+    {
+     "text_start": 12,
+     "text_end": 14
+    }
+   ]
+  },
+  {
+   "char_start": 79,
+   "char_end": 145,
+   "block_id": "b-ef711214d392e39a493571c9e0a8421d",
+   "transform": "literal",
+   "source_start": 0,
+   "source_end": 66
+  },
+  {
+   "char_start": 147,
+   "char_end": 171,
+   "block_id": "b-beb532c759c6a68f35c01ec055416704",
+   "transform": "image_ref",
+   "source_start": 0,
+   "source_end": 0
+  },
+  {
+   "char_start": 173,
+   "char_end": 192,
+   "block_id": "b-2d651bd0c11e07894decce130d5005c7",
+   "transform": "literal",
+   "source_start": 0,
+   "source_end": 19
+  },
+  {
+   "char_start": 194,
+   "char_end": 221,
+   "block_id": "b-a2364a0f3ba55913fabd08e514feeabf",
+   "transform": "literal",
+   "source_start": 0,
+   "source_end": 27
+  }
+ ],
+ "warnings": []
+}
