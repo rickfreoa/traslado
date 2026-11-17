@@ -4,7 +4,8 @@ Ricardo Peres Freoa | Stocche Forbes Advogados
 
 ## Não publicado
 
-- Quatro achados do fuzz noturno passam a falhas classificadas, sem exceção interna: contagem de páginas recusada pelo MuPDF (`code=7`) e cabeçalho PNG truncado resultam em `malformed`; membro de ZIP truncado (`EOFError`) resulta em `malformed`; membro de ZIP com bit de criptografia resulta em `encrypted`. Os quatro payloads entram nas regressões automáticas.
+- Quatro achados do fuzz noturno passam a falhas classificadas, sem exceção interna: contagem de páginas recusada pelo MuPDF (`code=7`) e cabeçalho PNG truncado resultam em `malformed`; membro de ZIP truncado (`EOFError`) resulta em `malformed`; membro de ZIP com bit de criptografia resulta em `encrypted`; membro LZMA com propriedades inválidas resulta em `malformed`. Os cinco payloads entram nas regressões automáticas.
+- O worker grava stdout em UTF-8: no Windows, diagnóstico do MuPDF com bytes fora do UTF-8 deixava de virar falha interna (`SystemError` em `page_get_textpage`).
 - A correção altera só a classificação de falhas; `document.md` e `chunks.jsonl` de documentos válidos não mudam.
 
 ## 2.0.2 (16/11/2026)

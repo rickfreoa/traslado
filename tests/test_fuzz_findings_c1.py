@@ -24,6 +24,7 @@ EXPECTED = {
     'finding-png-ac2c070dc5b61c1b.png': 'malformed',
     'finding-xlsx-afb4ad0fc2d67364.xlsx': 'malformed',
     'finding-pptx-5f1fcbf8955e6394.pptx': 'encrypted',
+    'finding-xlsx-4fbf02423d1dba64.xlsx': 'malformed',
 }
 
 

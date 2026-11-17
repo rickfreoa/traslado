@@ -6,6 +6,7 @@ from __future__ import annotations
 import subprocess
 import zipfile
 import errno
+import lzma
 import re
 import zlib
 
@@ -43,8 +44,8 @@ def classify(exc: Exception) -> ConversionError:
         code = "timeout"
     elif isinstance(exc, MemoryError):
         code = "resource_limit"
-    elif isinstance(exc, (zipfile.BadZipFile, zlib.error, EOFError)):
-        # EOFError: membro de ZIP truncado (zipfile._read2).
+    elif isinstance(exc, (zipfile.BadZipFile, zlib.error, lzma.LZMAError, EOFError)):
+        # EOFError: membro de ZIP truncado (zipfile._read2). LZMAError: membro LZMA com propriedades inválidas.
         code = "malformed"
     elif isinstance(exc, UnicodeError):
         code = "malformed"
