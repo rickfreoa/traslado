@@ -91,3 +91,25 @@ Mediana, p95 e pico de memória por página, só no hardware do titular: ≤ 1,5
 ## 10. Linha de base
 
 2.0 `classic` nas camadas A e B e no gabarito local, depois do congelamento deste documento e antes da primeira candidata. Identidade da amostra congelada: `C:\Traslado\wt30\metricas\c0\c0-v200-resumo.json`.
+
+## 11. Adendo de 17/11/2026, anterior ao congelamento: emenda da E0 (pdf-craft, D3)
+
+Fonte: `C:\Biblioteca\_sistema\traslado30\emenda-e0-pdfcraft.md` (debate de 09/11/2026, ACEITO_UNANIMIDADE, rodada 4). Nenhum limiar da §5 muda.
+
+### 11.1 Casos críticos nominados da emenda (100%)
+
+Fixtures sintéticas públicas da Camada A, **separadas** das amostras de 300 e 200 da §5: não as diluem nem as compõem. Cada fixture pré-registra o resultado esperado verificável (ligações âncora→nota, abstenções, junções esperadas e proibidas, rótulos e estado, blocos de mobiliário). O 100% vale para esses exemplos e não autoriza inferência de generalização, que continua a cargo das amostras.
+
+C11 numeração de notas reiniciada por página · C12 mesma marca para notas distintas · C13 notas por capítulo · C14 asterisco e cruz como marca · C15 chamada achatada `palavra.12`, com negativos obrigatórios que **não** podem virar chamada: art., arts., inc. IV, § 1º, par., al., fls., cf., v., vol., p., pp., n., ordinais 1º/2ª · C16 chamada repetida para a mesma nota (n:1) · C17 nota de vários parágrafos · C18 nota que continua na página seguinte sem número · C19 reclassificação de nota para corpo, preservando marca e ordem · C20 parágrafo entre páginas e entre colunas com hifenização · C21 parágrafo interrompido por figura · C22 fórmula em display como fronteira · C23 fólio decorado (`p. 12`, `Página 12`, `— 12 —`) · C24 `/PageLabels` ausente (`declared` nulo), declarado e divergente do fólio · C25 mobiliário repetido × texto substantivo repetido · C26 degeneração por repetição no OCR.
+
+### 11.2 Diagnósticos (só relatório, sem limiar)
+
+Falsas ligações, falsas junções e falsas remoções; precisão e recall por forma e por apresentação de marca (`mark.form`, `mark.presentation`); página impressa de trecho situado em bloco com fragmentos, como estrato da linha de página impressa.
+
+### 11.3 Contrato e validação
+
+O contrato emendado (`docs/contratos/modelo-v2.schema.json`, `chunks-v2.schema.json`) é validado no CI por `scripts/conferir_exemplos_v2.py`: o exemplo válido passa, cada um dos 22 inválidos falha com o código declarado em `docs/contratos/exemplos/esperado.json`, e os exemplos versionados coincidem byte a byte com os do gerador.
+
+### 11.4 Linha de base da E2
+
+A 2.0.2 (16/11/2026) sucede a 2.0.1 em produção. Em 17/11/2026, nas 1.875 obras da Biblioteca convertidas pela série 2.x, `document.md` reconstruído e `chunks.jsonl` foram idênticos entre 2.0.1, 2.0.2 e o publicado; a extração não mudou entre as duas versões. A identidade byte a byte da E2 passa a ser medida contra a 2.0.2, com a amostra C0 rodada de novo pela 2.0.2 antes da primeira candidata.

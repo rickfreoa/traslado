@@ -37,3 +37,17 @@ A prova não mediu qualidade: na fixture, a nota de rodapé foi classificada com
 - A partir do PyMuPDF 2.x, `onnxruntime`, `numpy`, `networkx`, `pyyaml`, `psutil` e `tabulate` são dependências obrigatórias, inclusive do `classic`; `auditar_libs.py` passa a inspecionar `onnxruntime` nos três sistemas.
 - Layout carregável é verificado por job de CI em Windows x64, Ubuntu, macOS arm64 e contêiner mínimo; no computador do titular, verificado nesta E0 (Windows 11, Python 3.14.6).
 - Windows Server Core continua limite declarado.
+
+## Teste de viabilidade antes do congelamento (17/11/2026)
+
+Script `C:\Traslado\wt30\e0-lab\spike\spike_e0.py` (fixture sintética pública gerada no próprio script: parágrafo com hifenização na quebra de página, chamada de nota menor e elevada, nota no pé, fólio, `/PageLabels` presente e ausente, 20 páginas de duas colunas). Saídas `classic.json`, `pymupdf2.json` e `q4-pymupdf2.json` na mesma pasta. Windows 11 do titular; `classic` = PyMuPDF 1.28.2 (Python 3.14.6, venv da 2.0.1), `pymupdf2` = PyMuPDF 2.1 com `pymupdf.layout`.
+
+| Pergunta | `classic` | `pymupdf2` | Leitura |
+|---|---|---|---|
+| Q1: texto por bloco com caixa e caracteres, base para `fragment.text_start/text_end` | sim | sim | viável por construção nos dois; a decisão de juntar é da camada `structure` |
+| Q2: chamada de nota observável e localizável | sim: flag de sobrescrito e fonte menor no mesmo span, offset 9–10 em `obrigação1` | idem | viável em nascido digital; em scan não testado |
+| Q2b: região de nota e de fólio distinguíveis | não há classe (só geometria) | `footnote` e `page-footer` corretos; a linha isolada com a chamada saiu como `caption`/`section-header` | evidência útil para `layout_footnote_region`; erro de classe em linha curta isolada |
+| Q3: `/PageLabels` declarado × ausente | `get_label()` devolve `12`, `13`; sem `/PageLabels` devolve `''` e o catálogo não tem a chave | idem | `declared: null` implementável pela consulta ao catálogo, sem rótulo sintetizado |
+| Q4: ms por página | `rawdict` mediana 5,1 (carga baixa); conversão ponta a ponta da 2.0.2: 1,46 s para 22 páginas (~66 ms/página, com partida do processo) | `rawdict` 15,8; `get_layout()` mediana 879 ms, p95 958 ms (CPU a 82% com outras tarefas; primeira medida, sob mais carga: 1.172 ms) | **o layout em toda página nativa custa ~13 vezes a conversão inteira da 2.0.2 por página** |
+
+**Consequência para o gate de desempenho (§8 do pré-registro, ≤ 1,5× a 2.0 em PDF nativo):** com o layout aplicado a toda página, o `pymupdf2` reprova por larga margem, mesmo descontada a carga da máquina. O limiar não muda. Duas saídas compatíveis com o plano, a decidir pelo titular antes da E3: (a) aplicar o layout só a páginas sinalizadas por indicadores baratos do `classic` (duas colunas, candidata a nota, tabela sem borda), medindo o gate sobre o documento inteiro; (b) manter o `pymupdf2` experimental, fora da promoção, se (a) não couber. Medida definitiva só com máquina quiescente (§1.6).
