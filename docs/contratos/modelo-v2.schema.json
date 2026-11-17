@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rickfreoa/traslado/docs/contratos/modelo-v2.schema.json",
+  "title": "Traslado - modelo de documento v2 (document.json, schema_version 2)",
+  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Offsets em pontos de codigo Unicode, intervalo semiaberto, sobre o document.md final, quebra de linha LF, sem normalizacao posterior.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_name", "source_sha256", "converter_version", "status", "fidelity", "config", "engines", "representation", "pages", "sections", "relations", "render_map", "warnings"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "source_name": { "type": "string", "minLength": 1 },
+    "source_sha256": { "$ref": "#/$defs/sha256" },
+    "converter_version": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["complete", "partial"] },
+    "fidelity": { "const": "unverified", "description": "Por documento, a fidelidade continua nao verificada; a qualidade e sinalizada por pagina." },
+    "duration_seconds": { "type": "number", "minimum": 0 },
+    "config": {
+      "type": "object",
+      "required": ["config_sha256", "options"],
+      "additionalProperties": false,
+      "properties": {
+        "config_sha256": { "$ref": "#/$defs/sha256", "description": "SHA-256 do JSON canonico (sort_keys, separadores (',', ':'), UTF-8) de options, sem caminhos absolutos." },
+        "options": { "type": "object" }
+      }
+    },
+    "engines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "role", "models"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "role": { "enum": ["layout", "ocr", "table", "structure"] },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "sha256"],
+              "properties": { "id": { "type": "string", "minLength": 1 }, "sha256": { "$ref": "#/$defs/sha256" } }
+            }
+          }
+        }
+      }
+    },
+    "representation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["markdown_file", "markdown_sha256", "offset_unit", "interval"],
+      "properties": {
+        "markdown_file": { "const": "document.md" },
+        "markdown_sha256": { "$ref": "#/$defs/sha256" },
+        "offset_unit": { "const": "unicode_code_points" },
+        "interval": { "const": "half_open" }
+      }
+    },
+    "pages": { "type": "array", "items": { "$ref": "#/$defs/page" } },
+    "sections": { "type": "array", "items": { "$ref": "#/$defs/section" } },
+    "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } },
+    "render_map": { "type": "array", "items": { "$ref": "#/$defs/render_interval" } },
+    "projections": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["markdown_sha256", "intervals"],
+          "properties": {
+            "markdown_sha256": { "$ref": "#/$defs/sha256" },
+            "intervals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["v2_char_start", "v2_char_end", "schema1_char_start", "schema1_char_end"],
+                "properties": {
+                  "v2_char_start": { "$ref": "#/$defs/offset" },
+                  "v2_char_end": { "$ref": "#/$defs/offset" },
+                  "schema1_char_start": { "$ref": "#/$defs/offset" },
+                  "schema1_char_end": { "$ref": "#/$defs/offset" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "offset": { "type": "integer", "minimum": 0 },
+    "bbox": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }, { "type": "number" }], "items": false, "minItems": 4 },
+    "block_id": { "type": "string", "pattern": "^b-[0-9a-f]{32}$", "description": "b- + 32 primeiros hex de SHA-256(source_sha256|config_sha256|pagina|ordinal|bbox canonico|SHA-256 do texto). Deterministico para mesma fonte, configuracao e resultado; sem promessa entre motores." },
+    "fragment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "bbox", "block_id"],
+      "properties": { "page": { "type": "integer", "minimum": 1 }, "bbox": { "$ref": "#/$defs/bbox" }, "block_id": { "$ref": "#/$defs/block_id" } }
+    },
+    "page_labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared", "observed", "inferred", "state"],
+      "description": "Campos distintos: declared vem de /PageLabels, observed do folio visivel, inferred da sequencia. Nenhum substitui outro. Sem fonte: null.",
+      "properties": {
+        "declared": { "type": ["string", "null"] },
+        "observed": { "type": ["string", "null"] },
+        "inferred": { "type": ["string", "null"] },
+        "state": { "enum": ["confirmed", "inferred", "divergent", "unknown"], "description": "confirmed exige o gate da tabela normativa para o estrato; em scan real sem o minimo de casos, nunca confirmed." },
+        "divergence": { "type": ["string", "null"] }
+      }
+    },
+    "quality_signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ocr": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+            "invalid_char_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "fragmentation": { "type": "number", "minimum": 0 },
+            "repetition": { "type": "number", "minimum": 0, "maximum": 1 },
+            "lexicon": { "type": "number", "minimum": 0, "maximum": 1 },
+            "chosen": { "type": ["string", "null"] },
+            "versions": { "type": "object" },
+            "reason": { "type": ["string", "null"] }
+          }
+        },
+        "structure_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "fallback_reason": { "type": ["string", "null"] }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "width", "height", "rotation", "route", "labels", "blocks", "quality_signals", "warnings"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 1, "description": "Indice fisico (folha), a partir de 1." },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "rotation": { "enum": [0, 90, 180, 270] },
+        "route": { "type": "string", "minLength": 1 },
+        "labels": { "$ref": "#/$defs/page_labels" },
+        "blocks": { "type": "array", "items": { "$ref": "#/$defs/block" } },
+        "quality_signals": { "$ref": "#/$defs/quality_signals" },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "page", "ordinal", "bbox", "coord_system", "text", "role", "level", "engine", "warnings"],
+      "properties": {
+        "id": { "$ref": "#/$defs/block_id" },
+        "page": { "type": "integer", "minimum": 1 },
+        "ordinal": { "type": "integer", "minimum": 0, "description": "Ordem normalizada de leitura na pagina, contigua a partir de 0." },
+        "bbox": { "$ref": "#/$defs/bbox" },
+        "coord_system": { "const": "pdf_points_top_left" },
+        "text": { "type": "string", "description": "Texto observado, sem contexto sintetico." },
+        "role": { "enum": ["body", "heading", "list_item", "footnote", "footnote_ref", "caption", "table", "figure", "furniture", "unknown"] },
+        "role_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "level": { "type": ["integer", "null"], "minimum": 1, "description": "Nivel de titulo; null = desconhecido ou nao aplicavel." },
+        "engine": { "type": "string", "minLength": 1 },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "rows": { "type": ["array", "null"], "items": { "type": "array", "items": { "type": "string" } } },
+        "asset": { "type": ["string", "null"], "pattern": "^assets/[a-zA-Z0-9_.-]+$" },
+        "fragments": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/fragment" }, "description": "So em bloco transpaginal; proveniencia por fragmento." },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      },
+      "allOf": [
+        { "if": { "properties": { "role": { "const": "heading" } } }, "else": { "properties": { "level": { "const": null } } } }
+      ]
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "level", "title_block_id", "block_ids", "char_start", "char_end", "children"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^s-[0-9a-f]{32}$" },
+        "level": { "type": ["integer", "null"], "minimum": 1 },
+        "title_block_id": { "$ref": "#/$defs/block_id" },
+        "block_ids": { "type": "array", "items": { "$ref": "#/$defs/block_id" } },
+        "char_start": { "$ref": "#/$defs/offset" },
+        "char_end": { "$ref": "#/$defs/offset" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/section" } }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "from", "to", "state", "method", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^r-[0-9a-f]{32}$" },
+        "type": { "enum": ["footnote_link", "caption_of", "continuation"] },
+        "from": { "$ref": "#/$defs/block_id" },
+        "to": { "$ref": "#/$defs/block_id" },
+        "state": { "enum": ["confirmed", "candidate"], "description": "Continuidade entre paginas so vira confirmed com evidencia adicional; em scan real sem o minimo de casos a ligacao de notas fica candidate." },
+        "method": { "type": "string", "minLength": 1 },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["superscript", "smaller_font", "numbering", "page_sequence", "layout_footnote_region", "geometry", "lexical", "explicit_marker"] }
+        }
+      }
+    },
+    "render_interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["char_start", "char_end", "block_id", "transform"],
+      "description": "Lista ordenada por char_start, sem sobreposicao; o que nao coberto e separador gerado.",
+      "properties": {
+        "char_start": { "$ref": "#/$defs/offset" },
+        "char_end": { "$ref": "#/$defs/offset" },
+        "block_id": { "$ref": "#/$defs/block_id" },
+        "transform": { "enum": ["literal", "line_join", "soft_hyphen_join", "geometry_continuation", "table_render", "image_ref", "heading_mark", "footnote_mark"] }
+      }
+    }
+  }
+}

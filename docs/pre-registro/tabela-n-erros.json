@@ -1,0 +1,52 @@
+{
+ "z": 1.959963984540054,
+ "metodo": "maior e tal que (n-e)/n >= ponto e Wilson95_inferior(n-e, n) >= wilson; -1 = inatingivel em n",
+ "pagina_impressa_confirmada": {
+  "ponto": 0.99,
+  "wilson": 0.97,
+  "minimo": 300,
+  "erros_admitidos": {
+   "300": 3,
+   "400": 4,
+   "500": 5,
+   "750": 7,
+   "1000": 10,
+   "1500": 15,
+   "2000": 20,
+   "3000": 30,
+   "5000": 50
+  }
+ },
+ "ligacao_chamada_nota": {
+  "ponto": 0.98,
+  "wilson": 0.95,
+  "minimo": 200,
+  "erros_admitidos": {
+   "200": 3,
+   "250": 5,
+   "300": 6,
+   "400": 8,
+   "500": 10,
+   "750": 15,
+   "1000": 20,
+   "1500": 30,
+   "2000": 40,
+   "3000": 60,
+   "5000": 100
+  }
+ },
+ "mobiliario_omitido": {
+  "ponto": 0.99,
+  "wilson": 0.97,
+  "minimo": 500,
+  "erros_admitidos": {
+   "500": 5,
+   "750": 7,
+   "1000": 10,
+   "1500": 15,
+   "2000": 20,
+   "3000": 30,
+   "5000": 50
+  }
+ }
+}

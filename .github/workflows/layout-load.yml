@@ -1,0 +1,43 @@
+name: Carga do layout (E0)
+
+on:
+  push:
+    branches: ['release/3.0']
+    paths: ['ci/layout/**', 'scripts/check_layout.py', 'docs/adr/0001-pesos.json', '.github/workflows/layout-load.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runner:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-15]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.13'
+      - name: Instalar com hashes
+        run: python -m pip install --require-hashes --only-binary :all: -r ci/layout/requirements.hashes.lock
+      - name: Carregar o layout
+        run: python -I -X utf8 scripts/check_layout.py
+
+  conteiner-minimo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: python:3.13-slim
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Instalar com hashes
+        run: python -m pip install --require-hashes --only-binary :all: -r ci/layout/requirements.hashes.lock
+      - name: Carregar o layout
+        run: python -I -X utf8 scripts/check_layout.py

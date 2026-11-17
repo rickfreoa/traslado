@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rickfreoa/traslado/docs/contratos/chunks-v2.schema.json",
+  "title": "Traslado - linha de chunks.jsonl, schema_version 2",
+  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Chunk contiguo mantem todos os campos v1 com mesmo nome e significado. text so contem transcricao; contexto sintetico vai em context e embed_text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "chunk_id", "index", "total", "source_name", "source_sha256", "markdown_sha256", "source_markdown", "asset_base", "offset_unit", "target_size_chars", "requested_overlap_chars", "actual_overlap_chars", "overlap_adjustment", "headings", "headings_in_chunk", "pages", "blocks", "document_status", "fidelity", "warnings", "text", "text_sha256", "context", "printed_pages", "footnote_ids"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "chunk_id": { "$ref": "#/$defs/sha256", "description": "Contiguo: SHA-256 de source_sha256:markdown_sha256:char_start:char_end (identico a v1). Composto: SHA-256 de source_sha256:markdown_sha256:spans:s1-e1;s2-e2;..., spans em ordem." },
+    "index": { "type": "integer", "minimum": 0 },
+    "total": { "type": "integer", "minimum": 1 },
+    "source_name": { "type": "string" },
+    "source_sha256": { "$ref": "#/$defs/sha256" },
+    "markdown_sha256": { "$ref": "#/$defs/sha256" },
+    "source_markdown": { "const": "document.md" },
+    "asset_base": { "type": "string" },
+    "offset_unit": { "const": "unicode_code_points" },
+    "char_start": { "$ref": "#/$defs/offset" },
+    "char_end": { "$ref": "#/$defs/offset" },
+    "char_count": { "type": "integer", "minimum": 0 },
+    "spans": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["char_start", "char_end"],
+        "properties": { "char_start": { "$ref": "#/$defs/offset" }, "char_end": { "$ref": "#/$defs/offset" } }
+      },
+      "description": "Em chunk composto: ordem de leitura; text = trechos dos spans unidos por \\n\\n."
+    },
+    "envelope_char_start": { "$ref": "#/$defs/offset" },
+    "envelope_char_end": { "$ref": "#/$defs/offset" },
+    "target_size_chars": { "type": "integer", "minimum": 1 },
+    "requested_overlap_chars": { "type": "integer", "minimum": 0 },
+    "actual_overlap_chars": { "type": "integer", "minimum": 0 },
+    "overlap_adjustment": { "type": ["string", "null"] },
+    "headings": { "type": "array", "items": { "type": "string" } },
+    "headings_in_chunk": { "type": "array", "items": { "type": "string" } },
+    "pages": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+    "blocks": { "type": "array" },
+    "document_status": { "enum": ["complete", "partial"] },
+    "fidelity": { "const": "unverified" },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "text": { "type": "string", "description": "So transcricao." },
+    "text_sha256": { "$ref": "#/$defs/sha256", "description": "SHA-256 de text em UTF-8." },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section_path", "printed_pages", "footnote_ids"],
+      "properties": {
+        "section_path": { "type": "array", "items": { "type": "string" } },
+        "printed_pages": { "type": "array", "items": { "type": "string" } },
+        "footnote_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "embed_text": { "type": "string", "description": "Contexto + texto, sintetico; opcional, adocao decidida na E7." },
+    "embed_sha256": { "$ref": "#/$defs/sha256" },
+    "embed_synthetic": { "const": true },
+    "printed_pages": { "type": "array", "items": { "type": "string" } },
+    "footnote_ids": { "type": "array", "items": { "type": "string" } }
+  },
+  "oneOf": [
+    {
+      "title": "contiguo",
+      "required": ["char_start", "char_end", "char_count"],
+      "not": { "anyOf": [{ "required": ["spans"] }, { "required": ["envelope_char_start"] }, { "required": ["envelope_char_end"] }] }
+    },
+    {
+      "title": "composto",
+      "required": ["spans", "envelope_char_start", "envelope_char_end"],
+      "not": { "anyOf": [{ "required": ["char_start"] }, { "required": ["char_end"] }, { "required": ["char_count"] }] }
+    }
+  ],
+  "dependentRequired": {
+    "embed_text": ["embed_sha256", "embed_synthetic"],
+    "embed_sha256": ["embed_text"]
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "offset": { "type": "integer", "minimum": 0 }
+  }
+}
