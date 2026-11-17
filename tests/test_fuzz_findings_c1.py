@@ -36,6 +36,9 @@ def finding_test(path, route):
         esperado = EXPECTED.get(path.name)
         if path.suffix == '.png' and importlib.util.find_spec('PIL') is None:
             esperado = 'unsupported'
+        # Sem python-pptx (perfil Core), o membro criptografado não chega a ser lido: `unsupported`.
+        if path.name == 'finding-pptx-5f1fcbf8955e6394.pptx' and importlib.util.find_spec('pptx') is None:
+            esperado = 'unsupported'
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             if route == 'execute':
