@@ -23,8 +23,10 @@ jobs:
         with:
           python-version: '3.13'
       - name: Instalar com hashes
-        run: python -m pip install --require-hashes --only-binary :all: -r ci/contratos/requirements.hashes.lock
+        run: |
+          python -m pip install --require-hashes --only-binary :all: -r ci/contratos/requirements.hashes.lock
       - name: Esquemas válidos (Draft 2020-12)
-        run: python -I -X utf8 -c "import json,jsonschema; [jsonschema.Draft202012Validator.check_schema(json.load(open(f, encoding='utf-8'))) for f in ('docs/contratos/modelo-v2.schema.json','docs/contratos/chunks-v2.schema.json')]"
+        run: |
+          python -I -X utf8 -c "import json, jsonschema; [jsonschema.Draft202012Validator.check_schema(json.load(open(f, encoding='utf-8'))) for f in ('docs/contratos/modelo-v2.schema.json', 'docs/contratos/chunks-v2.schema.json')]"
       - name: Exemplos válidos, inválidos e determinismo do gerador
         run: python -I -X utf8 scripts/conferir_exemplos_v2.py
