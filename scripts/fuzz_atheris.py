@@ -86,6 +86,11 @@ def run_single_input(target: str, data: bytes, work_dir: Path, artifacts_dir: Pa
     finally:
         src.unlink(missing_ok=True)
         shutil.rmtree(out, ignore_errors=True)
+        # O PyMuPDF acumula cada diagnóstico do MuPDF numa lista global do processo. No worker de produção
+        # (um documento por processo) isso é irrelevante; no harness em processo, cresce até o limite de RSS.
+        fitz = sys.modules.get("fitz") or sys.modules.get("pymupdf")
+        if fitz is not None:
+            fitz.TOOLS.reset_mupdf_warnings()
 
     status = res.get("status")
     code = res.get("error_code")
