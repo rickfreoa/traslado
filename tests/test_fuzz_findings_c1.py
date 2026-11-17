@@ -20,6 +20,10 @@ EXPECTED = {
     'finding-xlsx-af733d34dfd38931.xlsx': 'unsupported',
     'finding-pdf-f3b5d54b09d31a3e.pdf': 'malformed',
     'finding-png-7bdc039f981feb7b.png': 'malformed',
+    'finding-pdf-27bc3363e41cc926.pdf': 'malformed',
+    'finding-png-ac2c070dc5b61c1b.png': 'malformed',
+    'finding-xlsx-afb4ad0fc2d67364.xlsx': 'malformed',
+    'finding-pptx-5f1fcbf8955e6394.pptx': 'encrypted',
 }
 
 

@@ -2,6 +2,11 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
+## Não publicado
+
+- Quatro achados do fuzz noturno passam a falhas classificadas, sem exceção interna: contagem de páginas recusada pelo MuPDF (`code=7`) e cabeçalho PNG truncado resultam em `malformed`; membro de ZIP truncado (`EOFError`) resulta em `malformed`; membro de ZIP com bit de criptografia resulta em `encrypted`. Os quatro payloads entram nas regressões automáticas.
+- A correção altera só a classificação de falhas; `document.md` e `chunks.jsonl` de documentos válidos não mudam.
+
 ## 2.0.2 (16/11/2026)
 
 - Geração de chunks localiza intervalos protegidos, blocos e títulos por posição e atualiza a hierarquia de títulos à medida que os chunks avançam.

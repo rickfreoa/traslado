@@ -6,6 +6,7 @@ from __future__ import annotations
 import subprocess
 import zipfile
 import errno
+import re
 import zlib
 
 CODES = frozenset({"unsupported", "needs_ocr", "malformed", "encrypted",
@@ -31,6 +32,10 @@ def exception_name(exc: Exception) -> str:
     return getattr(exc, "_warning_name", "ValueError") if isinstance(exc, ConversionError) else type(exc).__name__
 
 
+# Códigos fz_error do MuPDF (pymupdf.mupdf.FZ_ERROR_LIMIT, UNSUPPORTED, FORMAT, SYNTAX).
+_MUPDF_CODES = {5: "resource_limit", 6: "unsupported", 7: "malformed", 8: "malformed"}
+
+
 def classify(exc: Exception) -> ConversionError:
     if isinstance(exc, ConversionError):
         return exc
@@ -38,7 +43,8 @@ def classify(exc: Exception) -> ConversionError:
         code = "timeout"
     elif isinstance(exc, MemoryError):
         code = "resource_limit"
-    elif isinstance(exc, (zipfile.BadZipFile, zlib.error)):
+    elif isinstance(exc, (zipfile.BadZipFile, zlib.error, EOFError)):
+        # EOFError: membro de ZIP truncado (zipfile._read2).
         code = "malformed"
     elif isinstance(exc, UnicodeError):
         code = "malformed"
@@ -48,6 +54,9 @@ def classify(exc: Exception) -> ConversionError:
         code = "unsupported"
     elif isinstance(exc, RuntimeError) and "zip" in str(exc).lower() and (
             "password" in str(exc).lower() or "encrypted" in str(exc).lower()):
+        code = "encrypted"
+    elif isinstance(exc, RuntimeError) and re.fullmatch(r"File .+ is encrypted, password required for extraction", str(exc)):
+        # zipfile.ZipFile.open: membro com bit de criptografia, mensagem sem a palavra "zip".
         code = "encrypted"
     elif type(exc).__name__ in {"FileDataError", "EmptyFileError", "XMLSyntaxError",
                                 "UnidentifiedImageError", "InvalidXmlError", "FzErrorFormat"}:
@@ -63,6 +72,9 @@ def classify(exc: Exception) -> ConversionError:
         code = "resource_limit"
     elif isinstance(exc, ValueError) and str(exc) == "Informe caminho absoluto de mineru-kit instalado separadamente":
         code = "missing_part"
+    elif isinstance(exc, RuntimeError) and (match := re.match(r"code=(\d+): ", str(exc))) and int(match[1]) in _MUPDF_CODES:
+        # Erro do MuPDF sem classe própria no PyMuPDF (ex.: contagem de páginas): código numérico fz_error.
+        code = _MUPDF_CODES[int(match[1])]
     elif isinstance(exc, OSError):
         code = "resource_limit" if (exc.errno in {errno.ENOMEM, errno.EAGAIN}
                                     or getattr(exc, "winerror", None) in {8, 14, 1450, 1816}) else "io"

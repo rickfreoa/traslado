@@ -103,6 +103,11 @@ def _load_image(image) -> None:
             error._warning_name = type(exc).__name__
             raise error from exc
         raise
+    except ValueError as exc:
+        # Pillow também acusa cabeçalho truncado como ValueError (ex.: "Truncated IHDR chunk").
+        error = ConversionError("malformed", str(exc))
+        error._warning_name = type(exc).__name__
+        raise error from exc
 
 
 def _docx_paragraph_text(paragraph, note_reference=None) -> str:
