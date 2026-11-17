@@ -41,9 +41,11 @@ def _content_layout(document, suffix):
 
 
 def main() -> int:
-    # Tracebacks must also remain UTF-8 under -I with Windows pipes.
-    if hasattr(sys.stderr, "reconfigure"):
-        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+    # Tracebacks must also remain UTF-8 under -I with Windows pipes. stdout too: PyMuPDF prints MuPDF
+    # diagnostics there from inside C calls, and an encoding error turns into SystemError (internal).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     request = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     workspace = Path(request["workspace"])
     options = Options(**request["options"])
