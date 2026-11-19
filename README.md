@@ -131,7 +131,7 @@ Cancelar encerra o processo atual e conserva arquivos anteriores concluídos. Fe
 Use o Python da versão ativa; não mova ambientes já instalados:
 
 ```powershell
-$app = Join-Path $env:LOCALAPPDATA 'Freoa\MarkdownConverter'
+$app = Join-Path $env:LOCALAPPDATA 'Traslado'
 $current = Get-Content (Join-Path $app 'current.json') -Raw | ConvertFrom-Json
 $python = Join-Path $app ('releases\' + $current.release_id + '\.venv\Scripts\python.exe')
 & $python -I -m traslado doctor
