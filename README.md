@@ -1,4 +1,4 @@
-# Traslado 2.0.2
+# Traslado 2.0.3
 
 Conversor local de documentos para Markdown rastreável: texto nativo rápido, OCR seletivo (Tesseract) e chunks com offsets exatos, hashes e páginas de origem, prontos para busca e RAG. O nome vem do *traslado* forense: a cópia fiel que remete sempre ao original.
 
@@ -10,14 +10,14 @@ Licença do código próprio: AGPL-3.0-or-later
 
 ## Instalação
 
-Baixe **traslado-2.0.2-instaladores.zip** na [release 2.0.2](https://github.com/rickfreoa/traslado/releases/tag/v2.0.2) e extraia o pacote. Abra `INSTALAR.bat` no Windows, `instalar.command` no macOS ou execute `sh instalar.sh` no Linux. O [guia de primeiros passos](COMECE-AQUI.md) mostra onde abrir o aplicativo em cada sistema e como verificar o download.
+Baixe **traslado-2.0.3-instaladores.zip** na [release 2.0.3](https://github.com/rickfreoa/traslado/releases/tag/v2.0.3) e extraia o pacote. Abra `INSTALAR.bat` no Windows, `instalar.command` no macOS ou execute `sh instalar.sh` no Linux. O [guia de primeiros passos](COMECE-AQUI.md) mostra onde abrir o aplicativo em cada sistema e como verificar o download.
 
 ### Controle primário: download verificado com GitHub Attestations
 
 Para verificação criptográfica de proveniência antes de executar qualquer script ou instalar o pacote, baixe os artefatos da [página de releases](https://github.com/rickfreoa/traslado/releases), confira o `SHA256SUMS` e valide a attestation oficial:
 
 ```bash
-gh attestation verify traslado-2.0.2-instaladores.zip \
+gh attestation verify traslado-2.0.3-instaladores.zip \
   --repo rickfreoa/traslado \
   --signer-workflow rickfreoa/traslado/.github/workflows/release.yml
 
@@ -35,13 +35,13 @@ gh attestation verify install.sh \
 **Windows (PowerShell 5.1+):**
 
 ```powershell
-irm https://github.com/rickfreoa/traslado/releases/download/v2.0.2/install.ps1 | iex
+irm https://github.com/rickfreoa/traslado/releases/download/v2.0.3/install.ps1 | iex
 ```
 
 **Linux e macOS (`/bin/sh` POSIX):**
 
 ```sh
-curl -fsSL https://github.com/rickfreoa/traslado/releases/download/v2.0.2/install.sh | sh
+curl -fsSL https://github.com/rickfreoa/traslado/releases/download/v2.0.3/install.sh | sh
 ```
 
 > **Aviso de segurança e assinatura:** O comando one-liner (`irm ... | iex` ou `curl ... | sh`) é **apenas um atalho de conveniência** e não substitui a verificação prévia com `gh attestation verify` e `SHA256SUMS`. Os scripts e pacotes do Traslado **não são assinados por certificado de assinatura de código** (Authenticode no Windows ou Developer ID / notarização Apple no macOS); por isso, alertas de segurança do sistema operacional (como Windows SmartScreen ou macOS Gatekeeper) podem aparecer ao baixar ou executar os instaladores clicáveis (`INSTALAR.bat`, `instalar.command`, `instalar.sh`).
@@ -87,11 +87,11 @@ Fora da 1.1, por decisão medida: a ordem de leitura por calhas (`layout = gutte
 
 ## Obter
 
-Baixe `traslado-2.0.2-instaladores.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar os pacotes a partir do código, execute `python scripts/build_release.py`. O comando gera o wheel, os ZIPs, o pacote-fonte e os hashes em `dist/`.
+Baixe `traslado-2.0.3-instaladores.zip` na página de [releases](https://github.com/rickfreoa/traslado/releases) e confira o SHA-256 com o arquivo `SHA256SUMS` publicado ao lado. Para montar os pacotes a partir do código, execute `python scripts/build_release.py`. O comando gera o wheel, os ZIPs, o pacote-fonte e os hashes em `dist/`.
 
 ## Instalar e abrir no Windows
 
-Pelo ZIP: extraia `traslado-2.0.2-instaladores.zip` e abra **INSTALAR.bat** na pasta extraída. Ele chama o mesmo `install.ps1` do one-liner com `-FromDir` apontado para a pasta extraída: o wheel vem de `dist\`, os locks de `locks\`, ambos conferidos pelo `PAYLOAD-SHA256SUMS`; o Python 3.13 é gerenciado pelo uv (não é preciso Python instalado) e as dependências de terceiros vêm do PyPI com hashes obrigatórios. Por padrão instala **Full**, OCR e português, inglês, espanhol, italiano, francês e alemão em `%LOCALAPPDATA%\Traslado`, com o atalho **Traslado** na Área de Trabalho e no Menu Iniciar. Não exige administrador. Opções (as mesmas do `install.ps1`): `-Profile Core`, `-Extras legacy`, `-Languages por,eng`, `-SkipOCR`, `-Root`, `-DataRoot`, `-NoShortcut`, `-NoPromote`. Full inclui PyMuPDF (AGPL-3.0 ou licença comercial da Artifex); o conjunto distribuído é AGPL-3.0, como explica THIRD-PARTY.md.
+Pelo ZIP: extraia `traslado-2.0.3-instaladores.zip` e abra **INSTALAR.bat** na pasta extraída. Ele chama o mesmo `install.ps1` do one-liner com `-FromDir` apontado para a pasta extraída: o wheel vem de `dist\`, os locks de `locks\`, ambos conferidos pelo `PAYLOAD-SHA256SUMS`; o Python 3.13 é gerenciado pelo uv (não é preciso Python instalado) e as dependências de terceiros vêm do PyPI com hashes obrigatórios. Por padrão instala **Full**, OCR e português, inglês, espanhol, italiano, francês e alemão em `%LOCALAPPDATA%\Traslado`, com o atalho **Traslado** na Área de Trabalho e no Menu Iniciar. Não exige administrador. Opções (as mesmas do `install.ps1`): `-Profile Core`, `-Extras legacy`, `-Languages por,eng`, `-SkipOCR`, `-Root`, `-DataRoot`, `-NoShortcut`, `-NoPromote`. Full inclui PyMuPDF (AGPL-3.0 ou licença comercial da Artifex); o conjunto distribuído é AGPL-3.0, como explica THIRD-PARTY.md.
 
 `INSTALAR.ps1` é o instalador da linha 1.x (exige Python 3.11–3.14 com Tcl/Tk e instala no layout antigo, `%LOCALAPPDATA%\Freoa\MarkdownConverter`, com o lock `requirements-full.hashes.lock` da raiz do ZIP). Fica no pacote só por compatibilidade durante a série 2.x e não é o caminho recomendado; as opções abaixo se referem a ele.
 

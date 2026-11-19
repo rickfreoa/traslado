@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Ricardo Peres Freoa
-# Fonte correspondente da compilação local: traslado-2.0.2.tar.gz
-# Referência da árvore em caso de publicação: https://github.com/rickfreoa/traslado/tree/v2.0.2
+# Fonte correspondente da compilação local: traslado-2.0.3.tar.gz
+# Referência da árvore em caso de publicação: https://github.com/rickfreoa/traslado/tree/v2.0.3
 # Códigos de saída: 0 = instalado/ativo; 1 = erro de download, hash ou attestation; 2 = falha nos gates ou parâmetros.
  $InstallMain = {
 [CmdletBinding()]
 param(
-    [string]$Version = "2.0.2",
+    [string]$Version = "2.0.3",
     [ValidateSet("Full", "Core", "full", "core")][string]$Profile = "Full",
     [string]$Extras = "",
     [string]$Languages = "por,eng,spa,ita,fra,deu",
