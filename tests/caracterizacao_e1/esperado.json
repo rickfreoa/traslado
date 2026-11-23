@@ -411,41 +411,49 @@
    "releases/a/.venv/": "dir",
    "releases/a/.venv/Scripts/": "dir",
    "releases/a/.venv/Scripts/python.exe": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/a/.venv/bin/": "dir",
    "releases/a/.venv/bin/python": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/b/": "dir",
    "releases/b/.venv/": "dir",
    "releases/b/.venv/Scripts/": "dir",
    "releases/b/.venv/Scripts/python.exe": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/b/.venv/bin/": "dir",
    "releases/b/.venv/bin/python": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/f/": "dir",
    "releases/f/.venv/": "dir",
    "releases/f/.venv/Scripts/": "dir",
    "releases/f/.venv/Scripts/python.exe": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/f/.venv/bin/": "dir",
    "releases/f/.venv/bin/python": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/h/": "dir",
    "releases/h/.venv/": "dir",
    "releases/h/.venv/Scripts/": "dir",
    "releases/h/.venv/Scripts/python.exe": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/h/.venv/bin/": "dir",
    "releases/h/.venv/bin/python": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "state/": "dir",
    "state/pending-removals/": "dir"
@@ -520,7 +528,8 @@
    "a/b/": "dir",
    "c/": "dir",
    "manter.exe": {
-    "bytes": 1
+    "bytes": 1,
+    "sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
    }
   }
  },
@@ -615,7 +624,8 @@
    },
    "releases/r1/ocr/tessdata/": "dir",
    "releases/r1/ocr/tesseract.exe": {
-    "bytes": 88
+    "bytes": 88,
+    "sha256": "b2f530b810fe5800d16824e9999c9fd543454bc71a6f2f8e757ef9d23ef849f4"
    },
    "releases/r1/sub/": "dir"
   },
@@ -830,7 +840,8 @@
   "arvore_cache": {
    "TESSDATA-LICENSE.txt": "lic",
    "por.traineddata": {
-    "bytes": 10
+    "bytes": 10,
+    "sha256": "ec3c4e9f0ce320572e260e2ee8db4ce2de5c28083f325a0faf12f41d0a526c1f"
    }
   },
   "arvore_ok": {
@@ -838,10 +849,12 @@
    "doc/TESSDATA-LICENSE.txt": "lic",
    "tessdata/": "dir",
    "tessdata/eng.traineddata": {
-    "bytes": 7
+    "bytes": 7,
+    "sha256": "5a2bac47182a95b0a18f40ba305b216031e47a28c414ac73088a975048de2a86"
    },
    "tessdata/por.traineddata": {
-    "bytes": 10
+    "bytes": 10,
+    "sha256": "ec3c4e9f0ce320572e260e2ee8db4ce2de5c28083f325a0faf12f41d0a526c1f"
    }
   },
   "com_cache": {
@@ -927,7 +940,8 @@
   "arvore": {
    "Desktop/": "dir",
    "Desktop/Outro.lnk": {
-    "bytes": 3
+    "bytes": 3,
+    "sha256": "a5da9216129b1d877cbcb7cc536ed71bf3912d9c19cc64b4349177384174deff"
    },
    "Local/": "dir",
    "Local/Freoa/": "dir",
@@ -951,7 +965,8 @@
    },
    "Programs/": "dir",
    "Programs/Outro.lnk": {
-    "bytes": 3
+    "bytes": 3,
+    "sha256": "a5da9216129b1d877cbcb7cc536ed71bf3912d9c19cc64b4349177384174deff"
    },
    "outro-legado/": "dir",
    "outro-legado/current.json": {
@@ -1900,7 +1915,19 @@
  },
  "e_setup_raiz_de_dados_e_atalhos": {
   "arvore_apps": {
-   "traslado.desktop": "[Desktop Entry]\nType=Application\nName=Traslado\nExec=\"<TMP>/sc/releases/s1/.venv/bin/python\" -I -m traslado.gui\nIcon=<TMP>/icons/traslado.png\nTerminal=false\nCategories=Office;\n"
+   "traslado.desktop": [
+    "[Desktop Entry]",
+    "Type=Application",
+    "Name=Traslado",
+    [
+     "Exec",
+     "<TMP>/sc/releases/s1/.venv/bin/python",
+     " -I -m traslado.gui"
+    ],
+    "Icon=<TMP>/icons/traslado.png",
+    "Terminal=false",
+    "Categories=Office;"
+   ]
   },
   "arvore_icons": [
    "traslado.png"
@@ -2589,21 +2616,25 @@
    "releases/ativa/.venv/": "dir",
    "releases/ativa/.venv/Scripts/": "dir",
    "releases/ativa/.venv/Scripts/python.exe": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/ativa/.venv/bin/": "dir",
    "releases/ativa/.venv/bin/python": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/p2/": "dir",
    "releases/p2/.venv/": "dir",
    "releases/p2/.venv/Scripts/": "dir",
    "releases/p2/.venv/Scripts/python.exe": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "releases/p2/.venv/bin/": "dir",
    "releases/p2/.venv/bin/python": {
-    "bytes": 0
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
    },
    "state/": "dir"
   },
@@ -2638,7 +2669,8 @@
   "arvore_i1": {
    "dados/": "dir",
    "dados/obra.md": {
-    "bytes": 4
+    "bytes": 4,
+    "sha256": "1bb2d0a82ece88e6e9e32e1d33b1539afc65ad548ee7f112177f51c0c94fbdb9"
    }
   },
   "arvore_i2": {
@@ -2646,13 +2678,15 @@
    "managed/dados/": "dir",
    "managed/dados/fundo/": "dir",
    "managed/dados/fundo/obra.md": {
-    "bytes": 4
+    "bytes": 4,
+    "sha256": "1bb2d0a82ece88e6e9e32e1d33b1539afc65ad548ee7f112177f51c0c94fbdb9"
    }
   },
   "arvore_i3": {
    "fora/": "dir",
    "fora/obra.md": {
-    "bytes": 4
+    "bytes": 4,
+    "sha256": "1bb2d0a82ece88e6e9e32e1d33b1539afc65ad548ee7f112177f51c0c94fbdb9"
    },
    "managed/": "dir",
    "managed/state/": "dir"
@@ -2661,13 +2695,15 @@
   "arvore_i6": {
    "dados/": "dir",
    "dados/obra.md": {
-    "bytes": 4
+    "bytes": 4,
+    "sha256": "1bb2d0a82ece88e6e9e32e1d33b1539afc65ad548ee7f112177f51c0c94fbdb9"
    }
   },
   "arvore_i7": {
    "dados/": "dir",
    "dados/obra.md": {
-    "bytes": 4
+    "bytes": 4,
+    "sha256": "1bb2d0a82ece88e6e9e32e1d33b1539afc65ad548ee7f112177f51c0c94fbdb9"
    },
    "outra/": "dir"
   },
@@ -3330,5 +3366,461 @@
    "validate_bootstrap_digests",
    "validate_version"
   ]
+ },
+ "i_ligacoes_internas_do_setup": {
+  "chamadas": [
+   [
+    "evaluate_doctor_gate",
+    [
+     {
+      "capabilities": {
+       "PIL": {
+        "available": true
+       },
+       "docx": {
+        "available": true
+       },
+       "fitz": {
+        "available": true
+       },
+       "openpyxl": {
+        "available": true
+       },
+       "pptx": {
+        "available": true
+       }
+      },
+      "languages": [
+       "por",
+       "eng",
+       "spa",
+       "ita",
+       "fra",
+       "deu"
+      ]
+     }
+    ],
+    {
+     "languages": [
+      "por"
+     ],
+     "ocr_installed": true,
+     "profile": "Full"
+    }
+   ],
+   [
+    "run_fixture_gate",
+    [],
+    {
+     "profile": "Full",
+     "tessdata": "<TMP>/managed/releases/l1/ocr/tessdata",
+     "tesseract": "<TMP>/managed/releases/l1/ocr/tesseract.exe"
+    }
+   ],
+   [
+    "validate_bootstrap_digests",
+    [
+     {
+      "requirements-core.hashes.lock": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "requirements-full.hashes.lock": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "traslado-2.0.3-py3-none-any.whl": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     "2.0.3",
+     "Full",
+     []
+    ],
+    {}
+   ],
+   [
+    "handle_legacy_windows",
+    [
+     "<TMP>/managed"
+    ],
+    {
+     "applications_dir": null,
+     "desktop_dir": "<TMP>/desk",
+     "env": {
+      "HOME": "<TMP>/home",
+      "PROCESSOR_ARCHITECTURE": "AMD64",
+      "TRASLADO_SHORTCUT_DESKTOP_DIR": "<TMP>/desk",
+      "TRASLADO_SHORTCUT_START_MENU_DIR": "<TMP>/menu"
+     },
+     "home": "<TMP>/home",
+     "icons_dir": null,
+     "platform_name": "win32",
+     "start_menu_dir": "<TMP>/menu",
+     "version": "2.0.3"
+    }
+   ]
+  ],
+  "promove": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "lock",
+     "tesseract": "<TMP>/managed/releases/l1/ocr/tesseract.exe",
+     "version": "5.5.3"
+    },
+    "ocr_installed": true,
+    "platform": "win32",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "l1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": "<TMP>/desk",
+      "icons_dir": null,
+      "start_menu_dir": "<TMP>/menu"
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  }
+ },
+ "i_lock_ocupado_e_falha_de_exclusao": {
+  "arvore": {
+   "current.json": {
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "release_id": "atual",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {},
+     "enabled": false,
+     "home": null
+    },
+    "version": "2.0.3"
+   },
+   "releases/": "dir",
+   "releases/atual/": "dir",
+   "releases/atual/.venv/": "dir",
+   "releases/atual/.venv/Scripts/": "dir",
+   "releases/atual/.venv/Scripts/python.exe": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "releases/atual/.venv/bin/": "dir",
+   "releases/atual/.venv/bin/python": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "releases/x1/": "dir",
+   "releases/x1/.venv/": "dir",
+   "releases/x1/.venv/Scripts/": "dir",
+   "releases/x1/.venv/Scripts/python.exe": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "releases/x1/.venv/bin/": "dir",
+   "releases/x1/.venv/bin/python": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "releases/x2/": "dir",
+   "releases/x2/.venv/": "dir",
+   "releases/x2/.venv/Scripts/": "dir",
+   "releases/x2/.venv/Scripts/python.exe": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "releases/x2/.venv/bin/": "dir",
+   "releases/x2/.venv/bin/python": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "state/": "dir",
+   "state/pending-removals/": "dir",
+   "state/pending-removals/x1.json": {
+    "release_id": "x1"
+   },
+   "state/pending-removals/x2.json": {
+    "release_id": "x2"
+   }
+  },
+  "arvore_final": [
+   "current.json",
+   "releases/",
+   "releases/atual/",
+   "releases/atual/.venv/",
+   "releases/atual/.venv/Scripts/",
+   "releases/atual/.venv/Scripts/python.exe",
+   "releases/atual/.venv/bin/",
+   "releases/atual/.venv/bin/python",
+   "state/",
+   "state/pending-removals/"
+  ],
+  "exclusao_falha": {
+   "retorno": false
+  },
+  "lock_ocupado": {
+   "retorno": false
+  },
+  "poda_dos_pendentes": {
+   "retorno": null
+  }
+ },
+ "i_remocao_diferida": {
+  "a_propria_raiz": {
+   "erro": "ValueError",
+   "mensagem": "Remoção diferida exige caminhos internos à raiz, sem links e sem dados preservados"
+  },
+  "contem_preservado": {
+   "erro": "ValueError",
+   "mensagem": "Remoção diferida exige caminhos internos à raiz, sem links e sem dados preservados"
+  },
+  "fora_da_raiz": {
+   "erro": "ValueError",
+   "mensagem": "Remoção diferida exige caminhos internos à raiz, sem links e sem dados preservados"
+  },
+  "lancados": [
+   {
+    "argv": [
+     "-NoProfile",
+     "-NonInteractive",
+     "-WindowStyle",
+     "Hidden",
+     "-EncodedCommand"
+    ],
+    "argv0": "powershell.exe",
+    "env": {
+     "TRASLADO_REMOVE_KEEP": "<TMP>/dados",
+     "TRASLADO_REMOVE_PATHS": "<TMP>/managed/releases/d1\n<TMP>/managed/python",
+     "TRASLADO_REMOVE_ROOT": "<TMP>/managed"
+    },
+    "kw": [
+     "creationflags",
+     "env",
+     "stderr",
+     "stdin",
+     "stdout"
+    ],
+    "pid_e_o_proprio": true
+   }
+  ],
+  "ok": {
+   "retorno": null
+  },
+  "vazio": {
+   "erro": "ValueError",
+   "mensagem": "Remoção diferida exige caminhos internos à raiz, sem links e sem dados preservados"
+  }
+ },
+ "i_setup_gate_padrao_e_ocr_ativo": {
+  "arvore_o1": {
+   "freoa-runtime.json": {
+    "data_root": "<TMP>/dados",
+    "languages": [
+     "por",
+     "eng"
+    ],
+    "ocr_installed": true,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "ocr/": "dir",
+   "ocr/ocr-runtime.json": {
+    "version": "tesseract 5.5.3"
+   },
+   "ocr/tessdata/": "dir",
+   "ocr/tesseract.exe": {
+    "bytes": 88,
+    "sha256": "b2f530b810fe5800d16824e9999c9fd543454bc71a6f2f8e757ef9d23ef849f4"
+   }
+  },
+  "doctor_recebeu": [
+   [
+    "<TMP>/managed/releases/o1/ocr/tesseract.exe",
+    "<TMP>/managed/releases/o1/ocr/tessdata"
+   ]
+  ],
+  "fixture_padrao_core": {
+   "erro": null,
+   "gates": {
+    "doctor": true,
+    "fixture": true,
+    "revocation": "offline"
+   },
+   "stderr": null
+  },
+  "ocr_ativo_windows": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "lock",
+     "tesseract": "<TMP>/managed/releases/o1/ocr/tesseract.exe",
+     "version": "5.5.3"
+    },
+    "ocr_installed": true,
+    "platform": "win32",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "o1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  }
+ },
+ "i_uninstall_windows_com_release_em_uso": {
+  "arvore_primeira": {
+   "dados/": "dir",
+   "dados/obra.md": {
+    "bytes": 4,
+    "sha256": "1bb2d0a82ece88e6e9e32e1d33b1539afc65ad548ee7f112177f51c0c94fbdb9"
+   },
+   "managed/": "dir",
+   "managed/python/": "dir",
+   "managed/releases/": "dir",
+   "managed/releases/w1/": "dir",
+   "managed/releases/w1/.venv/": "dir",
+   "managed/releases/w1/.venv/Scripts/": "dir",
+   "managed/releases/w1/.venv/Scripts/python.exe": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "managed/releases/w1/.venv/bin/": "dir",
+   "managed/releases/w1/.venv/bin/python": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "managed/state/": "dir",
+   "managed/state/pending-uninstall.json": {
+    "data_roots": [
+     "<TMP>/w/dados"
+    ],
+    "release_ids": [
+     "w1",
+     "python"
+    ]
+   }
+  },
+  "arvore_segunda": {
+   "dados/": "dir",
+   "dados/obra.md": {
+    "bytes": 4,
+    "sha256": "1bb2d0a82ece88e6e9e32e1d33b1539afc65ad548ee7f112177f51c0c94fbdb9"
+   }
+  },
+  "primeira": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/w/dados",
+    "deferred_until_process_exit": false,
+    "keep_data": false,
+    "message": "Remocao da release em uso adiada ate a proxima execucao",
+    "removed_shortcuts": [],
+    "root": "<TMP>/w/managed",
+    "status": "uninstall_pending"
+   }
+  },
+  "segunda_pela_pendencia": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/w/dados",
+    "deferred_until_process_exit": false,
+    "keep_data": false,
+    "message": "Instalacao removida",
+    "removed_shortcuts": [],
+    "root": "<TMP>/w/managed",
+    "status": "uninstalled"
+   }
+  }
  }
 }

@@ -53,8 +53,12 @@ class Normalizador:
         self.arch = host.machine()
 
     def texto(self, s: str) -> str:
-        # Barras invertidas em sequência (inclusive o escape dobrado do Exec de .desktop) viram uma barra.
-        s = re.sub(r"\\+", "/", s)
+        # Só o separador de caminho é normalizado: cada barra invertida vira uma barra, sem colapsar sequências
+        # (escapes de comando continuam distinguíveis; o Exec de .desktop é desfeito antes, em `desktop`).
+        for velho, novo in self.trocas:
+            for v in (velho, velho.replace("\\", "/")):
+                s = s.replace(v, novo)
+        s = s.replace("\\", "/")
         for velho, novo in self.trocas:
             s = s.replace(velho.replace("\\", "/"), novo)
         s = re.sub(r"<SYSTMP>/traslado-ocr-cache-[^\s\"',]+", "<CACHE-TEMP>", s)
@@ -106,11 +110,43 @@ def arvore(n: Normalizador, raiz: Path) -> dict:
                 out[rel] = n.valor(json.loads(p.read_text(encoding="utf-8-sig")))
             except ValueError:
                 out[rel] = {"bytes": p.stat().st_size}
-        elif p.suffix in {".desktop", ".txt", ".sh", ".ps1"}:
+        elif p.suffix == ".desktop":
+            out[rel] = desktop(n, p.read_text(encoding="utf-8"))
+        elif p.suffix in {".txt", ".sh", ".ps1"}:
             out[rel] = n.texto(p.read_text(encoding="utf-8", errors="replace"))
         else:
-            out[rel] = {"bytes": p.stat().st_size}
+            out[rel] = {"bytes": p.stat().st_size, "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
     return out
+
+
+def desfazer_exec(valor: str) -> str:
+    """Inverso de platform._desktop_exec: primeiro o escape geral do Desktop Entry, depois o do Exec."""
+    geral, i = [], 0
+    while i < len(valor):
+        if valor[i] == "\\" and i + 1 < len(valor):
+            geral.append({"\\": "\\", "s": " ", "n": "\n", "t": "\t", "r": "\r"}.get(valor[i + 1], "\\" + valor[i + 1]))
+            i += 2
+        else:
+            geral.append(valor[i])
+            i += 1
+    texto, out, i = "".join(geral), [], 0
+    while i < len(texto):
+        if texto[i] == "\\" and i + 1 < len(texto) and texto[i + 1] in '\\"`$':
+            out.append(texto[i + 1])
+            i += 2
+        else:
+            out.append(texto[i])
+            i += 1
+    return "".join(out).replace("%%", "%")
+
+
+def desktop(n: Normalizador, texto: str) -> list:
+    """Linhas do .desktop; a linha Exec é registrada com o alvo já sem escapes (o escape varia com o SO)."""
+    linhas = []
+    for linha in texto.splitlines():
+        m = re.fullmatch(r'Exec="((?:[^"\\]|\\.)*)"(.*)', linha)
+        linhas.append(["Exec", n.texto(desfazer_exec(m.group(1))), m.group(2)] if m else n.texto(linha))
+    return linhas
 
 
 def chamar(n: Normalizador, func, *args, **kwargs) -> dict:
@@ -820,3 +856,126 @@ def g_update_online(tmp, n):
 @cenario
 def h_superficie(tmp, n):
     return {"nomes": sorted(k for k in vars(lifecycle) if not k.startswith("__"))}
+
+
+# ---------------------------------------------------------------- I. cenários da revisão do Codex (E1, tentativa 2)
+
+def no_modulo_definidor(nome: str, **kw):
+    """Substitui `nome` no módulo que o define (o próprio lifecycle antes da decomposição; o submódulo depois)."""
+    return mock.patch.object(sys.modules[getattr(lifecycle, nome).__module__], nome, **kw)
+
+
+@cenario
+def i_setup_gate_padrao_e_ocr_ativo(tmp, n):
+    r = {}
+    # Gate de fixture padrão (run_fixture_gate real), perfil Core: converte a fixture DOCX ou, sem python-docx, a TXT.
+    res = _setup(n, tmp, release_id="g1", profile="Core", fixture_fn=None)
+    r["fixture_padrao_core"] = {"gates": res.get("retorno", {}).get("gates"), "erro": res.get("erro"),
+                                "stderr": res.get("stderr")}
+    # OCR ativo pelo setup_release (Windows, OCR já presente na release: sem subprocesso).
+    rel = tmp / "managed" / "releases" / "o1"
+    (rel / "ocr" / "tessdata").mkdir(parents=True)
+    (rel / "ocr" / "tesseract.exe").write_bytes(pe(0x8664))
+    gravar(rel / "ocr" / "ocr-runtime.json", {"version": "tesseract 5.5.3"})
+    vistos = []
+
+    def doctor(tess, tessdata):
+        vistos.append([n.texto(str(tess)), n.texto(str(tessdata))])
+        return doctor_ok()
+    env = {"HOME": str(tmp / "home"), "PROCESSOR_ARCHITECTURE": "AMD64"}
+    r["ocr_ativo_windows"] = _setup(n, tmp, release_id="o1", platform_name="win32", env=env, skip_ocr=False,
+                                    doctor_fn=doctor, languages="por,eng")
+    r["doctor_recebeu"] = vistos
+    r["arvore_o1"] = arvore(n, rel)
+    return r
+
+
+@cenario
+def i_uninstall_windows_com_release_em_uso(tmp, n):
+    r = {}
+    m = _instalacao(tmp / "w", tmp / "w" / "dados", rid="w1", platform="win32")
+    release_falsa(m, "w2")
+    em_uso = {"w1"}
+    proibido = AssertionError("remoção diferida real não pode ser lançada neste cenário")
+    with no_modulo_definidor("release_in_use", side_effect=lambda p: Path(p).name in em_uso), \
+         mock.patch.object(subprocess, "Popen", side_effect=proibido):
+        r["primeira"] = _uninstall(n, tmp, m, platform_name="win32", applications_dir=None, icons_dir=None,
+                                   desktop_dir=tmp / "wd", start_menu_dir=tmp / "wm")
+        r["arvore_primeira"] = arvore(n, tmp / "w")
+        em_uso.clear()
+        r["segunda_pela_pendencia"] = _uninstall(n, tmp, m, platform_name="win32", applications_dir=None,
+                                                 icons_dir=None, desktop_dir=tmp / "wd", start_menu_dir=tmp / "wm")
+        r["arvore_segunda"] = arvore(n, tmp / "w")
+    # Fora daqui: só o runtime em uso. Com os.name == "nt", isso é "preso só por este processo" e dispara a
+    # remoção diferida real; o resultado depende do SO hospedeiro (a remoção diferida tem cenário próprio).
+    return r
+
+
+@cenario
+def i_remocao_diferida(tmp, n):
+    r = {}
+    m = tmp / "managed"
+    rel = release_falsa(m, "d1")
+    dados = tmp / "dados"
+    dados.mkdir()
+    lancados = []
+
+    def popen(argv, **kw):
+        env = kw.get("env") or {}
+        lancados.append({"argv0": Path(argv[0]).name.lower(), "argv": argv[1:-1],
+                         "env": n.valor({k: v for k, v in env.items() if k.startswith("TRASLADO_REMOVE_") and k != "TRASLADO_REMOVE_PID"}),
+                         "pid_e_o_proprio": env.get("TRASLADO_REMOVE_PID") == str(os.getpid()),
+                         "kw": sorted(kw)})
+        return mock.Mock()
+    with mock.patch.object(subprocess, "Popen", side_effect=popen):
+        r["ok"] = chamar(n, lifecycle._defer_self_removal, m, [rel, m / "python"], [dados])
+        r["fora_da_raiz"] = chamar(n, lifecycle._defer_self_removal, m, [tmp / "outro"], [dados])
+        r["a_propria_raiz"] = chamar(n, lifecycle._defer_self_removal, m, [m], [dados])
+        r["contem_preservado"] = chamar(n, lifecycle._defer_self_removal, m, [m], [m / "dados"])
+        r["vazio"] = chamar(n, lifecycle._defer_self_removal, m, [], [dados])
+    r["lancados"] = lancados
+    return r
+
+
+@cenario
+def i_lock_ocupado_e_falha_de_exclusao(tmp, n):
+    r = {}
+    m = tmp / "managed"
+    for rid in ("x1", "x2", "atual"):
+        release_falsa(m, rid)
+    gravar(m / "current.json", manifesto(m, "atual"))
+    (m / "state").mkdir(parents=True, exist_ok=True)
+    (m / "state" / "promote.lock").write_text("123\n", encoding="utf-8")
+    r["lock_ocupado"] = chamar(n, lifecycle.remove_unreferenced_release, m, m / "releases" / "x1")
+    (m / "state" / "promote.lock").unlink()
+    with mock.patch.object(shutil, "rmtree", side_effect=OSError("arquivo preso")):
+        r["exclusao_falha"] = chamar(n, lifecycle.remove_unreferenced_release, m, m / "releases" / "x2")
+    r["arvore"] = arvore(n, m)
+    r["poda_dos_pendentes"] = chamar(n, lifecycle.prune_releases, m, pending_only=True)
+    r["arvore_final"] = sorted(arvore(n, m))
+    return r
+
+
+@cenario
+def i_ligacoes_internas_do_setup(tmp, n):
+    """Argumentos com que setup_release chama os gates e o tratamento do legado (espiões no módulo definidor)."""
+    r, chamadas = {}, []
+    rel = tmp / "managed" / "releases" / "l1"
+    (rel / "ocr" / "tessdata").mkdir(parents=True)
+    (rel / "ocr" / "tesseract.exe").write_bytes(pe(0x8664))
+
+    def espiao(nome, retorno):
+        def f(*a, **kw):
+            chamadas.append([nome, n.valor(list(a)), n.valor({k: v for k, v in kw.items() if k != "now"})])
+            return retorno
+        return f
+    env = {"HOME": str(tmp / "home"), "PROCESSOR_ARCHITECTURE": "AMD64",
+           "TRASLADO_SHORTCUT_DESKTOP_DIR": str(tmp / "desk"), "TRASLADO_SHORTCUT_START_MENU_DIR": str(tmp / "menu")}
+    with no_modulo_definidor("run_fixture_gate", side_effect=espiao("run_fixture_gate", True)), \
+         no_modulo_definidor("handle_legacy_windows", side_effect=espiao("handle_legacy_windows", [])), \
+         no_modulo_definidor("evaluate_doctor_gate", side_effect=espiao("evaluate_doctor_gate", True)), \
+         no_modulo_definidor("validate_bootstrap_digests", side_effect=espiao("validate_bootstrap_digests", {"d": "x"})):
+        r["promove"] = _setup(n, tmp, release_id="l1", platform_name="win32", env=env, skip_ocr=False, fixture_fn=None,
+                              promote=True, languages="por", revocation_fn=lambda *a, **k: {"status": "ok"})
+    r["chamadas"] = chamadas
+    return r

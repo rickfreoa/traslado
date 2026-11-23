@@ -34,11 +34,18 @@ class AtalhoDesktopRedirecionado(unittest.TestCase):
         self.redirecionado = base / "OneDrive" / "Área de Trabalho"
         self.menu = base / "Roaming" / "Programs"
         self.pastas = {PROFILE: self.perfil, DESKTOP: self.redirecionado, PROGRAMS: self.menu}
+        self.consultas = []
         # Simula Windows só dentro de traslado.platform: _locations compara `platform == sys.platform == 'win32'`.
         for alvo in (mock.patch.object(plat, "sys", types.SimpleNamespace(platform="win32")),
-                     mock.patch.object(plat, "_windows_known_folder", side_effect=lambda fid: self.pastas.get(fid))):
+                     mock.patch.object(plat, "_windows_known_folder", side_effect=self._consulta)):
             alvo.start()
             self.addCleanup(alvo.stop)
+
+    def _consulta(self, fid):
+        self.consultas.append(fid)
+        return self.pastas.get(fid)
+
+    consultas: list
 
     def test_home_gravado_igual_ao_perfil_real_usa_known_folders(self):
         desk, menu, _, _ = plat._locations("win32", self.perfil, None, None, None, None, injected=True)
@@ -49,6 +56,7 @@ class AtalhoDesktopRedirecionado(unittest.TestCase):
         desk, menu, _, _ = plat._locations("win32", temporario, None, None, None, None, injected=True)
         self.assertEqual(desk, temporario / "Desktop")
         self.assertEqual(menu, temporario / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs")
+        self.assertEqual(self.consultas, [PROFILE])  # só o perfil, para reconhecê-lo; nunca Desktop nem Programs
 
     def test_known_folder_indisponivel_cai_no_home(self):
         self.pastas[DESKTOP] = None
