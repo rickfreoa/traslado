@@ -20,5 +20,7 @@
  "removed-fora-da-fonte.json": "removed_fora_da_fonte",
  "render-comprimento.json": "render_map_comprimento",
  "removed-em-literal.json": "schema",
- "render-sem-source.json": "schema"
+ "render-sem-source.json": "schema",
+ "sem-geometria-com-caixa.json": "pagina_sem_geometria_com_caixa",
+ "geometria-de-pagina-parcial.json": "geometria_de_pagina_parcial"
 }

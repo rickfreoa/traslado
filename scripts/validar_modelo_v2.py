@@ -42,6 +42,13 @@ def invariantes(doc: dict) -> list[tuple[str, str]]:
     erros: list[tuple[str, str]] = []
     blocos, ancoras = {}, {}
     for page in doc.get("pages", []):
+        sem_geo = page.get("width") is None or page.get("height") is None
+        if sem_geo and (page.get("width") is not None or page.get("height") is not None):
+            erros.append(("geometria_de_pagina_parcial", str(page.get("index"))))
+        if sem_geo and any(b.get("bbox") is not None or b.get("fragments")
+                           or any(a.get("bbox") is not None for a in b.get("anchors", []))
+                           for b in page.get("blocks", [])):
+            erros.append(("pagina_sem_geometria_com_caixa", str(page.get("index"))))
         for b in page.get("blocks", []):
             if b["id"] in blocos:
                 erros.append(("block_id_duplicado", b["id"]))

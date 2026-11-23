@@ -1,0 +1,76 @@
+{
+ "schema_version": 2,
+ "source_name": "exemplo-sintetico.docx",
+ "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+ "converter_version": "3.0.0.dev0",
+ "status": "complete",
+ "fidelity": "unverified",
+ "config": {
+  "config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "options": {}
+ },
+ "engines": [
+  {
+   "name": "classic",
+   "version": "3.0.0.dev0",
+   "role": "layout",
+   "models": []
+  }
+ ],
+ "representation": {
+  "markdown_file": "document.md",
+  "markdown_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "offset_unit": "unicode_code_points",
+  "interval": "half_open"
+ },
+ "pages": [
+  {
+   "index": 1,
+   "width": null,
+   "height": null,
+   "rotation": 0,
+   "route": "native",
+   "labels": {
+    "declared": null,
+    "observed": null,
+    "inferred": null,
+    "state": "unknown"
+   },
+   "blocks": [
+    {
+     "id": "b-f9661b553fd7b4b48efe65d97919e84d",
+     "page": 1,
+     "ordinal": 0,
+     "bbox": [
+      72.0,
+      90.0,
+      523.0,
+      120.0
+     ],
+     "coord_system": "pdf_points_top_left",
+     "text": "Parágrafo de documento sem geometria de página.",
+     "role": "unknown",
+     "level": null,
+     "engine": "python-docx",
+     "warnings": []
+    }
+   ],
+   "quality_signals": {},
+   "warnings": []
+  }
+ ],
+ "sections": [],
+ "notes": [],
+ "relations": [],
+ "render_map": [
+  {
+   "char_start": 26,
+   "char_end": 73,
+   "block_id": "b-f9661b553fd7b4b48efe65d97919e84d",
+   "transform": "literal",
+   "source_start": 0,
+   "source_end": 47
+  }
+ ],
+ "warnings": []
+}

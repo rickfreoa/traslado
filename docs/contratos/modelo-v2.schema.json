@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/rickfreoa/traslado/docs/contratos/modelo-v2.schema.json",
   "title": "Traslado - modelo de documento v2 (document.json, schema_version 2)",
-  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Offsets em pontos de codigo Unicode, intervalo semiaberto, sobre o document.md final, quebra de linha LF, sem normalizacao posterior. Emenda D2 de 09/11/2026 (pdf-craft) aplicada em 17/11/2026.",
+  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Offsets em pontos de codigo Unicode, intervalo semiaberto, sobre o document.md final, quebra de linha LF, sem normalizacao posterior. Emenda D2 de 09/11/2026 (pdf-craft) aplicada em 17/11/2026. Emenda tecnica de 23/11/2026 (E0): bbox de bloco e dimensoes de pagina admitem null em fonte sem geometria. Na mesma data: quality_signals.page_image (pagina-imagem no original e previa exportada).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -400,6 +400,23 @@
             "string",
             "null"
           ]
+        },
+        "page_image": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "in_source",
+            "preview_exported"
+          ],
+          "description": "Pagina inteira como imagem no original (scan) e se a previa reduzida foi exportada; alimenta o LEIA-AVISOS da projecao --schema 1.",
+          "properties": {
+            "in_source": {
+              "type": "boolean"
+            },
+            "preview_exported": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },
@@ -424,12 +441,20 @@
           "description": "Indice fisico (folha), a partir de 1."
         },
         "width": {
-          "type": "number",
-          "exclusiveMinimum": 0
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "description": "null so em fonte sem geometria de pagina (DOCX, TXT, XLSX...); width e height nulos juntos, e entao nenhuma caixa na pagina."
         },
         "height": {
-          "type": "number",
-          "exclusiveMinimum": 0
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "description": "null so em fonte sem geometria de pagina (DOCX, TXT, XLSX...); width e height nulos juntos, e entao nenhuma caixa na pagina."
         },
         "rotation": {
           "enum": [
@@ -492,7 +517,15 @@
           "description": "Ordem normalizada de leitura na pagina, contigua a partir de 0."
         },
         "bbox": {
-          "$ref": "#/$defs/bbox"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/bbox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null quando o motor nao observa caixa (fonte sem geometria, previa de pagina escaneada); nunca caixa inventada. Fragmentos e ancoras nao localizadas continuam exigindo caixa."
         },
         "coord_system": {
           "const": "pdf_points_top_left"

@@ -90,6 +90,35 @@ def valido() -> dict:
         "render_map": render, "warnings": []}
 
 
+def sem_geometria() -> dict:
+    """Fonte sem geometria (DOCX): página sem dimensões, bloco sem caixa (emenda técnica de 23/11/2026)."""
+    t = "Parágrafo de documento sem geometria de página."
+    b = bloco("docx-par", 1, 0, t, "unknown", engine="python-docx")
+    b["bbox"] = None
+    return {
+        "schema_version": 2, "source_name": "exemplo-sintetico.docx", "source_sha256": "0" * 64, "converter_version": "3.0.0.dev0",
+        "status": "complete", "fidelity": "unverified",
+        "config": {"config_sha256": "1" * 64, "options": {}},
+        "engines": [{"name": "classic", "version": "3.0.0.dev0", "role": "layout", "models": []}],
+        "representation": {"markdown_file": "document.md", "markdown_sha256": "2" * 64, "offset_unit": "unicode_code_points", "interval": "half_open"},
+        "pages": [{"index": 1, "width": None, "height": None, "rotation": 0, "route": "native",
+                   "labels": {"declared": None, "observed": None, "inferred": None, "state": "unknown"},
+                   "blocks": [b], "quality_signals": {}, "warnings": []}],
+        "sections": [], "notes": [], "relations": [],
+        "render_map": [{"char_start": 26, "char_end": 26 + len(t), "block_id": b["id"], "transform": "literal",
+                        "source_start": 0, "source_end": len(t)}],
+        "warnings": []}
+
+
+def invalidos_sem_geometria(base: dict) -> dict[str, tuple[str, dict]]:
+    a = copy.deepcopy(base)
+    a["pages"][0]["blocks"][0]["bbox"] = [72.0, 90.0, 523.0, 120.0]
+    b = copy.deepcopy(base)
+    b["pages"][0]["width"] = 595
+    return {"sem-geometria-com-caixa": ("pagina_sem_geometria_com_caixa", a),
+            "geometria-de-pagina-parcial": ("geometria_de_pagina_parcial", b)}
+
+
 def blocos(d):
     return {b["id"]: b for p in d["pages"] for b in p["blocks"]}
 
@@ -140,8 +169,10 @@ def main() -> int:
         p.write_text(json.dumps(d, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
 
     escrever(RAIZ / "validos" / "minimo.json", base)
+    sg = sem_geometria()
+    escrever(RAIZ / "validos" / "sem-geometria.json", sg)
     esperado = {}
-    for nome, (codigo, d) in invalidos(base).items():
+    for nome, (codigo, d) in {**invalidos(base), **invalidos_sem_geometria(sg)}.items():
         escrever(RAIZ / "invalidos" / f"{nome}.json", d)
         esperado[f"{nome}.json"] = codigo
     escrever(RAIZ / "esperado.json", esperado)

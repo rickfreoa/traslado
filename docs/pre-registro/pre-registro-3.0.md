@@ -113,3 +113,34 @@ O contrato emendado (`docs/contratos/modelo-v2.schema.json`, `chunks-v2.schema.j
 ### 11.4 Linha de base da E2
 
 A 2.0.2 (16/11/2026) sucede a 2.0.1 em produção. Em 17/11/2026, nas 1.875 obras da Biblioteca convertidas pela série 2.x, `document.md` reconstruído e `chunks.jsonl` foram idênticos entre 2.0.1, 2.0.2 e o publicado; a extração não mudou entre as duas versões. A identidade byte a byte da E2 passa a ser medida contra a 2.0.2, com a amostra C0 rodada de novo pela 2.0.2 antes da primeira candidata.
+
+## 12. Adendo de 23/11/2026, anterior ao congelamento: decisões do titular e fechamento da E0
+
+Fontes: decisões D-M1 a D-M5 do titular (diário, 23/11/2026) e ADR 0001 (adendo de 23/11). Nenhum limiar da §5 muda.
+
+### 12.1 Motor (D-M1) e escaneados (D-M4)
+
+1. Na 3.0.0, `classic` é o motor padrão; `pymupdf2` fica atrás da interface própria, opt-in e rotulado experimental.
+2. A promoção de motor de layout fica **fora dos gates da 3.0.0**. A exigência da §5 de melhora mínima no estrato "duas colunas + notas" para promover o motor fica sem objeto nesta versão. NID, MHS, TEDS e CER do `classic` continuam sob não-regressão por estrato. O `pymupdf2` é medido na E7 só como relatório, sem consumir tentativas de gate. Promoção futura exige nova medição no hardware do titular, com o gate de desempenho da §8 inalterado, e decisão registrada.
+3. Em scan, vale a declaração da §3: página impressa sai `inferred`, nunca `confirmed`, e a ligação de notas fica experimental. Não se gastam tentativas de gate para alcançar o mínimo em scans reais. Scans derivados continuam medidos.
+4. `footnotes`, `pagination`, `structure` e mobiliário são módulos próprios, sem dependência do layout, testados contra C11–C26 antes de qualquer medição em corpus (D-M2).
+
+### 12.2 Emenda técnica do contrato (fonte sem geometria)
+
+A demonstração do §12.3 mostrou que o contrato de 17/11 não representava fontes sem geometria: DOCX, TXT, XLSX e PPTX não têm caixa nem dimensões de página, e a prévia de página escaneada do `classic` não tem caixa. Emendas, sem tocar D1–D6:
+- `block.bbox` admite `null` quando o motor não observa caixa; nunca caixa inventada. Fragmentos e âncoras não localizadas continuam exigindo caixa.
+- `page.width` e `page.height` admitem `null`, juntos, em fonte sem geometria; numa página assim nenhuma caixa é admitida (invariantes `geometria_de_pagina_parcial` e `pagina_sem_geometria_com_caixa`). Consequência: em página sem geometria não cabe âncora não localizada; o tratamento da chamada sem posição segura nessas fontes fica como questão aberta da E3 (no DOCX a chamada é explícita no XML, e o caso deve ser raro).
+- `quality_signals.page_image` = {`in_source`, `preview_exported`}: fato da página que o `LEIA-AVISOS.txt` da projeção exige.
+- Exemplos: 2 válidos (`minimo.json`, `sem-geometria.json`) e 24 inválidos, gerados por `scripts/gerar_exemplos_v2.py`; oráculo `scripts/conferir_exemplos_v2.py`.
+
+### 12.3 Derivabilidade de `--schema 1` (emenda pdf-craft, §3, item 4)
+
+`scripts/derivar_schema1.py` converte pela 2.x, monta o v2 (blocos, `render_map` por alinhamento literal, ids determinísticos), valida estrutura e invariantes, reconstrói o `Document` v1 **só do v2** e projeta de novo. Fixtures públicas: `fixture.pdf` e `fixture.docx` do autodiagnóstico, `fixture-22p.pdf` (teste de viabilidade de 17/11) e `fixture-scan3p.pdf` (as 3 primeiras páginas da anterior, rasterizadas a 200 dpi, rota de OCR). Resultado: `document.md`, `chunks.jsonl`, `document-layout.json` e `LEIA-AVISOS.txt` idênticos nos quatro; o exemplo `minimo.json` projeta de modo determinístico. Hashes no diário.
+Limites: (i) `document.json` v1 não é derivável só do v2 (`page.metrics` exceto o do §12.2, `page.native_text`, `block.details`); a Biblioteca não lê esses campos (varredura de 08/11, `campos-biblioteca.md` §3), e sob `--schema 1` com `classic` o `document.json` continua emitido do `Document` do próprio `classic`; (ii) o `classic` não produz seções, notas, âncoras nem rótulos: a derivabilidade provada é a do subconjunto que o `classic` preenche; (iii) a identidade na amostra congelada continua sendo o gate da E2.
+
+### 12.4 Corpus e ordem da linha de base
+
+1. `docs/pre-registro/corpus-manifesto.json`, gerado por `gerar_corpus_manifesto.py` sobre a Camada B baixada por revisão fixada (opendataloader-bench `7af1d8f`, olmOCR-bench `54a96a6`), lista 1.191 arquivos com camada, fonte, estrato, papel, SHA-256, origem, revisão, licença e divisão. Documentos de teste: duas colunas 160, tabelas 116, cabeçalho corrido 176, escaneado 70, DP-Bench 134.
+2. A Camada A ainda não existe: o gerador de `benchmarks/corpus-a/` e as fixtures C1–C26 nascem na E3, antes de qualquer medição de candidata; seu manifesto entra por adendo datado, com hash no diário, antes dessa medição. É a única parte do §2.5 que não congela junto deste documento.
+3. Com 70 documentos de teste no estrato escaneado da Camada B, o mínimo de 100 páginas escaneadas da §2.4 depende da contagem de páginas e da Camada A; abaixo dele, o estrato não é avaliável (§2.4).
+4. A linha de base do `classic` nas Camadas A e B roda depois do congelamento deste documento e antes da primeira candidata (§10).
