@@ -514,7 +514,9 @@ function Get-Command { [CmdletBinding()]param($Name) if ($Name -ne 'gh') { Micro
                 root = Path(self.tmp.name) / ("remote-"+case)
                 argv = [str(lifecycle.POWERSHELL_WIN), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper), "-Root", str(root), "-Profile", "Core" if case == "requirements-core.hashes.lock" else "Full"]
                 if case == "version": argv += ["-Version", "../escape"]
-                proc = subprocess.run(argv, env=dict(env, API_FAIL="1" if case == "offline" else "0", TRASLADO_PROMOCAO_OFFLINE="rascunho" if case == "test-uv-outside-test" else "teste"), capture_output=True, timeout=30)
+                # Teto por subcaso de 120 s (era 30 s): sob carga, a partida do PowerShell 5.1 estourava o teto sem
+                # regressão (diário, C1); o que se testa é a ordem das verificações, não o tempo.
+                proc = subprocess.run(argv, env=dict(env, API_FAIL="1" if case == "offline" else "0", TRASLADO_PROMOCAO_OFFLINE="rascunho" if case == "test-uv-outside-test" else "teste"), capture_output=True, timeout=120)
                 self.assertNotEqual(proc.returncode, 0, proc.stdout+proc.stderr)
                 self.assertEqual(uvlog.exists(), case == "valid", proc.stdout+proc.stderr)
                 self.assertFalse((root / "current.json").exists())

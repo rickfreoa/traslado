@@ -143,6 +143,35 @@ def _publish(package: Path, target: Path, source: Path, overwrite: bool,
     return None
 
 
+_CODIGOS_MEMORIA_WINDOWS = {0xc0000017, 0xc000009a, 0xc000012d}
+_SINAIS_DE_QUEDA = {-9, -11, -6}
+_SINAIS_DE_MEMORIA_NO_LOG = (b"memoryerror", b"out of memory", b"bad_alloc", b"cannot allocate memory")
+
+
+def _memoria_esgotada(code: int, measurements: dict, diagnostics: bytes | None) -> bool:
+    """Classifica como falta de memória o término anormal do worker (heurística preexistente, fixada na E1).
+
+    Sinais, em ordem: código de término do Windows por cota de memória; texto típico de falta de memória no
+    worker.log (só lido quando o worker não gravou erro estruturado; `diagnostics` já em minúsculas); e, para
+    SIGKILL, SIGSEGV ou SIGABRT, a medição de `run_bounded`: estouro detectado pelo monitor ou, sob RLIMIT_AS
+    (Linux), pico de RSS ≥ 90% do limite.
+
+    Limites conhecidos (revisão do Cursor na C1; questão aberta da 3.0, sem mudança na E1): (i) uma queda nativa
+    por outra causa com RSS alto sob RLIMIT_AS sai como `resource_limit`; (ii) RLIMIT_AS limita endereço
+    virtual, e o pico medido é RSS amostrado a cada 0,25 s, de modo que esgotamento real pode ficar abaixo de
+    90% e sair como erro interno; (iii) num retorno normal de `run_bounded`, `detected_after_s` é sempre
+    nulo (estouro monitorado e tempo limite saem por exceção), então esse ramo é defensivo.
+    """
+    exhausted = (code & 0xffffffff) in _CODIGOS_MEMORIA_WINDOWS
+    if diagnostics is not None:
+        exhausted |= any(token in diagnostics for token in _SINAIS_DE_MEMORIA_NO_LOG)
+    if code in _SINAIS_DE_QUEDA:
+        exhausted |= (measurements.get("detected_after_s") is not None or
+                      (measurements.get("rlimit_applied", False) and
+                       measurements.get("peak_bytes", 0) >= .9 * measurements.get("limit_bytes", float("inf"))))
+    return exhausted
+
+
 def execute(source: Path, output_root: Path, options: Options | None = None,
             cancel: Callable[[], bool] | None = None,
             progress: Callable[[dict], None] | None = None) -> dict:
@@ -265,17 +294,11 @@ def execute(source: Path, output_root: Path, options: Options | None = None,
             if not error.is_file():
                 error = package / "error.json"
             # A process killed at its memory quota may not be able to write JSON.
-            exhausted = (code & 0xffffffff) in {0xc0000017, 0xc000009a, 0xc000012d}
+            diagnostics = None
             if not error.is_file() and (private / "worker.log").is_file():
                 with (private / "worker.log").open("rb") as log:
                     diagnostics = log.read(4 * 1024 * 1024).lower()
-                    exhausted |= any(token in diagnostics for token in (
-                        b"memoryerror", b"out of memory", b"bad_alloc", b"cannot allocate memory"))
-            if code in {-9, -11, -6}:
-                exhausted |= (measurements.get("detected_after_s") is not None or
-                              (measurements.get("rlimit_applied", False) and
-                               measurements.get("peak_bytes", 0) >= .9 * measurements.get("limit_bytes", float("inf"))))
-            if exhausted:
+            if _memoria_esgotada(code, measurements, diagnostics):
                 raise ConversionError('resource_limit', "Processo de extração excedeu limite de memória")
             info = json.loads(error.read_text(encoding="utf-8")) if error.is_file() else {
                 "error": "Processo de extração falhou", "code": "internal"}
