@@ -13,6 +13,7 @@ Regras, para que a caracterização valha igualmente antes e depois da decomposi
 """
 from __future__ import annotations
 
+import base64
 import contextlib
 import hashlib
 import io
@@ -404,7 +405,17 @@ def c_setup_ocr_sem_ocr(tmp, n):
             "bootstrap_empacotado": n.texto(str(lifecycle._find_bootstrap_ps1(rel, tmp))).rsplit("/", 2)[-2:]}
 
 
+def windows_x64(func):
+    """Simula Windows x64 nativo no módulo definidor de _get_windows_native_machine (independe do hospedeiro)."""
+    def envolto(tmp, n):
+        with no_modulo_definidor("_get_windows_native_machine", return_value=0x8664):
+            return func(tmp, n)
+    envolto.__name__ = func.__name__
+    return envolto
+
+
 @cenario
+@windows_x64
 def c_setup_ocr_windows(tmp, n):
     r = {}
     root, rel = tmp / "managed", tmp / "managed/releases/r1"
@@ -883,8 +894,9 @@ def i_setup_gate_padrao_e_ocr_ativo(tmp, n):
         vistos.append([n.texto(str(tess)), n.texto(str(tessdata))])
         return doctor_ok()
     env = {"HOME": str(tmp / "home"), "PROCESSOR_ARCHITECTURE": "AMD64"}
-    r["ocr_ativo_windows"] = _setup(n, tmp, release_id="o1", platform_name="win32", env=env, skip_ocr=False,
-                                    doctor_fn=doctor, languages="por,eng")
+    with no_modulo_definidor("_get_windows_native_machine", return_value=0x8664):
+        r["ocr_ativo_windows"] = _setup(n, tmp, release_id="o1", platform_name="win32", env=env, skip_ocr=False,
+                                        doctor_fn=doctor, languages="por,eng")
     r["doctor_recebeu"] = vistos
     r["arvore_o1"] = arvore(n, rel)
     return r
@@ -923,6 +935,9 @@ def i_remocao_diferida(tmp, n):
     def popen(argv, **kw):
         env = kw.get("env") or {}
         lancados.append({"argv0": Path(argv[0]).name.lower(), "argv": argv[1:-1],
+                         "script": n.texto(base64.b64decode(argv[-1]).decode("utf-16le")),
+                         "sem_janela": kw.get("creationflags") == getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                         "redirecionamentos": {k: (kw.get(k) is subprocess.DEVNULL) for k in ("stdin", "stdout", "stderr")},
                          "env": n.valor({k: v for k, v in env.items() if k.startswith("TRASLADO_REMOVE_") and k != "TRASLADO_REMOVE_PID"}),
                          "pid_e_o_proprio": env.get("TRASLADO_REMOVE_PID") == str(os.getpid()),
                          "kw": sorted(kw)})
@@ -971,7 +986,8 @@ def i_ligacoes_internas_do_setup(tmp, n):
         return f
     env = {"HOME": str(tmp / "home"), "PROCESSOR_ARCHITECTURE": "AMD64",
            "TRASLADO_SHORTCUT_DESKTOP_DIR": str(tmp / "desk"), "TRASLADO_SHORTCUT_START_MENU_DIR": str(tmp / "menu")}
-    with no_modulo_definidor("run_fixture_gate", side_effect=espiao("run_fixture_gate", True)), \
+    with no_modulo_definidor("_get_windows_native_machine", return_value=0x8664), \
+         no_modulo_definidor("run_fixture_gate", side_effect=espiao("run_fixture_gate", True)), \
          no_modulo_definidor("handle_legacy_windows", side_effect=espiao("handle_legacy_windows", [])), \
          no_modulo_definidor("evaluate_doctor_gate", side_effect=espiao("evaluate_doctor_gate", True)), \
          no_modulo_definidor("validate_bootstrap_digests", side_effect=espiao("validate_bootstrap_digests", {"d": "x"})):

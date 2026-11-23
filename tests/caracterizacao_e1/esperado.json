@@ -3636,7 +3636,14 @@
      "stdin",
      "stdout"
     ],
-    "pid_e_o_proprio": true
+    "pid_e_o_proprio": true,
+    "redirecionamentos": {
+     "stderr": true,
+     "stdin": true,
+     "stdout": true
+    },
+    "script": "$ErrorActionPreference='Continue'; $root=[IO.Path]::GetFullPath($env:TRASLADO_REMOVE_ROOT).TrimEnd('/'); if ($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('/')) { exit 2 }; $keep=@($env:TRASLADO_REMOVE_KEEP -split [char]10 | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('/') }); Wait-Process -Id ([int]$env:TRASLADO_REMOVE_PID) -ErrorAction SilentlyContinue; $alvos=@($env:TRASLADO_REMOVE_PATHS -split [char]10 | Where-Object { $_ }); for ($attempt=0; $attempt -lt 30; $attempt++) { $pendente=$false; foreach ($a in $alvos) { $full=[IO.Path]::GetFullPath($a).TrimEnd('/'); if (-not $full.StartsWith($root + '/', [StringComparison]::OrdinalIgnoreCase)) { continue }; if (@($keep | Where-Object { $_.StartsWith($full + '/', [StringComparison]::OrdinalIgnoreCase) -or $_ -ieq $full }).Count) { continue }; if (-not (Test-Path -LiteralPath $full)) { continue }; if ((Get-Item -LiteralPath $full -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }; & $env:ComSpec /d /c rmdir /s /q \"$full\"; if (Test-Path -LiteralPath $full) { $pendente=$true } }; if (-not $pendente) { break }; Start-Sleep -Milliseconds 500 }; Remove-Item -LiteralPath (Join-Path $root 'state/pending-uninstall.json') -Force -ErrorAction SilentlyContinue; foreach ($d in @((Join-Path $root 'state'), (Join-Path $root 'releases'), $root)) { try { [IO.Directory]::Delete($d, $false) } catch { } }; exit 0",
+    "sem_janela": true
    }
   ],
   "ok": {
