@@ -1,6 +1,6 @@
 # Contrato da projeção `--schema 1` (3.x)
 
-Ricardo Peres Freoa | Stocche Forbes Advogados · 8/11/2026 · Congelado na E0 da 3.0.0.
+Ricardo Peres Freoa | Stocche Forbes Advogados · 8/11/2026, revisto em 23/11/2026 · A congelar na E0 da 3.0.0 (hash no diário).
 
 ## 1. Objeto
 
@@ -8,9 +8,11 @@ Ricardo Peres Freoa | Stocche Forbes Advogados · 8/11/2026 · Congelado na E0 d
 
 Em produção, `--schema 1` usa o motor `classic` até a promoção por lote (plano §4.4): o que a Biblioteca recebe só muda obra a obra, sob gate.
 
+`document.md`, `chunks/chunks.jsonl`, `chunks/NNNN.md`, `document-layout.json` e `LEIA-AVISOS.txt` derivam só do modelo v2 (demonstração da E0, pré-registro §12.3). Com o motor `classic`, `document.json` v1 continua emitido do `Document` do próprio `classic`, como na 2.x: `page.metrics`, `page.native_text` e `block.details` não têm representação no v2, e a Biblioteca não os lê. Motor que não produza `Document` v1 emite `document.json` v1 a partir do v2, sem esses campos, e registra a ausência em `schema1-perdas.json`.
+
 ## 2. Critério de identidade (gate da E2)
 
-Sobre o motor `classic`, na amostra congelada: `document.md` **byte a byte idêntico** à 2.0 e `chunks.jsonl` idêntico salvo os campos neutralizados declarados: `document.json.converter_version`, `duration_seconds`, `options.tesseract`, `options.tessdata`; `manifest.json.converter` e os `sha256`/`bytes` decorrentes. Linha de base: `C:\Traslado\wt30\metricas\c0\c0-v200-resumo.json`, 80 obras.
+Sobre o motor `classic`, na amostra congelada: `document.md` **byte a byte idêntico** à 2.0 e `chunks.jsonl` idêntico salvo os campos neutralizados declarados: `document.json.converter_version`, `duration_seconds`, `options.tesseract`, `options.tessdata`; `manifest.json.converter` e os `sha256`/`bytes` decorrentes. Linha de base: a amostra C0 (`C:\Traslado\wt30\metricas\c0\c0-v200-resumo.json`, 80 obras) reconvertida pela 2.0.3 instalada em 23/11/2026 (`C:\Traslado\wt30\metricas\p0\p0-v203-resumo.json`), que sucede a 2.0.2 (pré-registro §11.4); a extração não mudou de 2.0.0 a 2.0.3 nesse caminho, e a reconversão confirma ou desmente isso antes da primeira candidata. Se a 2.0.3 divergir da 2.0.0 na amostra, vale a 2.0.3 (produção), e a divergência vai ao diário com as obras por identificador.
 
 ## 3. Invariantes que a Biblioteca exige (levantados por varredura do código)
 
@@ -34,7 +36,8 @@ Sobre o motor `classic`, na amostra congelada: `document.md` **byte a byte idên
 2. `schema_version: 1` em `chunks.jsonl`, `manifest.json` e `document.json`. Campos v2 não entram.
 3. A cada chunk, verifica `text` × intervalo × `chunk_id`. Divergência é erro de integridade e aborta a conversão, sem saída parcial publicada.
 4. Página impressa não entra no esquema 1: a Biblioteca continua com seu próprio mapa.
-5. Relatório de perdas por documento, `schema1-perdas.json`, fora do pacote da Biblioteca: blocos, seções, relações e rótulos sem representação em v1, contados por tipo. Sem texto de obra.
+5. Relatório de perdas por documento, `schema1-perdas.json`, fora do pacote da Biblioteca: seções, relações, notas, âncoras, `generated`, `removed`, fragmentos, rótulos de página e campos de `document.json` sem representação em v1, contados por tipo. Sem texto de obra.
+6. Bloco com `fragments` (emenda D2): em `chunks[].blocks` e em `document-layout.json`, cada fragmento vira uma entrada própria, com a página e a caixa do fragmento e o intervalo do Markdown obtido do `render_map` (`source_start`/`source_end` × `text_start`/`text_end`); o intervalo de caracteres gerados pela junção fica com o fragmento anterior. O `classic` não emite fragmentos; a regra vale para motor que os emita.
 
 ## 5. Compatibilidade com `biblio-estrutura-1` (r15)
 

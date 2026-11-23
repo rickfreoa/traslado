@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/rickfreoa/traslado/docs/contratos/modelo-v2.schema.json",
   "title": "Traslado - modelo de documento v2 (document.json, schema_version 2)",
-  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Offsets em pontos de codigo Unicode, intervalo semiaberto, sobre o document.md final, quebra de linha LF, sem normalizacao posterior. Emenda D2 de 09/11/2026 (pdf-craft) aplicada em 17/11/2026. Emenda tecnica de 23/11/2026 (E0): bbox de bloco e dimensoes de pagina admitem null em fonte sem geometria. Na mesma data: quality_signals.page_image (pagina-imagem no original e previa exportada).",
+  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Offsets em pontos de codigo Unicode, intervalo semiaberto, sobre o document.md final, quebra de linha LF, sem normalizacao posterior. Emenda D2 de 09/11/2026 (pdf-craft) aplicada em 17/11/2026. Emenda tecnica de 23/11/2026 (E0): bbox de bloco e dimensoes de pagina admitem null em fonte sem geometria. Na mesma data: quality_signals.page_image (pagina-imagem no original e previa exportada). Tentativa 2 do congelamento (23/11/2026): invariantes de rotulos, escaneado (D-M4), notas, render_map e secoes em scripts/validar_modelo_v2.py, que integra o contrato e entra no hash.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -61,7 +61,7 @@
       "properties": {
         "config_sha256": {
           "$ref": "#/$defs/sha256",
-          "description": "SHA-256 do JSON canonico (sort_keys, separadores (',', ':'), UTF-8) de options, sem caminhos absolutos."
+          "description": "SHA-256 do JSON canonico (sort_keys, separadores (',', ':'), UTF-8) de options sem as opcoes operacionais que nao alteram resultado bem-sucedido (job_timeout, ocr_timeout, ocr_workers, advanced_timeout, max_memory_mb, overwrite) e sem caminhos absolutos (tesseract, tessdata)."
         },
         "options": {
           "type": "object"
@@ -328,7 +328,7 @@
             "divergent",
             "unknown"
           ],
-          "description": "confirmed exige o gate da tabela normativa para o estrato; em scan real sem o minimo de casos, nunca confirmed."
+          "description": "confirmed exige o gate da tabela normativa para o estrato e um valor em declared ou observed; inferred exige valor em inferred; divergent exige divergence. Na 3.0.0 (D-M4), pagina escaneada (route 'ocr' ou quality_signals.page_image.in_source) nunca e confirmed."
         },
         "divergence": {
           "type": [
@@ -601,7 +601,7 @@
           "items": {
             "$ref": "#/$defs/fragment"
           },
-          "description": "Todo bloco logico com duas ou mais regioes; proveniencia por fragmento."
+          "description": "Todo bloco logico com duas ou mais regioes; proveniencia por fragmento. Fragmentos em ordem de texto e de pagina; o primeiro esta na pagina do bloco (o bloco transpaginal mora na pagina do primeiro fragmento); so paginas existentes."
         },
         "warnings": {
           "type": "array",
@@ -724,7 +724,7 @@
             "confirmed",
             "candidate"
           ],
-          "description": "Continuidade entre paginas so vira confirmed com evidencia adicional; em scan real sem o minimo de casos a ligacao de notas fica candidate."
+          "description": "Continuidade entre paginas so vira confirmed com evidencia adicional. Na 3.0.0 (D-M4), footnote_link cujo bloco de origem esta em pagina escaneada e sempre candidate."
         },
         "method": {
           "type": "string",

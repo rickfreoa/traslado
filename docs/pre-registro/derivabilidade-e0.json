@@ -1,0 +1,304 @@
+{
+ "titulo": "Derivabilidade de --schema 1 a partir do modelo v2 (E0, 23/11/2026)",
+ "autor": "Ricardo Peres Freoa | Stocche Forbes Advogados",
+ "script": "scripts/derivar_schema1.py",
+ "conversor": "classic 2.0.3 (codigo de release/3.0)",
+ "casos": {
+  "deriv-docx-tabela-imagem": {
+   "modo": "saida",
+   "fonte_sha256": "79efe35b69a37e91aebce8139b81f2e266520da5e3b64a53533c785de45a6b32",
+   "paginas": 1,
+   "blocos": 5,
+   "render_map": 5,
+   "transformacoes": {
+    "image_ref": 1,
+    "literal": 4
+   },
+   "v2_sha256": "1d7fa28acbece2767ef444e5b0fac800aa571b67ee0a9b50ecda823112d44746",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {
+    "block.details": 1
+   },
+   "md_sha256_original": "5db3a3ff890303bbf56efa16b8f6c00aac00bc6fc2a4b018faf4b67cc43803af",
+   "md_sha256_projetado": "5db3a3ff890303bbf56efa16b8f6c00aac00bc6fc2a4b018faf4b67cc43803af",
+   "md_identico": true,
+   "chunks_sha256_original": "ac92ec7976fa6f670e7215f4f70191618ee36cd55dbe196c11f32ce4dd8becf6",
+   "chunks_sha256_projetado": "ac92ec7976fa6f670e7215f4f70191618ee36cd55dbe196c11f32ce4dd8becf6",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "38931000de906389e55d6bf88e0b07b08c73300492499681a1173e0a1456fef2",
+     "projetado": "38931000de906389e55d6bf88e0b07b08c73300492499681a1173e0a1456fef2",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "e5073b310c444cd483a653545ce6c4ba50f3d90010242e9e04dc35ba2b671fe2",
+     "projetado": "e5073b310c444cd483a653545ce6c4ba50f3d90010242e9e04dc35ba2b671fe2",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  },
+  "deriv-pdf-tabela-imagem": {
+   "modo": "saida",
+   "fonte_sha256": "1abdeb860f53e75ded7498d6b76b6437ad29a9d94b1f7ddac389c032ac835362",
+   "paginas": 1,
+   "blocos": 6,
+   "render_map": 7,
+   "transformacoes": {
+    "image_ref": 1,
+    "literal": 5,
+    "table_render": 1
+   },
+   "v2_sha256": "980385e7057ef49ee44e6dc551e6e1ae7fa75c51c17f69f84607c7399da39d9b",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {
+    "block.details": 1,
+    "page.metrics": 1,
+    "page.native_text": 1
+   },
+   "md_sha256_original": "dbf6eb013829be97798d323c82daf608b3b31f1955cbc960a3ca4def61c4e1e9",
+   "md_sha256_projetado": "dbf6eb013829be97798d323c82daf608b3b31f1955cbc960a3ca4def61c4e1e9",
+   "md_identico": true,
+   "chunks_sha256_original": "b920765a7d7cd0684070023635a93701a562559a6ef3a090f5dccd80946f18a5",
+   "chunks_sha256_projetado": "b920765a7d7cd0684070023635a93701a562559a6ef3a090f5dccd80946f18a5",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "27b41b999d4d7d316065fe0d9c033af4f65df59794e9f2aaff06caf6573a34fa",
+     "projetado": "27b41b999d4d7d316065fe0d9c033af4f65df59794e9f2aaff06caf6573a34fa",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "a67715dc84e6d8f2f541d3a0a00db7e70ac1a7337720301224f047acdf1eeb78",
+     "projetado": "a67715dc84e6d8f2f541d3a0a00db7e70ac1a7337720301224f047acdf1eeb78",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  },
+  "deriv-pptx-tabela": {
+   "modo": "saida",
+   "fonte_sha256": "d8d3ae321f0729d7098f03f09167ecf0e1d214246580b444d12664e7a8d93304",
+   "paginas": 1,
+   "blocos": 2,
+   "render_map": 2,
+   "transformacoes": {
+    "literal": 1,
+    "table_render": 1
+   },
+   "v2_sha256": "6048d98ce1d19e032d7f846239f4e2bbd02b90d260cb30cfb2ca18fc37fa1d22",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {},
+   "md_sha256_original": "7c156de068e68fe52885b563d0bec64eb132772fa89d9c60c8dfafff6b4bf76c",
+   "md_sha256_projetado": "7c156de068e68fe52885b563d0bec64eb132772fa89d9c60c8dfafff6b4bf76c",
+   "md_identico": true,
+   "chunks_sha256_original": "3adfe2a8822c797b9a058d7a294dce1fbee3d0ab66360500608ecfcc99bf660e",
+   "chunks_sha256_projetado": "3adfe2a8822c797b9a058d7a294dce1fbee3d0ab66360500608ecfcc99bf660e",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "2ef8b1d00a2c330beed648a9ac524360d6e52f28055f3c1629e0bfcaad8a5d65",
+     "projetado": "2ef8b1d00a2c330beed648a9ac524360d6e52f28055f3c1629e0bfcaad8a5d65",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "61be5f102aefcefefdfaa5debcf3ffaae0d1531d13ce86f7dd424830ffc1d8c6",
+     "projetado": "61be5f102aefcefefdfaa5debcf3ffaae0d1531d13ce86f7dd424830ffc1d8c6",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  },
+  "deriv-xlsx-celulas": {
+   "modo": "saida",
+   "fonte_sha256": "6429ea1559c18e422f880fc10d36aed00cf7c3c85790f64046bf839ab19fa074",
+   "paginas": 1,
+   "blocos": 2,
+   "render_map": 2,
+   "transformacoes": {
+    "literal": 1,
+    "table_render": 1
+   },
+   "v2_sha256": "02fa1c2e5b4f475ad5a720ca1f35ca65c12edf9e4447a263720fd097f6e7b341",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {},
+   "md_sha256_original": "ee140d116fffc035b0cf4f0835ee4c0669b34e068fddbc8cbd607527f20693b9",
+   "md_sha256_projetado": "ee140d116fffc035b0cf4f0835ee4c0669b34e068fddbc8cbd607527f20693b9",
+   "md_identico": true,
+   "chunks_sha256_original": "71c4698bbe6b389101551e50f6181fca92837b5656480ac9a9601021ff2a59d4",
+   "chunks_sha256_projetado": "71c4698bbe6b389101551e50f6181fca92837b5656480ac9a9601021ff2a59d4",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "37a1473a8e5f6c254e8a47f7879b787a95650f10c1d07d36f063b930a63989f9",
+     "projetado": "37a1473a8e5f6c254e8a47f7879b787a95650f10c1d07d36f063b930a63989f9",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "a041ae4e1d455a3bd87a30b757032cf77e86e48261dcddfd5c2a3dbe412e9d6f",
+     "projetado": "a041ae4e1d455a3bd87a30b757032cf77e86e48261dcddfd5c2a3dbe412e9d6f",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  },
+  "exemplo-minimo": {
+   "modo": "exemplo",
+   "v2_valido": true,
+   "md_sha256": "04679336b3fbb3308f35ec9ea4d4e151862aca88ac76bd42836be8760e587bf0",
+   "chunks_sha256": "78862d087cd1e2495d1ce36615d1d6eb0c2172a978cc0f543dcebbb1cc97690c",
+   "deterministico": true,
+   "chunks": 1,
+   "invariantes_falhas": 0,
+   "resultado": "ok"
+  },
+  "fixture-22p": {
+   "modo": "saida",
+   "fonte_sha256": "7dd3819884abcde44216b150e338bc94155a77ae838f9e4916f17cb022ef16d4",
+   "paginas": 22,
+   "blocos": 70,
+   "render_map": 1049,
+   "transformacoes": {
+    "literal": 1049
+   },
+   "v2_sha256": "12b14d49057b9da23560daae435dc5143f3359c5014f55c4825a172a4c26751f",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {
+    "page.metrics": 22,
+    "page.native_text": 22
+   },
+   "md_sha256_original": "de6993cc38744df5da7eb749c95b42b8350fac54800de014becd5afa044bb2be",
+   "md_sha256_projetado": "de6993cc38744df5da7eb749c95b42b8350fac54800de014becd5afa044bb2be",
+   "md_identico": true,
+   "chunks_sha256_original": "6c7ed91cfd018b032d038519ae1c0e474cb520486d7881d7c36ba970c50f9446",
+   "chunks_sha256_projetado": "6c7ed91cfd018b032d038519ae1c0e474cb520486d7881d7c36ba970c50f9446",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "c2d2875390da957a414a1cacbe5f8b1864973b3654dd3256ffdc5cb29dbe99bc",
+     "projetado": "c2d2875390da957a414a1cacbe5f8b1864973b3654dd3256ffdc5cb29dbe99bc",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "abb4211492091fef5d65eae0153d6b1e318690773f7879643cd111b1ed2bdd1b",
+     "projetado": "abb4211492091fef5d65eae0153d6b1e318690773f7879643cd111b1ed2bdd1b",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  },
+  "fixture-docx": {
+   "modo": "saida",
+   "fonte_sha256": "fea79af856d08ad08d85c47b30d105c17ce4750223841760a0e5bc4c5e219a0c",
+   "paginas": 1,
+   "blocos": 1,
+   "render_map": 1,
+   "transformacoes": {
+    "literal": 1
+   },
+   "v2_sha256": "f8ed55beb09b42ecf9d9edd87a8887174aa3055ca6d1e9ce814bdefef7ebaee4",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {},
+   "md_sha256_original": "a172aa2ad8c0cb3be0749e71a12dadfa844a6cd46f90c43434c1a4fbe2e36264",
+   "md_sha256_projetado": "a172aa2ad8c0cb3be0749e71a12dadfa844a6cd46f90c43434c1a4fbe2e36264",
+   "md_identico": true,
+   "chunks_sha256_original": "e3e3e20179b4e89bb6e06650f1dc0dfae48530a6557cad7ad1b126d6b2ab2849",
+   "chunks_sha256_projetado": "e3e3e20179b4e89bb6e06650f1dc0dfae48530a6557cad7ad1b126d6b2ab2849",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "e1b7d4c2dd56109e51a5e314099e1cc253665bf742601fe0ecdb5b0a95f6feb1",
+     "projetado": "e1b7d4c2dd56109e51a5e314099e1cc253665bf742601fe0ecdb5b0a95f6feb1",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "ca85b1ba98c7ac74ec699103cd1176d926831bb51197e744c7d6df5622774c62",
+     "projetado": "ca85b1ba98c7ac74ec699103cd1176d926831bb51197e744c7d6df5622774c62",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  },
+  "fixture-scan3p": {
+   "modo": "saida",
+   "fonte_sha256": "1d1f2dec971f64bc0dcc261d2ae15276a3c687668d58e0b0ad4742472572ce71",
+   "paginas": 3,
+   "blocos": 32,
+   "render_map": 88,
+   "transformacoes": {
+    "literal": 88
+   },
+   "v2_sha256": "9eeb7fd9c05d05ef3edeaa9c5d2a47a209605c91a853916c0d22ad5fa26f1aeb",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {
+    "block.details": 32,
+    "page.metrics": 3,
+    "page.native_text": 3
+   },
+   "md_sha256_original": "c5be782a5804451ce4b62f86cffee08253b45514a7b7f2f69c91ea872246d100",
+   "md_sha256_projetado": "c5be782a5804451ce4b62f86cffee08253b45514a7b7f2f69c91ea872246d100",
+   "md_identico": true,
+   "chunks_sha256_original": "57c416a82c4e87ce50ecc35c2d8166fc86f01ed72005239a07f96c2be01ef7cd",
+   "chunks_sha256_projetado": "57c416a82c4e87ce50ecc35c2d8166fc86f01ed72005239a07f96c2be01ef7cd",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "149205566592cab79308f32d53304296fbb77c7e940853ecedd77f403524df96",
+     "projetado": "149205566592cab79308f32d53304296fbb77c7e940853ecedd77f403524df96",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "9fe2914df2150240b0d4a3c1f67ae215090ad1514af976614475532f50f36b48",
+     "projetado": "9fe2914df2150240b0d4a3c1f67ae215090ad1514af976614475532f50f36b48",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  },
+  "fixture": {
+   "modo": "saida",
+   "fonte_sha256": "d38b23eeadf72bf1fb7dc836d2d5dac6aa7a9d757e24ab3e96d0c4ee149ee368",
+   "paginas": 1,
+   "blocos": 1,
+   "render_map": 1,
+   "transformacoes": {
+    "literal": 1
+   },
+   "v2_sha256": "11629aa2b22e3c36fb0ec8d40a8d578a5d537d50b993c46e389fef897a019711",
+   "v2_valido": true,
+   "render_map_divergencias": 0,
+   "perdas_document_json": {
+    "page.metrics": 1,
+    "page.native_text": 1
+   },
+   "md_sha256_original": "f42433a9575f7430482818e077adf6d06856b6534da3932d526559d19f866f71",
+   "md_sha256_projetado": "f42433a9575f7430482818e077adf6d06856b6534da3932d526559d19f866f71",
+   "md_identico": true,
+   "chunks_sha256_original": "e8a09c849f54e0b1b2c452343b6f82a8f85ed7fdd4775ec63c2be47dcb6127c7",
+   "chunks_sha256_projetado": "e8a09c849f54e0b1b2c452343b6f82a8f85ed7fdd4775ec63c2be47dcb6127c7",
+   "chunks_identico": true,
+   "outros_artefatos": {
+    "LEIA-AVISOS.txt": {
+     "original": "15f1bac39b988b2469a3c9164e57c6efa8c43d6bb17625c3cdda2f02ac80f598",
+     "projetado": "15f1bac39b988b2469a3c9164e57c6efa8c43d6bb17625c3cdda2f02ac80f598",
+     "identico": true
+    },
+    "document-layout.json": {
+     "original": "766d03dbb7910a8664592aa2b7e4fe055d5c03fbe488bb96cc03161272a203e8",
+     "projetado": "766d03dbb7910a8664592aa2b7e4fe055d5c03fbe488bb96cc03161272a203e8",
+     "identico": true
+    }
+   },
+   "resultado": "ok"
+  }
+ },
+ "todos_ok": true
+}

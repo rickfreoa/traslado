@@ -33,7 +33,7 @@
    "labels": {
     "declared": null,
     "observed": "12",
-    "inferred": null,
+    "inferred": "12",
     "state": "inferred",
     "divergence": null
    },

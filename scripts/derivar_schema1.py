@@ -36,6 +36,7 @@ from traslado import chunks as C  # noqa: E402
 import validar_modelo_v2 as V  # noqa: E402
 
 NEUTRAS = ("tesseract", "tessdata")  # caminhos absolutos: fora de config.options (campos neutralizados da C0)
+OPERACIONAIS = ("job_timeout", "ocr_timeout", "ocr_workers", "advanced_timeout", "max_memory_mb", "overwrite")
 REMOVIVEIS = set(" \t\n\r­")
 
 
@@ -113,7 +114,7 @@ def intervalos_bloco(bid: str, base: int, fonte: str, saida: str, perdas: dict) 
 def v1_para_v2(d1: dict, md: str, dims: dict[int, tuple[float, float, int]] | None) -> tuple[dict, dict]:
     perdas: dict[str, int] = {}
     opts = {k: v for k, v in d1["options"].items() if k not in NEUTRAS}
-    cfg = sha(canon(opts))
+    cfg = sha(canon({k: v for k, v in opts.items() if k not in OPERACIONAIS}))
     doc = documento_v1(d1)
     rend = layout(doc)
     if rend.markdown != md:
@@ -209,17 +210,26 @@ def v2_para_documento(v2: dict) -> Document:
                     converter_version=v2["converter_version"], options=dict(v2["config"]["options"]))
 
 
-def projetar(v2: dict, destino: Path, extras: dict | None = None) -> tuple[bytes, bytes | None]:
+def projetar(v2: dict, destino: Path, extras: dict | None = None, forcar_chunks: bool = False) -> tuple[bytes, bytes | None]:
+    destino.mkdir(parents=True, exist_ok=True)
     doc = v2_para_documento(v2)
     rend = layout(doc)
     md = rend.markdown.encode("utf-8")
     if extras is not None:  # mesmos bytes que worker.py grava
-        extras["LEIA-AVISOS.txt"] = review_text(doc).encode("utf-8")
+        aviso = destino / "LEIA-AVISOS.txt"  # mesmo método de gravação do worker (texto, fim de linha da plataforma)
+        destino.mkdir(parents=True, exist_ok=True)
+        aviso.write_text(review_text(doc), encoding="utf-8")
+        extras["LEIA-AVISOS.txt"] = aviso.read_bytes()
         mapa = {"schema_version": 1, "source_sha256": doc.source_sha256, "markdown_file": "document.md",
                 "markdown_sha256": sha(md), "source_blocks_file": "document.json", "offset_unit": "unicode_code_points",
                 "interval": "half_open", "blocks": rend.refs}
         extras["document-layout.json"] = (json.dumps(mapa, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     o = v2["config"]["options"]
+    if forcar_chunks and not o.get("chunks"):
+        from traslado.model import Options
+        base = Options(language="por")
+        o = {"chunks": True, "chunk_size_chars": base.chunk_size_chars, "chunk_overlap_chars": base.chunk_overlap_chars,
+             "max_output_bytes": base.max_output_bytes}
     ck = None
     if o.get("chunks"):
         C.write_chunks(doc, rend.markdown, destino / "chunks", size_chars=o["chunk_size_chars"],
@@ -229,12 +239,29 @@ def projetar(v2: dict, destino: Path, extras: dict | None = None) -> tuple[bytes
     return md, ck
 
 
+def conferir_render_map(v2: dict, md: str) -> int:
+    """Intervalos literais do render_map reproduzem o Markdown a partir de block.text (menos removed)."""
+    blocos = {b["id"]: b for p in v2["pages"] for b in p["blocks"]}
+    ruins = 0
+    for ri in v2["render_map"]:
+        if ri["transform"] not in ("literal", "soft_hyphen_join"):
+            continue
+        texto = blocos[ri["block_id"]]["text"]
+        partes, pos = [], ri["source_start"]
+        for x in ri.get("removed", []):
+            partes.append(texto[pos:x["text_start"]])
+            pos = x["text_end"]
+        partes.append(texto[pos:ri["source_end"]])
+        ruins += md[ri["char_start"]:ri["char_end"]] != "".join(partes)
+    return ruins
+
+
 def conferir_chunks(md: bytes, ck: bytes) -> dict:
     texto = md.decode("utf-8")
     linhas = [json.loads(x) for x in ck.decode("utf-8").splitlines()]
     ruins = 0
     for k, c in enumerate(linhas):
-        ok = (c["index"] == k and type(c["index"]) is int and texto[c["char_start"]:c["char_end"]] == c["text"]
+        ok = (c["index"] == k + 1 and type(c["index"]) is int and texto[c["char_start"]:c["char_end"]] == c["text"]
               and c["chunk_id"] == sha(f"{c['source_sha256']}:{c['markdown_sha256']}:{c['char_start']}:{c['char_end']}".encode())
               and c["markdown_sha256"] == sha(md))
         ruins += not ok
@@ -277,7 +304,7 @@ def main(argv: list[str]) -> int:
             extras: dict = {}
             md1, ck1 = projetar(json.loads(json.dumps(v2)), Path(tmp), extras)
             outros = {n: {"original": sha((a.alvo / n).read_bytes()), "projetado": sha(b),
-                          "identico": (a.alvo / n).read_bytes().replace(b"\r\n", b"\n") == b.replace(b"\r\n", b"\n")}
+                          "identico": (a.alvo / n).read_bytes() == b}
                       for n, b in extras.items() if (a.alvo / n).exists()}
             rel.update({"fonte_sha256": d1["source_sha256"], "paginas": len(v2["pages"]),
                         "blocos": sum(len(p["blocks"]) for p in v2["pages"]),
@@ -285,17 +312,19 @@ def main(argv: list[str]) -> int:
                         "transformacoes": {t: sum(r["transform"] == t for r in v2["render_map"])
                                            for t in sorted({r["transform"] for r in v2["render_map"]})},
                         "v2_sha256": sha(canon(v2)), "v2_valido": not erros, "v2_erros": erros[:20],
+                        "render_map_divergencias": conferir_render_map(v2, md0.decode("utf-8")),
                         "perdas_document_json": perdas,
                         "md_sha256_original": sha(md0), "md_sha256_projetado": sha(md1), "md_identico": md0 == md1,
                         "chunks_sha256_original": sha(ck0) if ck0 else None,
                         "chunks_sha256_projetado": sha(ck1) if ck1 else None,
                         "chunks_identico": ck0 == ck1, "outros_artefatos": outros})
-            ok = (not erros) and md0 == md1 and ck0 == ck1 and not perdas.get("render_inexplicavel")
+            ok = ((not erros) and md0 == md1 and ck0 == ck1 and not perdas.get("render_inexplicavel")
+                  and rel["render_map_divergencias"] == 0 and all(x["identico"] for x in outros.values()))
         else:
             v2 = json.loads(a.alvo.read_text(encoding="utf-8"))
             erros = validar(v2)
-            md1, ck1 = projetar(v2, Path(tmp))
-            md2, ck2 = projetar(v2, Path(tmp) / "b")
+            md1, ck1 = projetar(v2, Path(tmp), forcar_chunks=True)
+            md2, ck2 = projetar(v2, Path(tmp) / "b", forcar_chunks=True)
             rel.update({"v2_valido": not erros, "v2_erros": erros[:20], "md_sha256": sha(md1),
                         "chunks_sha256": sha(ck1) if ck1 else None, "deterministico": md1 == md2 and ck1 == ck2,
                         **(conferir_chunks(md1, ck1) if ck1 else {})})

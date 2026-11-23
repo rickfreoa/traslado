@@ -1,0 +1,16 @@
+{
+ "chunk-footnote-id-inexistente.jsonl": "footnote_id_inexistente",
+ "chunk-footnote-id-malformado.jsonl": "schema",
+ "chunk-context-diverge.jsonl": "context_diverge_do_topo",
+ "chunk-texto-diverge.jsonl": "texto_diverge_do_intervalo",
+ "chunk-id-errado.jsonl": "chunk_id",
+ "chunk-text-sha.jsonl": "text_sha256",
+ "chunk-spans-fora-de-ordem.jsonl": "spans_fora_de_ordem_ou_do_envelope",
+ "chunk-composto-com-char-start.jsonl": "schema",
+ "chunk-embed-sha.jsonl": "embed_sha256",
+ "chunk-indice.jsonl": "indice_ou_total",
+ "chunk-hash-de-origem.jsonl": "hash_de_origem",
+ "chunk-envelope-inexato.jsonl": "envelope_inexato",
+ "chunk-texto-diverge-dos-spans.jsonl": "texto_diverge_dos_spans",
+ "chunk-pagina-impressa-inferida.jsonl": "pagina_impressa_nao_confirmada"
+}

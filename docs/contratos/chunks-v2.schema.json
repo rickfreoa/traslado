@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/rickfreoa/traslado/docs/contratos/chunks-v2.schema.json",
   "title": "Traslado - linha de chunks.jsonl, schema_version 2",
-  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Chunk contiguo mantem todos os campos v1 com mesmo nome e significado. text so contem transcricao; contexto sintetico vai em context e embed_text.",
+  "description": "Contrato congelado na E0 da 3.0.0. Autor: Ricardo Peres Freoa | Stocche Forbes Advogados. Chunk contiguo mantem todos os campos v1 com mesmo nome e significado. text so contem transcricao; contexto sintetico vai em context e embed_text. Invariantes cruzadas (texto x intervalo x hash, spans, ids de nota, paginas impressas confirmadas) em scripts/validar_chunks_v2.py, que integra o contrato e entra no hash.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -43,7 +43,8 @@
     },
     "index": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1,
+      "description": "Posicao da linha, a partir de 1 (identico a v1): linha k tem index k."
     },
     "total": {
       "type": "integer",
@@ -210,14 +211,15 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "description": "So rotulos de pagina com state confirmed (declared ou observed) das paginas do chunk; inferido nunca entra. Igual a context.printed_pages."
     },
     "footnote_ids": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/note_id"
       },
-      "description": "Identificadores de notes[].id do document.json v2."
+      "description": "Identificadores de notes[].id do document.json v2 cujas partes ou chamadas tocam o chunk. Igual a context.footnote_ids."
     }
   },
   "oneOf": [
