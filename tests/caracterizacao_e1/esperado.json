@@ -1,0 +1,3334 @@
+{
+ "a_arquitetura_pe": {
+  "assert:arm64": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: Windows ARM64 nao suportado nesta versao; executavel tesseract e ARM64"
+  },
+  "assert:curto": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: executavel sem cabecalho MZ: <TMP>/curto.exe"
+  },
+  "assert:outra": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: arquitetura de executavel tesseract inesperada (0x1234); requer x64 (0x8664)"
+  },
+  "assert:sem_mz": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: executavel sem cabecalho MZ: <TMP>/sem_mz.exe"
+  },
+  "assert:sem_pe": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: assinatura PE ausente: <TMP>/sem_pe.exe"
+  },
+  "assert:x64": {
+   "retorno": null
+  },
+  "assert:x86": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: executavel tesseract e x86 (32 bits); requer versao x64"
+  },
+  "machine:arm64": {
+   "retorno": 43620
+  },
+  "machine:curto": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: executavel sem cabecalho MZ: <TMP>/curto.exe"
+  },
+  "machine:outra": {
+   "retorno": 4660
+  },
+  "machine:sem_mz": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: executavel sem cabecalho MZ: <TMP>/sem_mz.exe"
+  },
+  "machine:sem_pe": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: assinatura PE ausente: <TMP>/sem_pe.exe"
+  },
+  "machine:x64": {
+   "retorno": 34404
+  },
+  "machine:x86": {
+   "retorno": 332
+  },
+  "plataforma_darwin": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: requer Windows x64"
+  },
+  "plataforma_linux": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: requer Windows x64"
+  }
+ },
+ "a_dica_tesseract_linux": {
+  "alpine:None": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apk add tesseract-ocr"
+  },
+  "alpine:eng": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apk add tesseract-ocr tesseract-ocr-data-eng"
+  },
+  "alpine:por+chi_sim": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apk add tesseract-ocr tesseract-ocr-data-por tesseract-ocr-data-chi_sim"
+  },
+  "arch:None": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo pacman -S tesseract"
+  },
+  "arch:eng": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo pacman -S tesseract tesseract-data-eng"
+  },
+  "arch:por+chi_sim": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo pacman -S tesseract tesseract-data-por tesseract-data-chi_sim"
+  },
+  "ausente": {
+   "retorno": "Instale o pacote do Tesseract OCR pelo gerenciador de pacotes da sua distribuição."
+  },
+  "ausente_langs": {
+   "retorno": "Instale o pacote do Tesseract OCR e os modelos de idioma por, eng pelo gerenciador de pacotes da sua distribuição."
+  },
+  "desconhecida:None": {
+   "retorno": "Instale o pacote do Tesseract OCR pelo gerenciador de pacotes da sua distribuição."
+  },
+  "desconhecida:eng": {
+   "retorno": "Instale o pacote do Tesseract OCR e os modelos de idioma eng pelo gerenciador de pacotes da sua distribuição."
+  },
+  "desconhecida:por+chi_sim": {
+   "retorno": "Instale o pacote do Tesseract OCR e os modelos de idioma por, chi_sim pelo gerenciador de pacotes da sua distribuição."
+  },
+  "fedora:None": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo dnf install tesseract"
+  },
+  "fedora:eng": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo dnf install tesseract tesseract-langpack-eng"
+  },
+  "fedora:por+chi_sim": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo dnf install tesseract tesseract-langpack-por tesseract-langpack-chi_sim"
+  },
+  "mint:None": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apt install tesseract-ocr"
+  },
+  "mint:eng": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apt install tesseract-ocr tesseract-ocr-eng"
+  },
+  "mint:por+chi_sim": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apt install tesseract-ocr tesseract-ocr-por tesseract-ocr-chi-sim"
+  },
+  "opensuse:None": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo zypper install tesseract-ocr"
+  },
+  "opensuse:eng": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo zypper install tesseract-ocr e os modelos de idioma eng"
+  },
+  "opensuse:por+chi_sim": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo zypper install tesseract-ocr e os modelos de idioma por, chi_sim"
+  },
+  "so_like:None": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo dnf install tesseract"
+  },
+  "so_like:eng": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo dnf install tesseract tesseract-langpack-eng"
+  },
+  "so_like:por+chi_sim": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo dnf install tesseract tesseract-langpack-por tesseract-langpack-chi_sim"
+  },
+  "ubuntu:None": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apt install tesseract-ocr"
+  },
+  "ubuntu:eng": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apt install tesseract-ocr tesseract-ocr-eng"
+  },
+  "ubuntu:por+chi_sim": {
+   "retorno": "Para instalar o Tesseract nesta distribuição, execute: sudo apt install tesseract-ocr tesseract-ocr-por tesseract-ocr-chi-sim"
+  }
+ },
+ "a_gates_e_digests": {
+  "digests:hex_invalido": {
+   "erro": "ValueError",
+   "mensagem": "Mapa de digests invalido do bootstrap"
+  },
+  "digests:legacy_falta": {
+   "erro": "ValueError",
+   "mensagem": "Mapa de digests vazio ou incompleto do bootstrap"
+  },
+  "digests:none": {
+   "erro": "ValueError",
+   "mensagem": "Mapa de digests vazio ou incompleto do bootstrap"
+  },
+  "digests:ok": {
+   "retorno": {
+    "requirements-core.hashes.lock": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "requirements-full.hashes.lock": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "traslado-2.0.3-py3-none-any.whl": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  },
+  "digests:ok_core": {
+   "retorno": {
+    "requirements-core.hashes.lock": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "requirements-full.hashes.lock": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "traslado-2.0.3-py3-none-any.whl": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   }
+  },
+  "doctor:idioma_faltando": {
+   "retorno": false
+  },
+  "doctor:idioma_ok": {
+   "retorno": true
+  },
+  "doctor:nao_dict": {
+   "retorno": false
+  },
+  "doctor:ok_full": {
+   "retorno": true
+  },
+  "doctor:ok_full_ocr": {
+   "retorno": true
+  },
+  "doctor:sem_caps": {
+   "retorno": false
+  },
+  "doctor:sem_pptx_core": {
+   "retorno": true
+  },
+  "doctor:sem_pptx_full": {
+   "retorno": false
+  },
+  "shortcut_dirs_env": {
+   "applications_dir": null,
+   "desktop_dir": "<TMP>/d",
+   "icons_dir": null,
+   "start_menu_dir": null
+  },
+  "shortcut_dirs_param": {
+   "applications_dir": null,
+   "desktop_dir": "<TMP>/x",
+   "icons_dir": null,
+   "start_menu_dir": "<TMP>/m"
+  },
+  "shortcut_dirs_vazio": {
+   "applications_dir": null,
+   "desktop_dir": null,
+   "icons_dir": null,
+   "start_menu_dir": null
+  }
+ },
+ "a_validacoes_puras": {
+  "DEFAULT_LANGUAGES": [
+   "por",
+   "eng",
+   "spa",
+   "ita",
+   "fra",
+   "deu"
+  ],
+  "REPOSITORY_URL": "https://github.com/rickfreoa/traslado",
+  "ShortcutError_mro": [
+   "ShortcutError",
+   "RuntimeError",
+   "Exception",
+   "BaseException",
+   "object"
+  ],
+  "_parse_tesseract_version:TESSERACT 5": {
+   "retorno": "5"
+  },
+  "_parse_tesseract_version:nada": {
+   "retorno": null
+  },
+  "_parse_tesseract_version:tesseract 5.5.3\n leptonica": {
+   "retorno": "5.5.3"
+  },
+  "_parse_tesseract_version:tesseract v4.1.1-rc": {
+   "retorno": "4.1.1"
+  },
+  "compute_release_id": {
+   "retorno": "2.0.3_8b0d422fff30f707937774913ba22788"
+  },
+  "compute_release_id_vazio": {
+   "retorno": "3.0.0_7c0a7c914b6d9c564aeada272883ac34"
+  },
+  "normalize_extras:''": {
+   "retorno": []
+  },
+  "normalize_extras:'LEGACY+legacy'": {
+   "retorno": [
+    "legacy"
+   ]
+  },
+  "normalize_extras:'gui'": {
+   "erro": "ValueError",
+   "mensagem": "Extras inválidos: ['gui']; permitido: legacy"
+  },
+  "normalize_extras:'legacy'": {
+   "retorno": [
+    "legacy"
+   ]
+  },
+  "normalize_extras:None": {
+   "retorno": []
+  },
+  "normalize_extras:['legacy']": {
+   "retorno": [
+    "legacy"
+   ]
+  },
+  "normalize_languages:''": {
+   "erro": "ValueError",
+   "mensagem": "Idiomas inválidos; use por, eng, spa, ita, fra, deu sem duplicatas"
+  },
+  "normalize_languages:'POR, eng'": {
+   "retorno": [
+    "por",
+    "eng"
+   ]
+  },
+  "normalize_languages:'por+eng'": {
+   "retorno": [
+    "por",
+    "eng"
+   ]
+  },
+  "normalize_languages:'por,por'": {
+   "erro": "ValueError",
+   "mensagem": "Idiomas inválidos; use por, eng, spa, ita, fra, deu sem duplicatas"
+  },
+  "normalize_languages:'xx'": {
+   "erro": "ValueError",
+   "mensagem": "Idiomas inválidos; use por, eng, spa, ita, fra, deu sem duplicatas"
+  },
+  "normalize_languages:('spa', 'ita')": {
+   "retorno": [
+    "spa",
+    "ita"
+   ]
+  },
+  "normalize_languages:None": {
+   "retorno": [
+    "por",
+    "eng",
+    "spa",
+    "ita",
+    "fra",
+    "deu"
+   ]
+  },
+  "normalize_languages:['por+fra', 'deu']": {
+   "retorno": [
+    "por",
+    "fra",
+    "deu"
+   ]
+  },
+  "validate_version:": {
+   "erro": "ValueError",
+   "mensagem": "Versao invalida"
+  },
+  "validate_version:1.2": {
+   "erro": "ValueError",
+   "mensagem": "Versao invalida"
+  },
+  "validate_version:2.0.0.post1": {
+   "retorno": "2.0.0.post1"
+  },
+  "validate_version:2.0.3": {
+   "retorno": "2.0.3"
+  },
+  "validate_version:3.0.0-rc1": {
+   "retorno": "3.0.0-rc1"
+  },
+  "validate_version:v2.0.0": {
+   "erro": "ValueError",
+   "mensagem": "Versao invalida"
+  }
+ },
+ "b_integridade_e_release_ativa": {
+  "adulterada": {
+   "retorno": false
+  },
+  "bate": {
+   "retorno": true
+  },
+  "bate_online": {
+   "retorno": true
+  },
+  "idiomas_diferentes": {
+   "retorno": false
+  },
+  "integridade": {
+   ".venv/Scripts/python.exe": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   ".venv/bin/python": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "x.txt": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+  },
+  "offline_exige_online": {
+   "retorno": false
+  },
+  "perfil_diferente": {
+   "retorno": false
+  },
+  "python_gerenciado": {
+   "retorno": null
+  },
+  "python_gerenciado_existe": {
+   "retorno": "<TMP>/managed/releases/r1/.venv/bin/python"
+  },
+  "sem_inventario": {
+   "retorno": false
+  }
+ },
+ "b_remocao_e_poda": {
+  "arvore": {
+   "candidate.json": {
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": false,
+     "revocation": "ok"
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "release_id": "c",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {},
+     "enabled": false,
+     "home": null
+    },
+    "version": "2.0.3"
+   },
+   "current.json": {
+    "bytes": 11
+   },
+   "releases/": "dir",
+   "releases/a/": "dir",
+   "releases/a/.venv/": "dir",
+   "releases/a/.venv/Scripts/": "dir",
+   "releases/a/.venv/Scripts/python.exe": {
+    "bytes": 0
+   },
+   "releases/a/.venv/bin/": "dir",
+   "releases/a/.venv/bin/python": {
+    "bytes": 0
+   },
+   "releases/b/": "dir",
+   "releases/b/.venv/": "dir",
+   "releases/b/.venv/Scripts/": "dir",
+   "releases/b/.venv/Scripts/python.exe": {
+    "bytes": 0
+   },
+   "releases/b/.venv/bin/": "dir",
+   "releases/b/.venv/bin/python": {
+    "bytes": 0
+   },
+   "releases/f/": "dir",
+   "releases/f/.venv/": "dir",
+   "releases/f/.venv/Scripts/": "dir",
+   "releases/f/.venv/Scripts/python.exe": {
+    "bytes": 0
+   },
+   "releases/f/.venv/bin/": "dir",
+   "releases/f/.venv/bin/python": {
+    "bytes": 0
+   },
+   "releases/h/": "dir",
+   "releases/h/.venv/": "dir",
+   "releases/h/.venv/Scripts/": "dir",
+   "releases/h/.venv/Scripts/python.exe": {
+    "bytes": 0
+   },
+   "releases/h/.venv/bin/": "dir",
+   "releases/h/.venv/bin/python": {
+    "bytes": 0
+   },
+   "state/": "dir",
+   "state/pending-removals/": "dir"
+  },
+  "arvore_pendentes": [
+   "a/",
+   "a/.venv/",
+   "a/.venv/Scripts/",
+   "a/.venv/Scripts/python.exe",
+   "a/.venv/bin/",
+   "a/.venv/bin/python",
+   "b/",
+   "b/.venv/",
+   "b/.venv/Scripts/",
+   "b/.venv/Scripts/python.exe",
+   "b/.venv/bin/",
+   "b/.venv/bin/python",
+   "f/",
+   "f/.venv/",
+   "f/.venv/Scripts/",
+   "f/.venv/Scripts/python.exe",
+   "f/.venv/bin/",
+   "f/.venv/bin/python",
+   "g/",
+   "g/.venv/",
+   "g/.venv/Scripts/",
+   "g/.venv/Scripts/python.exe",
+   "g/.venv/bin/",
+   "g/.venv/bin/python"
+  ],
+  "candidata_reprovada_por_gate": {
+   "retorno": true
+  },
+  "candidata_reprovada_por_parametro": {
+   "retorno": true
+  },
+  "current_ilegivel": {
+   "retorno": false
+  },
+  "data_root_dentro": {
+   "retorno": false
+  },
+  "fora_de_releases": {
+   "erro": "ValueError",
+   "mensagem": "Caminho de remocao de release recusado"
+  },
+  "poda_pendentes": {
+   "retorno": null
+  },
+  "poda_sem_releases": {
+   "retorno": null
+  },
+  "poda_total": {
+   "retorno": null
+  },
+  "remove:a": {
+   "retorno": false
+  },
+  "remove:b": {
+   "retorno": false
+  },
+  "remove:c": {
+   "retorno": false
+  },
+  "remove:d": {
+   "retorno": true
+  }
+ },
+ "c_purga_7zip": {
+  "arvore": {
+   "a/": "dir",
+   "a/b/": "dir",
+   "c/": "dir",
+   "manter.exe": {
+    "bytes": 1
+   }
+  }
+ },
+ "c_setup_ocr_sem_ocr": {
+  "bootstrap_empacotado": [
+   "assets",
+   "bootstrap_ocr.ps1"
+  ],
+  "core": {
+   "retorno": {
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "tessdata": null
+   }
+  },
+  "env_skip": {
+   "retorno": {
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "tessdata": null
+   }
+  },
+  "idiomas_invalidos": {
+   "erro": "ValueError",
+   "mensagem": "Idiomas inválidos; use por, eng, spa, ita, fra, deu sem duplicatas"
+  },
+  "lock_empacotado": [
+   "assets",
+   "ocr-assets.lock.json"
+  ],
+  "skip": {
+   "retorno": {
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "tessdata": null
+   }
+  }
+ },
+ "c_setup_ocr_unix": {
+  "darwin_homebrew_sem_rede": {
+   "erro": "OSError",
+   "mensagem": "rede vedada no teste"
+  },
+  "darwin_sem_tesseract": {
+   "retorno": {
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "tessdata": null
+   },
+   "stdout": "OCR indisponível. Para instalar o Tesseract no macOS, execute: brew install tesseract\n"
+  },
+  "linux_com_tesseract_sem_rede": {
+   "erro": "OSError",
+   "mensagem": "rede vedada no teste"
+  },
+  "linux_sem_tesseract": {
+   "retorno": {
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "tessdata": null
+   },
+   "stdout": "OCR indisponível."
+  }
+ },
+ "c_setup_ocr_windows": {
+  "arvore_reaproveita": {
+   "releases/": "dir",
+   "releases/r1/": "dir",
+   "releases/r1/ocr/": "dir",
+   "releases/r1/ocr/ocr-runtime.json": {
+    "version": "tesseract v5.5.9"
+   },
+   "releases/r1/ocr/tessdata/": "dir",
+   "releases/r1/ocr/tesseract.exe": {
+    "bytes": 88
+   },
+   "releases/r1/sub/": "dir"
+  },
+  "bootstrap_cache_do_from_dir": {
+   "retorno": {
+    "ocr": {
+     "origin": "lock",
+     "tesseract": "<TMP>/managed/releases/r1/ocr/tesseract.exe",
+     "version": "5.5.3"
+    },
+    "ocr_installed": true,
+    "tessdata": "<TMP>/managed/releases/r1/ocr/tessdata"
+   }
+  },
+  "bootstrap_cache_por_env": {
+   "retorno": {
+    "ocr": {
+     "origin": "lock",
+     "tesseract": "<TMP>/managed/releases/r1/ocr/tesseract.exe",
+     "version": "5.5.3"
+    },
+    "ocr_installed": true,
+    "tessdata": "<TMP>/managed/releases/r1/ocr/tessdata"
+   }
+  },
+  "bootstrap_falha": {
+   "erro": "RuntimeError",
+   "mensagem": "Falha no bootstrap OCR (código 3): xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxfalha final"
+  },
+  "bootstrap_falha_sem_stderr": {
+   "erro": "RuntimeError",
+   "mensagem": "Falha no bootstrap OCR (código 3)"
+  },
+  "bootstrap_offline_cache_temporario": {
+   "retorno": {
+    "ocr": {
+     "origin": "lock",
+     "tesseract": "<TMP>/managed/releases/r1/ocr/tesseract.exe",
+     "version": "5.5.3"
+    },
+    "ocr_installed": true,
+    "tessdata": "<TMP>/managed/releases/r1/ocr/tessdata"
+   }
+  },
+  "bootstrap_ok": {
+   "retorno": {
+    "ocr": {
+     "origin": "lock",
+     "tesseract": "<TMP>/managed/releases/r1/ocr/tesseract.exe",
+     "version": "5.5.3"
+    },
+    "ocr_installed": true,
+    "tessdata": "<TMP>/managed/releases/r1/ocr/tessdata"
+   }
+  },
+  "chamadas": [
+   [
+    [
+     "powershell.exe",
+     "-NoProfile",
+     "-ExecutionPolicy",
+     "Bypass",
+     "-File",
+     "<PKG>/assets/bootstrap_ocr.ps1",
+     "-Destination",
+     "<TMP>/managed/releases/r1/ocr",
+     "-CacheDirectory",
+     "<TMP>/cache",
+     "-LockPath",
+     "<PKG>/assets/ocr-assets.lock.json",
+     "-Languages",
+     "por,eng"
+    ],
+    [
+     "capture_output",
+     "creationflags"
+    ]
+   ],
+   [
+    [
+     "powershell.exe",
+     "-NoProfile",
+     "-ExecutionPolicy",
+     "Bypass",
+     "-File",
+     "<PKG>/assets/bootstrap_ocr.ps1",
+     "-Destination",
+     "<TMP>/managed/releases/r1/ocr",
+     "-CacheDirectory",
+     "<CACHE-TEMP>",
+     "-LockPath",
+     "<PKG>/assets/ocr-assets.lock.json",
+     "-Languages",
+     "deu",
+     "-Offline"
+    ],
+    [
+     "capture_output",
+     "creationflags"
+    ]
+   ],
+   [
+    [
+     "powershell.exe",
+     "-NoProfile",
+     "-ExecutionPolicy",
+     "Bypass",
+     "-File",
+     "<PKG>/assets/bootstrap_ocr.ps1",
+     "-Destination",
+     "<TMP>/managed/releases/r1/ocr",
+     "-CacheDirectory",
+     "<TMP>/from/ocr-cache",
+     "-LockPath",
+     "<PKG>/assets/ocr-assets.lock.json",
+     "-Languages",
+     "por,eng,spa,ita,fra,deu"
+    ],
+    [
+     "capture_output",
+     "creationflags"
+    ]
+   ],
+   [
+    [
+     "powershell.exe",
+     "-NoProfile",
+     "-ExecutionPolicy",
+     "Bypass",
+     "-File",
+     "<PKG>/assets/bootstrap_ocr.ps1",
+     "-Destination",
+     "<TMP>/managed/releases/r1/ocr",
+     "-CacheDirectory",
+     "<TMP>/envcache",
+     "-LockPath",
+     "<PKG>/assets/ocr-assets.lock.json",
+     "-Languages",
+     "por,eng,spa,ita,fra,deu"
+    ],
+    [
+     "capture_output",
+     "creationflags"
+    ]
+   ],
+   [
+    [
+     "powershell.exe",
+     "-NoProfile",
+     "-ExecutionPolicy",
+     "Bypass",
+     "-File",
+     "<PKG>/assets/bootstrap_ocr.ps1",
+     "-Destination",
+     "<TMP>/managed/releases/r1/ocr",
+     "-CacheDirectory",
+     "<CACHE-TEMP>",
+     "-LockPath",
+     "<PKG>/assets/ocr-assets.lock.json",
+     "-Languages",
+     "por,eng,spa,ita,fra,deu"
+    ],
+    [
+     "capture_output",
+     "creationflags"
+    ]
+   ],
+   [
+    [
+     "powershell.exe",
+     "-NoProfile",
+     "-ExecutionPolicy",
+     "Bypass",
+     "-File",
+     "<PKG>/assets/bootstrap_ocr.ps1",
+     "-Destination",
+     "<TMP>/managed/releases/r1/ocr",
+     "-CacheDirectory",
+     "<CACHE-TEMP>",
+     "-LockPath",
+     "<PKG>/assets/ocr-assets.lock.json",
+     "-Languages",
+     "por,eng,spa,ita,fra,deu"
+    ],
+    [
+     "capture_output",
+     "creationflags"
+    ]
+   ]
+  ],
+  "reaproveita": {
+   "retorno": {
+    "ocr": {
+     "origin": "lock",
+     "tesseract": "<TMP>/managed/releases/r1/ocr/tesseract.exe",
+     "version": "5.5.9"
+    },
+    "ocr_installed": true,
+    "tessdata": "<TMP>/managed/releases/r1/ocr/tessdata"
+   }
+  },
+  "reaproveita_arm64": {
+   "erro": "RuntimeError",
+   "mensagem": "OCR: Windows ARM64 nao suportado nesta versao; executavel tesseract e ARM64"
+  }
+ },
+ "c_tessdata_do_lock": {
+  "acima_do_limite": {
+   "erro": "ValueError",
+   "mensagem": "Tamanho OCR fora do limite: por.traineddata"
+  },
+  "arvore_cache": {
+   "TESSDATA-LICENSE.txt": "lic",
+   "por.traineddata": {
+    "bytes": 10
+   }
+  },
+  "arvore_ok": {
+   "doc/": "dir",
+   "doc/TESSDATA-LICENSE.txt": "lic",
+   "tessdata/": "dir",
+   "tessdata/eng.traineddata": {
+    "bytes": 7
+   },
+   "tessdata/por.traineddata": {
+    "bytes": 10
+   }
+  },
+  "com_cache": {
+   "retorno": "<TMP>/ocr2/tessdata"
+  },
+  "declarado_zero": {
+   "erro": "ValueError",
+   "mensagem": "Tamanho OCR fora do limite: por.traineddata"
+  },
+  "do_cache": {
+   "retorno": "<TMP>/ocr3/tessdata"
+  },
+  "idioma_fora_do_lock": {
+   "erro": "ValueError",
+   "mensagem": "Asset OCR ausente no lock: spa.traineddata"
+  },
+  "ok": {
+   "retorno": "<TMP>/ocr1/tessdata"
+  },
+  "pedidos": [
+   "https://example.invalid/por.traineddata",
+   "https://example.invalid/eng.traineddata",
+   "https://example.invalid/TESSDATA-LICENSE.txt"
+  ],
+  "pedidos_do_cache": [],
+  "sha_divergente": {
+   "erro": "ValueError",
+   "mensagem": "SHA-256 divergente para eng.traineddata: f6065e9349aa98b73e9a41eeffc15334c9203ea622303fdb70d3bbd041ccbead != 5a2bac47182a95b0a18f40ba305b216031e47a28c414ac73088a975048de2a86"
+  },
+  "tamanho_divergente": {
+   "erro": "ValueError",
+   "mensagem": "Tamanho divergente para por.traineddata: 5 != 10"
+  }
+ },
+ "d_gate_de_fixture": {
+  "com_error_code": {
+   "retorno": false,
+   "stderr": "FIXTURE_GATE_FAILED fixture.docx: {'status': 'complete', 'error_code': 'x', 'error': None, 'warning_summary': None}\n"
+  },
+  "core_ok": {
+   "retorno": true
+  },
+  "excecao": {
+   "retorno": false,
+   "stderr": "FIXTURE_GATE_FAILED fixture.docx: RuntimeError: quebrou\n"
+  },
+  "full_chunks_ausentes": {
+   "retorno": false,
+   "stderr": "FIXTURE_GATE_FAILED fixture.docx: arquivos ausentes ['chunks/chunks.jsonl']\n"
+  },
+  "full_chunks_ok": {
+   "retorno": true
+  },
+  "full_ok": {
+   "retorno": true
+  },
+  "nao_dict": {
+   "retorno": false,
+   "stderr": "FIXTURE_GATE_FAILED fixture.docx: None\n"
+  },
+  "status_falho": {
+   "retorno": false,
+   "stderr": "FIXTURE_GATE_FAILED fixture.docx: {'status': 'failed', 'error_code': 'x', 'error': 'e', 'warning_summary': None}\n"
+  },
+  "vistos_full": [
+   [
+    "fixture.docx",
+    "native",
+    false,
+    "T",
+    "D"
+   ],
+   [
+    "fixture.pdf",
+    "native",
+    false,
+    "T",
+    "D"
+   ]
+  ]
+ },
+ "d_legado_windows": {
+  "arvore": {
+   "Desktop/": "dir",
+   "Desktop/Outro.lnk": {
+    "bytes": 3
+   },
+   "Local/": "dir",
+   "Local/Freoa/": "dir",
+   "Local/Freoa/MarkdownConverter/": "dir",
+   "Local/Freoa/MarkdownConverter/current.json": {
+    "product": "freoa-md-converter",
+    "release_id": "1.9.0_abc"
+   },
+   "Local/Freoa/MarkdownConverter/superseded-by-traslado.json": {
+    "date": "2026-11-23T12:00:00Z",
+    "legacy_release_id": "1.9.0_abc",
+    "new_root": "<TMP>/Local/Traslado",
+    "product": "traslado",
+    "removed_shortcuts": [
+     "<TMP>/Desktop/Freoa Markdown Converter.lnk",
+     "<TMP>/Programs/Freoa Markdown Converter.lnk"
+    ],
+    "schema": "traslado-superseded-1",
+    "superseded_at": "2026-11-23T12:00:00Z",
+    "version": "9.9.9"
+   },
+   "Programs/": "dir",
+   "Programs/Outro.lnk": {
+    "bytes": 3
+   },
+   "outro-legado/": "dir",
+   "outro-legado/current.json": {
+    "product": "freoa-md-converter",
+    "release_id": "1.8"
+   },
+   "outro-legado/superseded-by-traslado.json": {
+    "date": "2026-11-23T12:00:00Z",
+    "legacy_release_id": "1.8",
+    "new_root": "<TMP>/Local/Traslado",
+    "product": "traslado",
+    "removed_shortcuts": [],
+    "schema": "traslado-superseded-1",
+    "superseded_at": "2026-11-23T12:00:00Z",
+    "version": "2.0.3"
+   }
+  },
+  "legado_padrao": {
+   "retorno": [
+    {
+     "marker": {
+      "date": "2026-11-23T12:00:00Z",
+      "legacy_release_id": "1.9.0_abc",
+      "new_root": "<TMP>/Local/Traslado",
+      "product": "traslado",
+      "removed_shortcuts": [
+       "<TMP>/Desktop/Freoa Markdown Converter.lnk",
+       "<TMP>/Programs/Freoa Markdown Converter.lnk"
+      ],
+      "schema": "traslado-superseded-1",
+      "superseded_at": "2026-11-23T12:00:00Z",
+      "version": "9.9.9"
+     },
+     "root": "<TMP>/Local/Freoa/MarkdownConverter"
+    }
+   ]
+  },
+  "legado_por_env": {
+   "retorno": [
+    {
+     "marker": {
+      "date": "2026-11-23T12:00:00Z",
+      "legacy_release_id": "1.8",
+      "new_root": "<TMP>/Local/Traslado",
+      "product": "traslado",
+      "removed_shortcuts": [],
+      "schema": "traslado-superseded-1",
+      "superseded_at": "2026-11-23T12:00:00Z",
+      "version": "2.0.3"
+     },
+     "root": "<TMP>/outro-legado"
+    }
+   ]
+  },
+  "linux": {
+   "retorno": []
+  },
+  "produto_diferente": {
+   "retorno": []
+  },
+  "sem_legado": {
+   "retorno": []
+  }
+ },
+ "e_setup_candidata_e_promocao": {
+  "arvore_candidata": {
+   "candidate.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "rel-1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "releases/": "dir",
+   "releases/rel-1/": "dir",
+   "releases/rel-1/freoa-runtime.json": {
+    "data_root": "<TMP>/dados",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "ocr_installed": false,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "releases/rel-1/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   }
+  },
+  "arvore_final": {
+   "current.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [
+     "legacy"
+    ],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": "rel-2",
+    "product": "traslado",
+    "profile": "Core",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "rel-3",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "releases/": "dir",
+   "releases/rel-2/": "dir",
+   "releases/rel-2/freoa-runtime.json": {
+    "data_root": "<TMP>/dados",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "ocr_installed": false,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "releases/rel-2/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "releases/rel-2/release-integrity.json": {
+    "chaves": [
+     "freoa-runtime.json",
+     "installation-doctor.json"
+    ]
+   },
+   "releases/rel-3/": "dir",
+   "releases/rel-3/freoa-runtime.json": {
+    "data_root": "<TMP>/dados",
+    "languages": [
+     "por"
+    ],
+    "ocr_installed": false,
+    "profile": "Core",
+    "schema_version": 1
+   },
+   "releases/rel-3/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "releases/rel-3/release-integrity.json": {
+    "chaves": [
+     "freoa-runtime.json",
+     "installation-doctor.json"
+    ]
+   },
+   "state/": "dir",
+   "state/history/": "dir",
+   "state/history/rel-2.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "rel-2",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   }
+  },
+  "arvore_promovida": {
+   "current.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "rel-2",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "releases/": "dir",
+   "releases/rel-2/": "dir",
+   "releases/rel-2/freoa-runtime.json": {
+    "data_root": "<TMP>/dados",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "ocr_installed": false,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "releases/rel-2/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "releases/rel-2/release-integrity.json": {
+    "chaves": [
+     "freoa-runtime.json",
+     "installation-doctor.json"
+    ]
+   },
+   "state/": "dir"
+  },
+  "candidata": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "rel-1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "promove": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "rel-2",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "reconstruir_referenciada": {
+   "erro": "ValueError",
+   "mensagem": "Release referenciada nao pode ser reconstruida; use novo release_id"
+  },
+  "revogacao_chamada": [
+   [
+    "<TMP>/managed",
+    "2.0.3",
+    [
+     "requirements-core.hashes.lock",
+     "requirements-full.hashes.lock",
+     "traslado-2.0.3-py3-none-any.whl"
+    ],
+    "2026-11-23T12:00:00Z"
+   ],
+   [
+    "<TMP>/managed",
+    "2.0.3",
+    [
+     "requirements-core.hashes.lock",
+     "requirements-full.hashes.lock",
+     "requirements-legacy.hashes.lock",
+     "traslado-2.0.3-py3-none-any.whl"
+    ],
+    "2026-11-23T12:00:00Z"
+   ]
+  ],
+  "segunda_promocao": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [
+     "legacy"
+    ],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": "rel-2",
+    "product": "traslado",
+    "profile": "Core",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "rel-3",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  }
+ },
+ "e_setup_gates_reprovados": {
+  "arvore": {
+   "candidate.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": false,
+     "fixture": true,
+     "revocation": "blocked"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Core",
+    "python": "<PY>",
+    "release_id": "f10",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "current.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "offline_reason": "teste",
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "f9",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "releases/": "dir",
+   "releases/f9/": "dir",
+   "releases/f9/freoa-runtime.json": {
+    "data_root": "<TMP>/dados",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "ocr_installed": false,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "releases/f9/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "releases/f9/release-integrity.json": {
+    "chaves": [
+     "freoa-runtime.json",
+     "installation-doctor.json"
+    ]
+   },
+   "state/": "dir"
+  },
+  "digests_incompletos": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: revogação bloqueada (Mapa de digests vazio ou incompleto do bootstrap)",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "doctor_excecao": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: doctor reprovado; revogação bloqueada (sem confirmação dos dois canais)",
+   "stderr": "DOCTOR_GATE_FAILED: RuntimeError: doctor caiu\n",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "doctor_reprovado_core": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: doctor reprovado; revogação bloqueada (sem confirmação dos dois canais)",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "fixture_excecao": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": false,
+     "revocation": "blocked"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "f4",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stderr": "FIXTURE_GATE_FAILED: OSError: io\n",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "fixture_reprovada": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: fixture reprovada; revogação bloqueada (sem confirmação dos dois canais)",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "fixture_reprovada_keep": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: fixture reprovada; revogação bloqueada (sem confirmação dos dois canais)",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "offline_sem_env": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: revogação bloqueada (Excecao offline exige TRASLADO_PROMOCAO_OFFLINE=rascunho ou teste)",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "offline_teste": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "offline_reason": "teste",
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "f9",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": null,
+      "icons_dir": null,
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "revogacao_bloqueada": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: revogação bloqueada (sem confirmação dos dois canais)",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "revogacao_excecao": {
+   "erro": "ValueError",
+   "mensagem": "Promoção recusada: revogação bloqueada (canal divergente)",
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  }
+ },
+ "e_setup_raiz_de_dados_e_atalhos": {
+  "arvore_apps": {
+   "traslado.desktop": "[Desktop Entry]\nType=Application\nName=Traslado\nExec=\"<TMP>/sc/releases/s1/.venv/bin/python\" -I -m traslado.gui\nIcon=<TMP>/icons/traslado.png\nTerminal=false\nCategories=Office;\n"
+  },
+  "arvore_icons": [
+   "traslado.png"
+  ],
+  "arvore_sc": {
+   "candidate.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/sc/data",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "s2",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": "<TMP>/apps",
+      "desktop_dir": null,
+      "icons_dir": "<TMP>/icons",
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "current.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/sc/data",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "s1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": "<TMP>/apps",
+      "desktop_dir": null,
+      "icons_dir": "<TMP>/icons",
+      "start_menu_dir": null
+     },
+     "enabled": true,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "data/": "dir",
+   "releases/": "dir",
+   "releases/s1/": "dir",
+   "releases/s1/freoa-runtime.json": {
+    "data_root": "<TMP>/sc/data",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "ocr_installed": false,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "releases/s1/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "releases/s1/release-integrity.json": {
+    "chaves": [
+     "freoa-runtime.json",
+     "installation-doctor.json"
+    ]
+   },
+   "releases/s2/": "dir",
+   "releases/s2/freoa-runtime.json": {
+    "data_root": "<TMP>/sc/data",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "ocr_installed": false,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "releases/s2/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "state/": "dir"
+  },
+  "herda_raiz_do_current": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/sc/data",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "s2",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": "<TMP>/apps",
+      "desktop_dir": null,
+      "icons_dir": "<TMP>/icons",
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "home": [
+   "Documents/",
+   "Documents/Traslado/"
+  ],
+  "promove_com_atalhos": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/sc/data",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "s1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": "<TMP>/apps",
+      "desktop_dir": null,
+      "icons_dir": "<TMP>/icons",
+      "start_menu_dir": null
+     },
+     "enabled": true,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "raiz_custom_managed_data": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/custom/data",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "d2",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": "<TMP>/apps",
+      "desktop_dir": null,
+      "icons_dir": "<TMP>/icons",
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "raiz_padrao_home_documents": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/home/Documents/Traslado",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "d1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": "<TMP>/apps",
+      "desktop_dir": null,
+      "icons_dir": "<TMP>/icons",
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "raiz_por_env": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/envdata",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "offline"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "python": "<PY>",
+    "release_id": "d3",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": "<TMP>/apps",
+      "desktop_dir": null,
+      "icons_dir": "<TMP>/icons",
+      "start_menu_dir": null
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  },
+  "xdg_padrao": [
+   "traslado/",
+   "traslado/candidate.json",
+   "traslado/releases/",
+   "traslado/releases/d1/",
+   "traslado/releases/d1/freoa-runtime.json",
+   "traslado/releases/d1/installation-doctor.json"
+  ]
+ },
+ "e_setup_windows_legado_sem_atalho": {
+  "arvore": {
+   "dados/": "dir",
+   "desk/": "dir",
+   "legado/": "dir",
+   "legado/current.json": {
+    "product": "freoa-md-converter",
+    "release_id": "1.9"
+   },
+   "legado/superseded-by-traslado.json": {
+    "date": "2026-11-23T12:00:00Z",
+    "legacy_release_id": "1.9",
+    "new_root": "<TMP>/managed",
+    "product": "traslado",
+    "removed_shortcuts": [
+     "<TMP>/desk/Freoa Markdown Converter.lnk"
+    ],
+    "schema": "traslado-superseded-1",
+    "superseded_at": "2026-11-23T12:00:00Z",
+    "version": "2.0.3"
+   },
+   "managed/": "dir",
+   "managed/current.json": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "win32",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "w1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": "<TMP>/desk",
+      "icons_dir": null,
+      "start_menu_dir": "<TMP>/menu"
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "managed/releases/": "dir",
+   "managed/releases/w1/": "dir",
+   "managed/releases/w1/freoa-runtime.json": {
+    "data_root": "<TMP>/dados",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "ocr_installed": false,
+    "profile": "Full",
+    "schema_version": 1
+   },
+   "managed/releases/w1/installation-doctor.json": {
+    "capabilities": {
+     "PIL": {
+      "available": true
+     },
+     "docx": {
+      "available": true
+     },
+     "fitz": {
+      "available": true
+     },
+     "openpyxl": {
+      "available": true
+     },
+     "pptx": {
+      "available": true
+     }
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ]
+   },
+   "managed/releases/w1/release-integrity.json": {
+    "chaves": [
+     "freoa-runtime.json",
+     "installation-doctor.json"
+    ]
+   },
+   "managed/state/": "dir"
+  },
+  "promove": {
+   "retorno": {
+    "arch": "<ARCH>",
+    "created_at": "2026-11-23T12:00:00Z",
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "install_id": "<INSTALL-ID>",
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "legacy_module": "freoa_v6",
+    "module": "traslado",
+    "ocr": {
+     "origin": "none",
+     "tesseract": null,
+     "version": null
+    },
+    "ocr_installed": false,
+    "platform": "win32",
+    "previous_release_id": null,
+    "product": "traslado",
+    "profile": "Full",
+    "promoted_at": "2026-11-23T12:00:00Z",
+    "python": "<PY>",
+    "release_id": "w1",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {
+      "applications_dir": null,
+      "desktop_dir": "<TMP>/desk",
+      "icons_dir": null,
+      "start_menu_dir": "<TMP>/menu"
+     },
+     "enabled": false,
+     "home": "<TMP>/home"
+    },
+    "source": {
+     "repository": "https://github.com/rickfreoa/traslado",
+     "tag": "v2.0.3"
+    },
+    "version": "2.0.3"
+   },
+   "stdout": "Licença: AGPL-3.0-or-later | Fonte: https://github.com/rickfreoa/traslado/tree/v2.0.3\n"
+  }
+ },
+ "f_descarte_de_pendencia": {
+  "arvore": {
+   "current.json": {
+    "data_root": "<TMP>/dados",
+    "extras": [],
+    "gates": {
+     "doctor": true,
+     "fixture": true,
+     "revocation": "ok"
+    },
+    "languages": [
+     "por",
+     "eng",
+     "spa",
+     "ita",
+     "fra",
+     "deu"
+    ],
+    "platform": "linux",
+    "product": "traslado",
+    "profile": "Full",
+    "release_id": "ativa",
+    "schema_version": 2,
+    "shortcuts": {
+     "dirs": {},
+     "enabled": false,
+     "home": null
+    },
+    "version": "2.0.3"
+   },
+   "releases/": "dir",
+   "releases/ativa/": "dir",
+   "releases/ativa/.venv/": "dir",
+   "releases/ativa/.venv/Scripts/": "dir",
+   "releases/ativa/.venv/Scripts/python.exe": {
+    "bytes": 0
+   },
+   "releases/ativa/.venv/bin/": "dir",
+   "releases/ativa/.venv/bin/python": {
+    "bytes": 0
+   },
+   "releases/p2/": "dir",
+   "releases/p2/.venv/": "dir",
+   "releases/p2/.venv/Scripts/": "dir",
+   "releases/p2/.venv/Scripts/python.exe": {
+    "bytes": 0
+   },
+   "releases/p2/.venv/bin/": "dir",
+   "releases/p2/.venv/bin/python": {
+    "bytes": 0
+   },
+   "state/": "dir"
+  },
+  "arvore_final": [
+   "current.json",
+   "releases/",
+   "releases/ativa/",
+   "releases/ativa/.venv/",
+   "releases/ativa/.venv/Scripts/",
+   "releases/ativa/.venv/Scripts/python.exe",
+   "releases/ativa/.venv/bin/",
+   "releases/ativa/.venv/bin/python",
+   "releases/p2/",
+   "releases/p2/.venv/",
+   "releases/p2/.venv/Scripts/",
+   "releases/p2/.venv/Scripts/python.exe",
+   "releases/p2/.venv/bin/",
+   "releases/p2/.venv/bin/python",
+   "state/"
+  ],
+  "descarta": {
+   "retorno": null
+  },
+  "marcador_lista": {
+   "retorno": null
+  },
+  "sem_marcador": {
+   "retorno": null
+  }
+ },
+ "f_uninstall": {
+  "arvore_i1": {
+   "dados/": "dir",
+   "dados/obra.md": {
+    "bytes": 4
+   }
+  },
+  "arvore_i2": {
+   "managed/": "dir",
+   "managed/dados/": "dir",
+   "managed/dados/fundo/": "dir",
+   "managed/dados/fundo/obra.md": {
+    "bytes": 4
+   }
+  },
+  "arvore_i3": {
+   "fora/": "dir",
+   "fora/obra.md": {
+    "bytes": 4
+   },
+   "managed/": "dir",
+   "managed/state/": "dir"
+  },
+  "arvore_i4": {},
+  "arvore_i6": {
+   "dados/": "dir",
+   "dados/obra.md": {
+    "bytes": 4
+   }
+  },
+  "arvore_i7": {
+   "dados/": "dir",
+   "dados/obra.md": {
+    "bytes": 4
+   },
+   "outra/": "dir"
+  },
+  "atalhos_restantes": [],
+  "cancelado": {
+   "erro": "ValueError",
+   "mensagem": "Desinstalação cancelada pelo usuário"
+  },
+  "cancelado_eof": {
+   "erro": "ValueError",
+   "mensagem": "Desinstalação cancelada pelo usuário"
+  },
+  "candidata_tambem_preservada": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/i7/dados",
+    "deferred_until_process_exit": false,
+    "keep_data": false,
+    "message": "Instalacao removida",
+    "removed_shortcuts": [],
+    "root": "<TMP>/i7/managed",
+    "status": "uninstalled"
+   }
+  },
+  "confirmado_sim": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/i1/dados",
+    "deferred_until_process_exit": false,
+    "keep_data": false,
+    "message": "Instalacao removida",
+    "removed_shortcuts": [
+     "<TMP>/apps/traslado.desktop",
+     "<TMP>/icons/traslado.png"
+    ],
+    "root": "<TMP>/i1/managed",
+    "status": "uninstalled"
+   }
+  },
+  "dados_ancestrais": {
+   "erro": "ValueError",
+   "mensagem": "Desinstalacao recusada: data_root e ancestral da raiz gerenciada"
+  },
+  "dados_aninhados": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/i2/managed/dados/fundo",
+    "deferred_until_process_exit": false,
+    "keep_data": false,
+    "message": "Instalacao removida",
+    "removed_shortcuts": [],
+    "root": "<TMP>/i2/managed",
+    "status": "uninstalled"
+   }
+  },
+  "keep_data": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/i3/fora",
+    "deferred_until_process_exit": false,
+    "keep_data": true,
+    "message": "Instalacao removida",
+    "removed_shortcuts": [],
+    "root": "<TMP>/i3/managed",
+    "status": "uninstalled"
+   }
+  },
+  "por_pendencia": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/i4/salvo",
+    "deferred_until_process_exit": false,
+    "keep_data": false,
+    "message": "Instalacao removida",
+    "removed_shortcuts": [],
+    "root": "<TMP>/i4/managed",
+    "status": "uninstalled"
+   }
+  },
+  "sem_manifesto": {
+   "erro": "ValueError",
+   "mensagem": "Desinstalacao recusada: current.json e candidate.json ilegiveis ou sem data_root; nao e seguro adivinhar os dados"
+  },
+  "windows_sem_uso": {
+   "retorno": {
+    "data_root_preserved": "<TMP>/i6/dados",
+    "deferred_until_process_exit": false,
+    "keep_data": false,
+    "message": "Instalacao removida",
+    "removed_shortcuts": [],
+    "root": "<TMP>/i6/managed",
+    "status": "uninstalled"
+   }
+  }
+ },
+ "g_update_local": {
+  "atalhos_esquema_1": {
+   "retorno": {
+    "root": "<TMP>/managed",
+    "status": "updated",
+    "version": "2.9.0"
+   }
+  },
+  "chamadas": [
+   [
+    "sh",
+    "<TMP>/dist/install.sh",
+    "--from-dir",
+    "<TMP>/dist",
+    "--version",
+    "2.9.0",
+    "--profile",
+    "core",
+    "--languages",
+    "por,fra",
+    "--root",
+    "<TMP>/managed",
+    "--extras",
+    "legacy",
+    "--no-shortcut",
+    "--yes",
+    "--allow-offline-promotion"
+   ],
+   [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "<TMP>/dist/install.ps1",
+    "-FromDir",
+    "<TMP>/dist",
+    "-Version",
+    "2.9.0",
+    "-Profile",
+    "Core",
+    "-Languages",
+    "por,fra",
+    "-Root",
+    "<TMP>/managed",
+    "-Extras",
+    "legacy",
+    "-NoShortcut",
+    "-Yes",
+    "-AllowOfflinePromotion"
+   ],
+   [
+    "powershell.exe",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    "<TMP>/dist/install.ps1",
+    "-FromDir",
+    "<TMP>/dist",
+    "-Version",
+    "2.9.0",
+    "-Profile",
+    "Full",
+    "-Languages",
+    "por,eng,spa,ita,fra,deu",
+    "-Root",
+    "<TMP>/managed"
+   ],
+   [
+    "sh",
+    "<TMP>/dist/install.sh",
+    "--from-dir",
+    "<TMP>/dist",
+    "--version",
+    "2.9.0",
+    "--profile",
+    "full",
+    "--languages",
+    "por,eng,spa,ita,fra,deu",
+    "--root",
+    "<TMP>/managed"
+   ],
+   [
+    "sh",
+    "<TMP>/dist/install.sh",
+    "--from-dir",
+    "<TMP>/dist",
+    "--version",
+    "2.9.0",
+    "--profile",
+    "full",
+    "--languages",
+    "por,eng,spa,ita,fra,deu",
+    "--root",
+    "<TMP>/managed",
+    "--no-shortcut"
+   ],
+   [
+    "sh",
+    "<TMP>/dist/install.sh",
+    "--from-dir",
+    "<TMP>/dist",
+    "--version",
+    "2.9.0",
+    "--profile",
+    "full",
+    "--languages",
+    "por,eng,spa,ita,fra,deu",
+    "--root",
+    "<TMP>/managed",
+    "--no-shortcut"
+   ],
+   [
+    "sh",
+    "<TMP>/dist/install.sh",
+    "--from-dir",
+    "<TMP>/dist",
+    "--version",
+    "2.9.0",
+    "--profile",
+    "full",
+    "--languages",
+    "por,eng,spa,ita,fra,deu",
+    "--root",
+    "<TMP>/managed",
+    "--no-shortcut"
+   ]
+  ],
+  "dois_wheels": {
+   "erro": "ValueError",
+   "mensagem": "Diretório local deve ter um único wheel: ['2.9.0', '3.0.0']; nada foi alterado"
+  },
+  "hash_adulterado": {
+   "erro": "ValueError",
+   "mensagem": "Hash de install.sh não confere com SHA256SUMS em <TMP>/adult/dist; nada foi alterado"
+  },
+  "instalador_falha": {
+   "erro": "ValueError",
+   "mensagem": "Falha ao executar install.sh para v2.9.0: erro do instalador"
+  },
+  "instalador_falha_stdout": {
+   "erro": "ValueError",
+   "mensagem": "Falha ao executar install.sh para v2.9.0: so stdout"
+  },
+  "ok:linux": {
+   "retorno": {
+    "root": "<TMP>/managed",
+    "status": "updated",
+    "version": "2.9.0"
+   }
+  },
+  "ok:win32": {
+   "retorno": {
+    "root": "<TMP>/managed",
+    "status": "updated",
+    "version": "2.9.0"
+   }
+  },
+  "sem_artefatos": {
+   "erro": "ValueError",
+   "mensagem": "Artefatos obrigatórios (SHA256SUMS, install.ps1) ausentes em <TMP>/nada; nada foi alterado"
+  },
+  "sem_current": {
+   "retorno": {
+    "root": "<TMP>/managed",
+    "status": "updated",
+    "version": "2.9.0"
+   }
+  },
+  "versao_ausente": {
+   "erro": "ValueError",
+   "mensagem": "Wheel da versão solicitada ausente: 3.0.0; nada foi alterado"
+  },
+  "versao_explicita_com_atalhos": {
+   "retorno": {
+    "root": "<TMP>/managed",
+    "status": "updated",
+    "version": "2.9.0"
+   }
+  }
+ },
+ "g_update_online": {
+  "attestation_reprovada": {
+   "erro": "ValueError",
+   "mensagem": "Attestation de install.sh reprovada pelo gh; nada foi alterado"
+  },
+  "chamadas": [
+   {
+    "argv": [
+     "gh-stub",
+     "attestation",
+     "verify",
+     "<UPDATE-TEMP>/install.sh",
+     "--repo",
+     "rickfreoa/traslado",
+     "--signer-workflow",
+     "rickfreoa/traslado/.github/workflows/release.yml",
+     "--source-ref",
+     "refs/tags/v2.9.0"
+    ],
+    "env": {}
+   },
+   {
+    "argv": [
+     "sh",
+     "<UPDATE-TEMP>/install.sh",
+     "--version",
+     "2.9.0",
+     "--root",
+     "<TMP>/managed",
+     "--yes",
+     "--profile",
+     "Core",
+     "--extras",
+     "legacy",
+     "--languages",
+     "por",
+     "--data-root",
+     "<TMP>/dados"
+    ],
+    "env": {
+     "HOME": "<TMP>/h",
+     "TRASLADO_SHORTCUT_DESKTOP_DIR": "<TMP>/desk",
+     "USERPROFILE": "<TMP>/h"
+    }
+   },
+   {
+    "argv": [
+     "gh-stub",
+     "attestation",
+     "verify",
+     "<UPDATE-TEMP>/install.ps1",
+     "--repo",
+     "rickfreoa/traslado",
+     "--signer-workflow",
+     "rickfreoa/traslado/.github/workflows/release.yml",
+     "--source-ref",
+     "refs/tags/v2.9.0"
+    ],
+    "env": {}
+   },
+   {
+    "argv": [
+     "powershell.exe",
+     "-NoProfile",
+     "-ExecutionPolicy",
+     "Bypass",
+     "-File",
+     "<UPDATE-TEMP>/install.ps1",
+     "-Version",
+     "2.9.0",
+     "-Root",
+     "<TMP>/managed",
+     "-Yes",
+     "-Profile",
+     "Core",
+     "-Extras",
+     "legacy",
+     "-Languages",
+     "por",
+     "-DataRoot",
+     "<TMP>/dados"
+    ],
+    "env": {
+     "HOME": "<TMP>/h",
+     "TRASLADO_SHORTCUT_DESKTOP_DIR": "<TMP>/desk",
+     "USERPROFILE": "<TMP>/h"
+    }
+   },
+   {
+    "argv": [
+     "sh",
+     "<UPDATE-TEMP>/install.sh",
+     "--version",
+     "2.9.0",
+     "--root",
+     "<TMP>/managed",
+     "--profile",
+     "Full",
+     "--extras",
+     "",
+     "--languages",
+     "por,eng,spa,ita,fra,deu",
+     "--data-root",
+     "<TMP>/dados",
+     "--no-shortcut"
+    ],
+    "env": {}
+   },
+   {
+    "argv": [
+     "sh",
+     "<UPDATE-TEMP>/install.sh",
+     "--version",
+     "2.9.0",
+     "--root",
+     "<TMP>/managed",
+     "--profile",
+     "Full",
+     "--extras",
+     "",
+     "--languages",
+     "por,eng,spa,ita,fra,deu",
+     "--data-root",
+     "<TMP>/dados",
+     "--no-shortcut"
+    ],
+    "env": {}
+   },
+   {
+    "argv": [
+     "sh",
+     "<UPDATE-TEMP>/install.sh",
+     "--version",
+     "2.9.0",
+     "--root",
+     "<TMP>/managed",
+     "--profile",
+     "Full",
+     "--extras",
+     "",
+     "--languages",
+     "por,eng,spa,ita,fra,deu",
+     "--data-root",
+     "<TMP>/dados",
+     "--no-shortcut"
+    ],
+    "env": {}
+   },
+   {
+    "argv": [
+     "gh-stub",
+     "attestation",
+     "verify",
+     "<UPDATE-TEMP>/install.sh",
+     "--repo",
+     "rickfreoa/traslado",
+     "--signer-workflow",
+     "rickfreoa/traslado/.github/workflows/release.yml",
+     "--source-ref",
+     "refs/tags/v2.9.0"
+    ],
+    "env": {}
+   }
+  ],
+  "download_falha": {
+   "erro": "ValueError",
+   "mensagem": "Sem conexão ao baixar instalador da versão v2.9.0; nada foi alterado (404)"
+  },
+  "instalador_falha": {
+   "erro": "ValueError",
+   "mensagem": "Falha ao executar install.sh para v2.9.0: quebrou"
+  },
+  "nome_duplicado": {
+   "erro": "ValueError",
+   "mensagem": "Nome duplicado em SHA256SUMS"
+  },
+  "ok:linux": {
+   "retorno": {
+    "root": "<TMP>/managed",
+    "status": "updated",
+    "version": "2.9.0"
+   }
+  },
+  "ok:win32": {
+   "retorno": {
+    "root": "<TMP>/managed",
+    "status": "updated",
+    "version": "2.9.0"
+   }
+  },
+  "pedidos": [
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/SHA256SUMS",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/install.sh",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/SHA256SUMS",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/install.ps1",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/SHA256SUMS",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/install.sh",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/SHA256SUMS",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/install.sh",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/SHA256SUMS",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/install.sh",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/SHA256SUMS",
+   "https://github.com/rickfreoa/traslado/releases/download/v2.9.0/install.sh"
+  ],
+  "rede_indisponivel": {
+   "erro": "ValueError",
+   "mensagem": "Sem conexão com o GitHub ou falha ao consultar atualizações; nada foi alterado (offline)"
+  },
+  "script_divergente": {
+   "erro": "ValueError",
+   "mensagem": "Hash de install.sh não confere com SHA256SUMS da tag v2.9.0; nada foi alterado"
+  },
+  "sem_current": {
+   "erro": "ValueError",
+   "mensagem": "current.json ilegivel ou ausente; update requer configuracao atual"
+  },
+  "so_atalhos_falharam": {
+   "erro": "ShortcutError",
+   "mensagem": "Atualizacao promovida; somente os atalhos falharam. Recrie com: \"<TMP>/managed/releases/u1/.venv/bin/python\" -I -m traslado shortcuts --root \"<TMP>/managed\""
+  },
+  "so_atalhos_sem_python": {
+   "erro": "ShortcutError",
+   "mensagem": "Atualizacao promovida; somente os atalhos falharam. Recrie com: <python da release ativa> -I -m traslado shortcuts --root \"<TMP>/managed\""
+  },
+  "tag_invalida": {
+   "erro": "ValueError",
+   "mensagem": "Versao invalida"
+  },
+  "verificacoes": [
+   [
+    "<TMP>/managed",
+    "2.9.0",
+    {
+     "SHA256SUMS": "2d2b9855d942840c413ab51acd54d57b19cac154d218f9d7421feeeb04cff880",
+     "install.sh": "a39f36c841a12fee8f4b45e0e55603672e14e0d947692596e6bf16322eef32c2"
+    },
+    [
+     "fetch_bytes",
+     "fetch_json",
+     "gh_cmd",
+     "repo",
+     "run_cmd"
+    ]
+   ],
+   [
+    "<TMP>/managed",
+    "2.9.0",
+    {
+     "SHA256SUMS": "2d2b9855d942840c413ab51acd54d57b19cac154d218f9d7421feeeb04cff880",
+     "install.ps1": "a39f36c841a12fee8f4b45e0e55603672e14e0d947692596e6bf16322eef32c2"
+    },
+    [
+     "fetch_bytes",
+     "fetch_json",
+     "gh_cmd",
+     "repo",
+     "run_cmd"
+    ]
+   ],
+   [
+    "<TMP>/managed",
+    "2.9.0",
+    {
+     "SHA256SUMS": "2d2b9855d942840c413ab51acd54d57b19cac154d218f9d7421feeeb04cff880",
+     "install.sh": "a39f36c841a12fee8f4b45e0e55603672e14e0d947692596e6bf16322eef32c2"
+    },
+    [
+     "fetch_bytes",
+     "fetch_json",
+     "gh_cmd",
+     "repo",
+     "run_cmd"
+    ]
+   ],
+   [
+    "<TMP>/managed",
+    "2.9.0",
+    {
+     "SHA256SUMS": "2d2b9855d942840c413ab51acd54d57b19cac154d218f9d7421feeeb04cff880",
+     "install.sh": "a39f36c841a12fee8f4b45e0e55603672e14e0d947692596e6bf16322eef32c2"
+    },
+    [
+     "fetch_bytes",
+     "fetch_json",
+     "gh_cmd",
+     "repo",
+     "run_cmd"
+    ]
+   ],
+   [
+    "<TMP>/managed",
+    "2.9.0",
+    {
+     "SHA256SUMS": "2d2b9855d942840c413ab51acd54d57b19cac154d218f9d7421feeeb04cff880",
+     "install.sh": "a39f36c841a12fee8f4b45e0e55603672e14e0d947692596e6bf16322eef32c2"
+    },
+    [
+     "fetch_bytes",
+     "fetch_json",
+     "gh_cmd",
+     "repo",
+     "run_cmd"
+    ]
+   ],
+   [
+    "<TMP>/managed",
+    "2.9.0",
+    {
+     "SHA256SUMS": "2d2b9855d942840c413ab51acd54d57b19cac154d218f9d7421feeeb04cff880",
+     "install.sh": "a39f36c841a12fee8f4b45e0e55603672e14e0d947692596e6bf16322eef32c2"
+    },
+    [
+     "fetch_bytes",
+     "fetch_json",
+     "gh_cmd",
+     "repo",
+     "run_cmd"
+    ]
+   ]
+  ],
+  "versao_invalida_param": {
+   "erro": "ValueError",
+   "mensagem": "Sem conexão com o GitHub ou falha ao consultar atualizações; nada foi alterado (Versao invalida)"
+  }
+ },
+ "h_superficie": {
+  "nomes": [
+   "Callable",
+   "DEFAULT_LANGUAGES",
+   "Options",
+   "POWERSHELL_WIN",
+   "Path",
+   "REPOSITORY_URL",
+   "ShortcutError",
+   "_TESSERACT_LINUX",
+   "_assert_pe_architecture",
+   "_assert_platform_architecture",
+   "_defer_self_removal",
+   "_find_bootstrap_ps1",
+   "_find_ocr_lock",
+   "_get_windows_native_machine",
+   "_install_tessdata_from_lock",
+   "_managed_python_exe",
+   "_parse_tesseract_version",
+   "_purge_seven_zip",
+   "_read_pe_machine",
+   "_remove_unreferenced_release_locked",
+   "_shortcut_dirs_from_env",
+   "_utc_now",
+   "active_release_matches",
+   "annotations",
+   "base64",
+   "compute_release_id",
+   "datetime",
+   "discard_pending_uninstall",
+   "doctor",
+   "evaluate_doctor_gate",
+   "handle_legacy_windows",
+   "hashlib",
+   "host",
+   "importlib",
+   "json",
+   "linux_tesseract_hint",
+   "normalize_extras",
+   "normalize_languages",
+   "ocr",
+   "os",
+   "plat",
+   "prune_releases",
+   "re",
+   "release_in_use",
+   "release_integrity",
+   "remove_unreferenced_release",
+   "revocation",
+   "run_fixture_gate",
+   "runner",
+   "setup_ocr",
+   "setup_release",
+   "shutil",
+   "subprocess",
+   "sys",
+   "tempfile",
+   "timezone",
+   "uninstall_managed",
+   "unsafe_link",
+   "update_release",
+   "uuid",
+   "validate_bootstrap_digests",
+   "validate_version"
+  ]
+ }
+}
