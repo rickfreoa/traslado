@@ -51,3 +51,22 @@ Script `C:\Traslado\wt30\e0-lab\spike\spike_e0.py` (fixture sintética pública 
 | Q4: ms por página | `rawdict` mediana 5,1 (carga baixa); conversão ponta a ponta da 2.0.2: 1,46 s para 22 páginas (~66 ms/página, com partida do processo) | `rawdict` 15,8; `get_layout()` mediana 879 ms, p95 958 ms (CPU a 82% com outras tarefas; primeira medida, sob mais carga: 1.172 ms) | **o layout em toda página nativa custa ~13 vezes a conversão inteira da 2.0.2 por página** |
 
 **Consequência para o gate de desempenho (§8 do pré-registro, ≤ 1,5× a 2.0 em PDF nativo):** com o layout aplicado a toda página, o `pymupdf2` reprova por larga margem, mesmo descontada a carga da máquina. O limiar não muda. Duas saídas compatíveis com o plano, a decidir pelo titular antes da E3: (a) aplicar o layout só a páginas sinalizadas por indicadores baratos do `classic` (duas colunas, candidata a nota, tabela sem borda), medindo o gate sobre o documento inteiro; (b) manter o `pymupdf2` experimental, fora da promoção, se (a) não couber. Medida definitiva só com máquina quiescente (§1.6).
+
+## Decisão do titular sobre o motor (23/11/2026)
+
+**Decisão.** Na 3.0.0, `classic` é o motor padrão e `pymupdf2` fica atrás da interface própria como opção explícita (opt-in), rotulada experimental. Nenhum limiar muda. O motor novo só é promovido a padrão se uma medição futura, no hardware do titular, passar o gate de desempenho (≤ 1,5× a 2.0, mediana e p95 por página). Notas, página impressa e mobiliário nascem de módulos próprios (`footnotes`, `pagination`, `structure`), sem dependência do layout. A saída (b) do parágrafo anterior (layout só em páginas sinalizadas) é afastada como caminho de promoção.
+
+**Medida que a sustenta** (`C:\Biblioteca\_sistema\traslado30\medidas\fracao-layout-20261123*.json*`, script `fracao_layout.py`; só contagens por identificador de obra). Amostra T11 congelada, 60 PDFs; 3.426 páginas, das quais 2.247 sem camada de texto (rota de OCR, fora desta medida) e 1.179 com texto. Detectores baratos sobre o texto estruturado do PyMuPDF 1.28.2, em duas calibrações: nota no rodapé (fonte menor, zona inferior, marca inicial), duas colunas (agrupamento de bordas das linhas) e tabela com régua (≥ 3 traços horizontais longos).
+
+| Grupo (páginas com texto) | Sinalizadas, calibração estrita | Sinalizadas, calibração frouxa |
+|---|---|---|
+| controle (313) | 14,4% | 34,2% |
+| revisar-estrutura (682) | 57,6% | 59,4% |
+| escaneadas-candidatas (184) | 33,7% | 49,5% |
+| total (1.179) | 42,4% | 51,1% |
+
+**Leitura.** O critério que refutaria a hipótese (fração sinalizada abaixo de 5%) não se cumpre em nenhum grupo, nem no controle. Acima de 5% o p95 por página é o custo do layout (~14× a conversão); a partir de 50% a mediana também. Layout seletivo, portanto, não recupera o gate em obras com notas e colunas.
+
+**Limites.** (i) A amostra foi escolhida por problema de estrutura e por suspeita de escaneamento: não representa o acervo de 3.621 obras; o grupo de controle (n = 10 obras) é o menos enviesado e já passa de 5%. (ii) Detectores sem gabarito: a calibração frouxa tende a superestimar notas; tabelas sem borda não são vistas (limite inferior). (iii) O custo do layout vem da medida de 17/11 em fixture sintética (879 ms por página), não de obra. (iv) Páginas sem texto seguem pelo OCR, onde a rota B não aceita blocos de OCR no layout (prova de 08/11).
+
+**Consequência.** A melhora de NID/MHS no estrato "duas colunas + notas", que motivava o motor, não é perseguida como promoção na 3.0; o `pymupdf2` é medido na E7 como relatório. O valor estrutural da 3.0 (modelo v2, notas, página impressa, chunks v2) não depende do layout: a viabilidade foi demonstrada nos dois motores no teste de 17/11.
