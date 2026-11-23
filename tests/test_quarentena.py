@@ -170,8 +170,12 @@ class QuarentenaContractTests(unittest.TestCase):
             "-v",
             "tests.test_quarentena.QuarentenaContractTests.test_arquivo_quarentena_json_valido_e_inicialmente_vazio",
         ]
-        env = {**os.environ, "PYTHONPATH": "src"}
-        res = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=60)
+        # O filho escreve na codificação que lhe for dada; o pai lê nessa mesma. Sem isso, um pai em modo UTF-8
+        # (-X utf8, sem PYTHONUTF8 no ambiente) lia como UTF-8 o "célula" que o filho gravava em cp1252, o leitor
+        # do subprocess falhava e res.stdout vinha None (erro local desde 17/11; o CI define PYTHONUTF8=1).
+        env = {**os.environ, "PYTHONPATH": "src", "PYTHONIOENCODING": "utf-8"}
+        res = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, encoding="utf-8", errors="replace",
+                             timeout=60)
         self.assertEqual(res.returncode, 0, f"Falha ao executar runner: {res.stdout}\n{res.stderr}")
         self.assertNotIn("ModuleNotFoundError: No module named 'tests'", res.stdout + res.stderr)
 
