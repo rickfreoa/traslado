@@ -270,7 +270,7 @@ class CorrectionsE5(unittest.TestCase):
             directory.mkdir(parents=True, exist_ok=True)
             for name in ("ocr-assets.lock.json", "bootstrap_ocr.ps1"):
                 (directory / name).write_text("malicious local replacement")
-        packaged = Path(lifecycle.__file__).parent / "assets"
+        packaged = Path(lifecycle.__file__).parents[1] / "assets"
         self.assertEqual(lifecycle._find_ocr_lock(release, local), packaged / "ocr-assets.lock.json")
         self.assertEqual(lifecycle._find_bootstrap_ps1(release, local), packaged / "bootstrap_ocr.ps1")
         for name in ("install.ps1", "install.sh"):
@@ -350,12 +350,12 @@ class CorrectionsE5(unittest.TestCase):
         from traslado import cli
         current = self.setup()
         release = self.root / "releases" / current["release_id"]
-        with patch.object(lifecycle, "release_in_use", return_value=True):
+        with patch.object(lifecycle.releases, "release_in_use", return_value=True):
             result = lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32", home=Path(self.tmp.name))
         self.assertEqual(result["status"], "uninstall_pending")
         self.assertTrue(release.is_dir())
         self.assertTrue((self.root / "state/pending-uninstall.json").is_file())
-        with patch.object(lifecycle, "release_in_use", return_value=False):
+        with patch.object(lifecycle.releases, "release_in_use", return_value=False):
             self.assertEqual(cli.main(["where", "--root", str(self.root)]), 1)  # where não retoma nem remove nada
             self.assertTrue(release.exists())
             self.assertEqual(cli.main(["uninstall", "--yes", "--root", str(self.root)]), 0)
@@ -384,18 +384,18 @@ class CorrectionsE5(unittest.TestCase):
     def test_n5_new_setup_discards_pending_uninstall_without_touching_data(self):
         current = self.setup()
         release = self.root / "releases" / current["release_id"]
-        with patch.object(lifecycle, "release_in_use", return_value=True):
+        with patch.object(lifecycle.releases, "release_in_use", return_value=True):
             lifecycle.uninstall_managed(root=self.root, yes=True, platform_name="win32", home=Path(self.tmp.name))
         marker = self.root / "state/pending-uninstall.json"
         self.assertTrue(marker.is_file())
-        with patch.object(lifecycle, "release_in_use", return_value=False):
+        with patch.object(lifecycle.releases, "release_in_use", return_value=False):
             lifecycle.discard_pending_uninstall(self.root)
         self.assertFalse(marker.exists())
         self.assertFalse(release.exists())
         self.assertTrue(Path(current["data_root"]).exists())
 
     def test_n6_legacy_untouched_on_rejected_gates_and_without_promotion(self):
-        with patch.object(lifecycle, "handle_legacy_windows") as legacy:
+        with patch.object(lifecycle.legacy_windows, "handle_legacy_windows") as legacy:
             with self.assertRaises(ValueError):
                 self.setup(fixture_fn=lambda: False)
             legacy.assert_not_called()
@@ -467,11 +467,11 @@ class CorrectionsE5(unittest.TestCase):
         self.assertTrue((self.root / "releases/keep").exists())
         self.setup("a")
         self.setup("b")
-        with patch.object(lifecycle, "release_in_use", side_effect=lambda path: path.name == "a"):
+        with patch.object(lifecycle.releases, "release_in_use", side_effect=lambda path: path.name == "a"):
             self.setup("c")
         self.assertTrue((self.root / "releases/a").exists())
         self.assertTrue((self.root / "state/pending-removals/a.json").is_file())
-        with patch.object(lifecycle, "release_in_use", return_value=False):
+        with patch.object(lifecycle.releases, "release_in_use", return_value=False):
             lifecycle.prune_releases(self.root, pending_only=True)
         self.assertFalse((self.root / "releases/a").exists())
         self.assertTrue((self.root / "releases/b").exists())

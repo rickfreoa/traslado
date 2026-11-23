@@ -170,7 +170,7 @@ class ScriptsE6(unittest.TestCase):
             shutil.copyfile(config, release/'.venv/pyvenv.cfg')
             (managed/'current.json').write_text(json.dumps({'schema': 2, 'release_id': release.name, 'data_root': str(dados)}), encoding='utf-8')
             env = {**os.environ, **profile_environment(raw),
-                   'PYTHONPATH': os.pathsep.join((str(Path(lifecycle.__file__).resolve().parents[1]),
+                   'PYTHONPATH': os.pathsep.join((str(Path(lifecycle.__file__).resolve().parents[2]),
                                                 str(ROOT / 'tests'), os.environ.get('PYTHONPATH', '')))}
             proc = subprocess.run([str(python), '-c', 'from traslado.lifecycle import uninstall_managed; import sys,json; from pathlib import Path; from profile_safety import guard_shortcut_locations; guard_shortcut_locations(Path(sys.argv[2])).start(); print(json.dumps(uninstall_managed(root=Path(sys.argv[1]),yes=True,home=Path(sys.argv[2]))))', str(managed), raw],
                                   env=env, capture_output=True, text=True, timeout=40)

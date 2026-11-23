@@ -892,7 +892,7 @@ class LifecycleGatesAndCommandsTests(unittest.TestCase):
         shutil.copytree(from_dir, gate_dir)
         with zipfile.ZipFile(wheel_path) as archive:
             entries = {name: archive.read(name) for name in archive.namelist()}
-        entries["traslado/lifecycle.py"] += b"\nrun_fixture_gate = lambda **kwargs: False\n"
+        entries["traslado/lifecycle/gates.py"] += b"\nrun_fixture_gate = lambda **kwargs: False\n"
         with zipfile.ZipFile(gate_dir / wheel_path.name, "w", zipfile.ZIP_DEFLATED) as archive:
             for name, data in entries.items():
                 archive.writestr(name, data)
@@ -1082,7 +1082,7 @@ class LocksAndWrappersContractTests(unittest.TestCase):
         self.assertEqual(res["ocr"]["origin"], "lock")
 
         # Caso 4: plataforma ARM64 (mesmo sob emulação x64) com executável x64 -> recusa de plataforma
-        with mock.patch("traslado.lifecycle._get_windows_native_machine", return_value=0xAA64, create=True):
+        with mock.patch("traslado.lifecycle.ocr_setup._get_windows_native_machine", return_value=0xAA64, create=True):
             with self.assertRaises(RuntimeError) as ctx_plat:
                 lifecycle.setup_ocr(release_dir_x64, platform_name="win32", profile="Full")
             self.assertIn("OCR: Windows ARM64 nao suportado nesta versao; sistema operacional e ARM64", str(ctx_plat.exception))

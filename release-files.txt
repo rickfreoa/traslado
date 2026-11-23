@@ -58,7 +58,15 @@ src/traslado/errors.py
 src/traslado/formats.py
 src/traslado/legacy.py
 src/traslado/gui.py
-src/traslado/lifecycle.py
+src/traslado/lifecycle/__init__.py
+src/traslado/lifecycle/_common.py
+src/traslado/lifecycle/gates.py
+src/traslado/lifecycle/install.py
+src/traslado/lifecycle/legacy_windows.py
+src/traslado/lifecycle/ocr_setup.py
+src/traslado/lifecycle/releases.py
+src/traslado/lifecycle/uninstall.py
+src/traslado/lifecycle/update.py
 src/traslado/model.py
 src/traslado/ocr.py
 src/traslado/pathguard.py

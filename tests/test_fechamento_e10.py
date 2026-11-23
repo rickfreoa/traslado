@@ -80,7 +80,7 @@ class PodaConcorrente(unittest.TestCase):
         return root
 
     def test_candidata_de_outra_instalacao_protegida(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp, patch.object(lifecycle, "release_in_use", return_value=False):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(lifecycle.releases, "release_in_use", return_value=False):
             root = self.raiz(tmp)
             lifecycle.prune_releases(root)
             self.assertTrue((root / "releases/candidata").is_dir())
@@ -95,7 +95,7 @@ class PodaConcorrente(unittest.TestCase):
             self.assertTrue(lifecycle.remove_unreferenced_release(root, root / "releases/candidata", candidate_reprovada=True))
 
     def test_lock_de_promocao_ocupado_adia_pela_marca(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp, patch.object(lifecycle, "release_in_use", return_value=False):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(lifecycle.releases, "release_in_use", return_value=False):
             root = self.raiz(tmp)
             (root / "state").mkdir(exist_ok=True)
             (root / "state/promote.lock").write_text("123\n")
