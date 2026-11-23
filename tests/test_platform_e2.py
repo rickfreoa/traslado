@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+from traslado import __version__
 from unittest.mock import patch
 
 from traslado import platform as p
@@ -298,7 +300,7 @@ class PlatformE2(unittest.TestCase):
 
         update_pkg = self.root / "update_pkg"
         update_pkg.mkdir(parents=True, exist_ok=True)
-        wheel_name = "traslado-2.0.2-py3-none-any.whl"
+        wheel_name = f"traslado-{__version__}-py3-none-any.whl"
         (update_pkg / wheel_name).write_bytes(b"wheel_sentinel")
         script_name = "install.ps1" if sys.platform == "win32" else "install.sh"
         (update_pkg / script_name).write_bytes(b"script_sentinel")

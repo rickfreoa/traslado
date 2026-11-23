@@ -224,9 +224,9 @@ def main(argv: list[str] | None = None) -> int:
             result = execute(file, args.output, options)
             if result.get("error_code") == "needs_ocr":
                 if sys.platform == "darwin":
-                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract no macOS, execute: brew install tesseract"
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Para instalar o Tesseract e os idiomas no macOS, execute: brew install tesseract tesseract-lang"
                 elif sys.platform != "win32":
-                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). " + linux_tesseract_hint()
+                    result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). " + linux_tesseract_hint(languages=options.language)
                 else:
                     result["error"] = str(result.get("error") or "").rstrip() + " OCR indisponível (needs_ocr). Configure o Tesseract local ou reinstale o perfil Full."
             results.append(result)

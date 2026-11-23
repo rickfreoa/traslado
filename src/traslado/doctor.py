@@ -50,6 +50,13 @@ def inspect(tesseract: str | None = None, tessdata: str | None = None, *, root: 
             if proc.returncode == 0:
                 result["languages"] = [line.strip() for line in proc.stdout.decode("utf-8", errors="replace").splitlines()
                                        if line.strip() and not line.lower().startswith("list of available")]
+                # O OCR exige todos os idiomas pedidos: faltando um, falha em todas as páginas escaneadas.
+                missing = [code for code in settings["languages"] if code not in result["languages"]]
+                if missing:
+                    result["missing_languages"] = missing
+                    result["warnings"].append(
+                        "Idiomas OCR padrão ausentes no Tesseract: " + ", ".join(missing)
+                        + "; o OCR falhará nas páginas escaneadas até instalá-los ou reduzir 'languages' na configuração")
             else:
                 result["warnings"].append("Tesseract não conseguiu listar idiomas")
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:

@@ -37,17 +37,26 @@ class ShortcutError(RuntimeError):
     """Promotion succeeded, desktop integration needs retry (exit 4)."""
 
 
+# Família, comando do pacote base e nome do pacote de cada idioma ({} = código Tesseract).
+# O pacote base dessas distribuições traz, no máximo, inglês; sem os pacotes de idioma, o OCR
+# do Traslado (que exige todos os idiomas pedidos) falha em todas as páginas escaneadas.
+# openSUSE: nome dos subpacotes de idioma não conferido; a dica nomeia os idiomas sem inventar pacote.
 _TESSERACT_LINUX = (
-    ({"debian", "ubuntu", "linuxmint", "pop"}, "sudo apt install tesseract-ocr"),
-    ({"fedora", "rhel", "centos", "rocky", "almalinux"}, "sudo dnf install tesseract"),
-    ({"opensuse", "suse", "opensuse-leap", "opensuse-tumbleweed", "sles"}, "sudo zypper install tesseract-ocr"),
-    ({"arch", "manjaro", "endeavouros"}, "sudo pacman -S tesseract"),
-    ({"alpine"}, "sudo apk add tesseract-ocr"),
+    ({"debian", "ubuntu", "linuxmint", "pop"}, "sudo apt install tesseract-ocr", "tesseract-ocr-{}"),
+    ({"fedora", "rhel", "centos", "rocky", "almalinux"}, "sudo dnf install tesseract", "tesseract-langpack-{}"),
+    ({"opensuse", "suse", "opensuse-leap", "opensuse-tumbleweed", "sles"}, "sudo zypper install tesseract-ocr", None),
+    ({"arch", "manjaro", "endeavouros"}, "sudo pacman -S tesseract", "tesseract-data-{}"),
+    ({"alpine"}, "sudo apk add tesseract-ocr", "tesseract-ocr-data-{}"),
 )
 
 
-def linux_tesseract_hint(os_release: str = "/etc/os-release") -> str:
-    """Comando de instalação do Tesseract para a distribuição em /etc/os-release (ID e ID_LIKE)."""
+def linux_tesseract_hint(os_release: str = "/etc/os-release", languages: str | None = None) -> str:
+    """Comando de instalação do Tesseract para a distribuição em /etc/os-release (ID e ID_LIKE).
+
+    Com `languages` ("por+eng"), inclui os pacotes desses idiomas: fora da instalação gerenciada,
+    o OCR usa o tessdata do sistema, e o pacote base não os traz.
+    """
+    codes = [c for c in (languages or "").split("+") if c]
     campos: dict[str, list[str]] = {"ID": [], "ID_LIKE": []}
     try:
         with open(os_release, encoding="utf-8", errors="replace") as handle:
@@ -58,9 +67,18 @@ def linux_tesseract_hint(os_release: str = "/etc/os-release") -> str:
     except OSError:
         pass
     for ident in campos["ID"] + campos["ID_LIKE"]:  # ID decide antes de ID_LIKE
-        for family, command in _TESSERACT_LINUX:
+        for family, command, package in _TESSERACT_LINUX:
             if ident in family:
+                if codes and package:
+                    # Debian e Ubuntu grafam com hífen os códigos compostos (chi_sim -> tesseract-ocr-chi-sim).
+                    debian = package.startswith("tesseract-ocr-") and "apt" in command
+                    command += "".join(" " + package.format(c.replace("_", "-") if debian else c) for c in codes)
+                elif codes:
+                    command += " e os modelos de idioma " + ", ".join(codes)
                 return "Para instalar o Tesseract nesta distribuição, execute: " + command
+    if codes:
+        return ("Instale o pacote do Tesseract OCR e os modelos de idioma " + ", ".join(codes)
+                + " pelo gerenciador de pacotes da sua distribuição.")
     return "Instale o pacote do Tesseract OCR pelo gerenciador de pacotes da sua distribuição."
 
 

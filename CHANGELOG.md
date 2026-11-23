@@ -2,8 +2,10 @@
 
 Ricardo Peres Freoa | Stocche Forbes Advogados
 
-## Não publicado
+## 2.0.3 (19/11/2026)
 
+- OCR fora da instalação gerenciada (Tesseract do sistema, como em servidor): a dica de `needs_ocr` no Linux passa a incluir os pacotes de cada idioma pedido (`tesseract-ocr-<código>` no Debian e Ubuntu, `tesseract-langpack-<código>` no Fedora e RHEL, `tesseract-data-<código>` no Arch, `tesseract-ocr-data-<código>` no Alpine); no openSUSE e em distribuição desconhecida, nomeia os idiomas sem inventar pacote. No macOS, `brew install tesseract tesseract-lang`. Antes, a dica mandava instalar só o pacote base, que traz no máximo inglês; como o OCR exige todos os idiomas pedidos, quem a seguia continuava com `needs_ocr` em todas as páginas escaneadas.
+- `traslado doctor` acusa os idiomas padrão ausentes no Tesseract (`missing_languages` e aviso), em vez de listar os disponíveis sem conferir. O código de saída do doctor não muda. A dica do `traslado setup` continua a do pacote base, porque o setup instala os idiomas a partir do lock.
 - Quatro achados do fuzz noturno passam a falhas classificadas, sem exceção interna: contagem de páginas recusada pelo MuPDF (`code=7`) e cabeçalho PNG truncado resultam em `malformed`; membro de ZIP truncado (`EOFError`) resulta em `malformed`; membro de ZIP com bit de criptografia resulta em `encrypted`; membro LZMA com propriedades inválidas resulta em `malformed`. Os cinco payloads entram nas regressões automáticas.
 - O worker grava stdout em UTF-8: no Windows, diagnóstico do MuPDF com bytes fora do UTF-8 deixava de virar falha interna (`SystemError` em `page_get_textpage`).
 - A correção altera só a classificação de falhas; `document.md` e `chunks.jsonl` de documentos válidos não mudam.
